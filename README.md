@@ -1,4 +1,7 @@
-# CiMS
+# CiMS APP
 
-Projecte Intermodular basat en Flutter
+Autors:
 
+Edim Batalla
+Marco Bia
+Daniel Caravaca
