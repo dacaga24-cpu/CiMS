@@ -1,0 +1,24 @@
+# Flutter/Dart/Pub
+.dart_tool/
+.packages
+.pub/
+build/
+flutter_*.png
+
+# Android
+**/android/**/local.properties
+**/android/**/gradle.properties
+**/android/.gradle/
+
+# iOS
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Pods/
+**/ios/Runner.xcworkspace/
+
+# VS Code
+.vscode/
+
+# Others
+.idea/
+*.iml
