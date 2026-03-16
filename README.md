@@ -1,5 +1,9 @@
-# CiMS
+# CiMS APP
 
-Projecte Intermodular basat en Flutter
+Autors:
 
-Aquest projecte està realitzat pels alumnes de DAM: Edim Batalla, Marco Bia i Daniel Caravaca
+Edim Batalla
+Marco Bia
+Daniel Caravaca
+
+BemenFP - 2026
