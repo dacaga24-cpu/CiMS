@@ -4,6 +4,8 @@
 .pub/
 build/
 flutter_*.png
+pubspec.lock
+.flutter-plugins-dependencies
 
 # Android
 **/android/**/local.properties
@@ -16,9 +18,23 @@ flutter_*.png
 **/ios/Pods/
 **/ios/Runner.xcworkspace/
 
-# VS Code
-.vscode/
+# Node.js
+node_modules/
 
-# Others
+# Entorno
+.env
+
+# Claude Code
+.claude/
+
+# IDEs
+.vscode/
 .idea/
 *.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
