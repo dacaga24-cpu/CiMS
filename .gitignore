@@ -22,19 +22,3 @@ flutter_*.png
 # Others
 .idea/
 *.iml
-
-# Database
-# Scripts SQL de MySQL (ya no se usan, pero se mantienen como referencia)
-database/backup*.sql
-database/*.ibd
-database/*.frm
-!database/init.sql
-!database/seed*.sql
-
-# SQLite - puedes descomentar la siguiente línea si NO quieres versionar el archivo .db
-# *.db
-
-# Backend
-backend/node_modules/
-backend/.env
-backend/.env.local
