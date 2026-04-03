@@ -6,8 +6,6 @@ const express = require('express');
 const cors = require('cors');
 
 const authRoutes = require('./routes/authRoutes');
-const peakRoutes = require('./routes/peakRoutes');
-const ascentRoutes = require('./routes/ascentRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -23,8 +21,6 @@ app.get('/health', (req, res) => {
 
 // Registro de rutas
 app.use('/api/auth', authRoutes);
-app.use('/api/peaks', peakRoutes);
-app.use('/api/ascents', ascentRoutes);
 
 // Manejador global de errores (debe ir al final)
 app.use(errorHandler);
