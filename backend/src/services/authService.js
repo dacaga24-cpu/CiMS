@@ -1,4 +1,5 @@
 const bcrypt = require('bcrypt');
+const UserModel = require('../models/userModel');
 
 const SALT_ROUNDS = 10;
 
@@ -12,9 +13,18 @@ const AuthService = {
     return await bcrypt.compare(plainPassword, hashedPassword);
   },
 
-  async register(userData) {
-    return { message: 'Register service ready', data: userData };
+  async register({ firstName, lastName, email, password }) {
+    const existing = await UserModel.findByEmail(email);
+    if (existing) {
+      const error = new Error('Email is already registered');
+      error.statusCode = 409;
+      throw error;
+    }
+    const hashedPassword = await this.hashPassword(password);
+    const user = await UserModel.create({ firstName, lastName, email, password: hashedPassword });
+    return { id: user.id };
   },
+
 
   async login(credentials) {
     return { message: 'Login service ready', data: credentials };
