@@ -1,4 +1,4 @@
-# Frontend — CiMS
+# Frontend — CiMS APP
 
 ## Objectiu
 
