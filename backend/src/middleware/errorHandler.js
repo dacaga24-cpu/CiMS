@@ -24,7 +24,7 @@ const errorHandler = (err, req, res, next) => {
   // Això evita exposar detalls tècnics innecessaris al client.
   return res.status(500).json({
     error: 'Internal Server Error',
-  });
+  }); 
 };
 
 // Exportem el middleware perquè es pugui registrar a app.js
