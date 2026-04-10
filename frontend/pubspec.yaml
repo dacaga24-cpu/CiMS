@@ -1,5 +1,5 @@
 name: cims
-description: A minimal Flutter app that shows "Hello World".
+description: Frontend multiplataforma de CiMS per consultar cims, registrar ascensions i gestionar el progrés de l'usuari.
 publish_to: 'none'
 version: 0.1.0+1
 
@@ -9,11 +9,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  auto_route: ^11.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  auto_route_generator: ^10.5.0
+  build_runner: ^2.13.1
 
 flutter:
   uses-material-design: true
