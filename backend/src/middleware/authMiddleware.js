@@ -1,6 +1,6 @@
 // authMiddleware.js
-// Responsabilidad: Verificar tokens JWT en rutes protegides
-// Extrae el userId del token i l'adjunta a req.user
+// Verificar tokens JWT en rutes protegides
+// Extreu l'userId del token i l'adjunta a req.user
 
 const jwt = require('jsonwebtoken');
 
