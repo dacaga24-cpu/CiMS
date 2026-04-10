@@ -1,4 +1,5 @@
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const UserModel = require('../models/userModel');
 
 const SALT_ROUNDS = 10;
@@ -10,6 +11,18 @@ const AuthService = {
 
   async comparePassword(plainPassword, hashedPassword) {
     return await bcrypt.compare(plainPassword, hashedPassword);
+  },
+  // Genera un token JWT per un usuari autenticat
+  generateToken(userId) {
+    const payload = { userId };
+    const secret = process.env.JWT_SECRET;
+    const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
+    // Comprova que la clau secreta està definida
+    if (!secret) {
+      throw new Error('JWT_SECRET is not defined in environment variables');
+    }
+
+    return jwt.sign(payload, secret, { expiresIn });
   },
 
   async register({ firstName, lastName, email, password }) {
@@ -23,7 +36,7 @@ const AuthService = {
 
     const hashedPassword = await this.hashPassword(password);
     const user = await UserModel.create({ firstName, lastName, email, password: hashedPassword });
-    
+
     return { id: user.id };
   },
 
@@ -44,9 +57,12 @@ const AuthService = {
       error.statusCode = 401;
       throw error;
     }
+   // Genera un token JWT per l'usuari autenticat
+    const token = this.generateToken(user.id);
 
     return {
       message: 'Login successful',
+      token,
       userId: user.id,
     };
   },
