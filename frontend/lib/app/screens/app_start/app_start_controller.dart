@@ -16,7 +16,7 @@ class AppStartController extends ChangeNotifier {
   // També permet definir quant de temps s’ha de mostrar com a mínim la pantalla inicial.
   AppStartController({
     required Future<bool> Function() hasSavedSession,
-    this.minimumDisplayTime = const Duration(milliseconds: 2800),
+    this.minimumDisplayTime = const Duration(milliseconds: 1800),
   }) : _hasSavedSession = hasSavedSession;
 
   // Aquest bloc guarda els valors principals que necessita el controlador:
@@ -54,9 +54,10 @@ class AppStartController extends ChangeNotifier {
     _destination = AppStartDestination.none;
   }
 
-  @override
+
   // Aquest mètode marca el controlador com a finalitzat abans de tancar-lo.
   // D’aquesta manera s’evita continuar fent comprovacions o canvis quan ja no toca.
+  @override
   void dispose() {
     _disposed = true;
     super.dispose();

@@ -9,9 +9,10 @@ part 'app_router.gr.dart';
 // Aquí s’indica quines pantalles existeixen i en quin ordre es poden carregar.
 @AutoRouterConfig(replaceInRouteName: 'Screen|Page,Route')
 class AppRouter extends RootStackRouter {
-  @override
+
  // Aquest bloc recull les rutes principals de l’aplicació.
-  // També estableix quina és la pantalla inicial que es mostra quan l’usuari obre CiMS.  
+  // També estableix quina és la pantalla inicial que es mostra quan l’usuari obre CiMS.
+  @override  
   List<AutoRoute> get routes => [
         AutoRoute(page: AppStartRoute.page, initial: true),
         AutoRoute(page: LoginRoute.page),
