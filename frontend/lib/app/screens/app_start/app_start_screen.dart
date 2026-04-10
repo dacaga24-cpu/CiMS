@@ -6,6 +6,9 @@ import '../../router/app_router.dart';
 import 'app_start_controller.dart';
 
 @RoutePage()
+// Aquesta pantalla actua com a punt d’entrada visual de l’aplicació.
+// Mostra el logotip inicial, prepara una animació de presentació
+// i decideix a quina pantalla s’ha d’enviar l’usuari segons el seu estat de sessió.
 class AppStartScreen extends StatefulWidget {
   const AppStartScreen({super.key});
 
@@ -13,14 +16,23 @@ class AppStartScreen extends StatefulWidget {
   State<AppStartScreen> createState() => _AppStartScreenState();
 }
 
+// Aquesta classe gestiona la lògica interna de la pantalla inicial.
+// Aquí es controla tant la comprovació de sessió com l’animació
+// que es mostra mentre es decideix el següent pas dins de l’aplicació.
 class _AppStartScreenState extends State<AppStartScreen>
     with SingleTickerProviderStateMixin {
+  // Aquest bloc agrupa els elements principals que necessita la pantalla:
+  // un controlador per decidir la navegació i diverses animacions per donar
+  // una entrada visual més suau al logotip.
   late final AppStartController controller;
   late final AnimationController animationController;
   late final Animation<double> fadeAnimation;
   late final Animation<double> scaleAnimation;
 
   @override
+  // Aquest mètode prepara tot el necessari quan la pantalla es carrega.
+  // Inicialitza la lògica que decidirà la navegació, configura les animacions
+  // del logotip i posa en marxa tant l’efecte visual com la comprovació inicial.
   void initState() {
     super.initState();
 
@@ -52,6 +64,9 @@ class _AppStartScreenState extends State<AppStartScreen>
     controller.initialize();
   }
 
+  // Aquest mètode respon als canvis del controlador.
+  // Quan el sistema ja sap on ha d’anar l’usuari, fa la navegació
+  // cap a la pantalla de login o cap al dashboard principal.
   void _handleControllerChanges() {
     if (!mounted) return;
 
@@ -68,6 +83,8 @@ class _AppStartScreenState extends State<AppStartScreen>
   }
 
   @override
+  // Aquest mètode allibera els recursos utilitzats per la pantalla
+  // quan deixa d’estar activa, evitant que quedin processos oberts innecessàriament.
   void dispose() {
     controller.removeListener(_handleControllerChanges);
     controller.dispose();
@@ -76,6 +93,9 @@ class _AppStartScreenState extends State<AppStartScreen>
   }
 
   @override
+  // Aquest mètode construeix la part visual de la pantalla.
+  // Mostra únicament el logotip centrat amb una entrada progressiva,
+  // creant una pantalla inicial simple i neta mentre es prepara la navegació.
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F4),
