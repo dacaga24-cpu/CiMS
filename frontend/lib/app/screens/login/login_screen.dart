@@ -4,6 +4,10 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import 'login_controller.dart';
 
+// Aquesta pantalla mostra la interfície inicial de login de l'aplicació.
+// La seva responsabilitat és únicament visual: pintar el formulari,
+// recollir la interacció de l'usuari i delegar les accions al controller.
+// No conté lògica de negoci ni integració amb backend.
 @RoutePage()
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,21 +16,25 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
+// Aquesta classe gestiona el comportament intern de la pantalla.
 class _LoginScreenState extends State<LoginScreen> {
   late final LoginController controller;
 
+  // Aquest mètode prepara el controlador quan la pantalla es carrega per primera vegada.
   @override
   void initState() {
     super.initState();
     controller = LoginController();
   }
 
+  // Aquest mètode allibera el controlador quan la pantalla deixa d’utilitzar-se,
   @override
   void dispose() {
     controller.dispose();
     super.dispose();
   }
 
+// Aquest mètode construeix la part visual de la pantalla de login.
   @override
   Widget build(BuildContext context) {
     final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
@@ -42,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: GestureDetector(
               onTap: () => FocusScope.of(context).unfocus(),
               child: Stack(
-                children: [
+                children: [ // Aquest bloc mostra el logotip a la part superior de la pantalla.
                   Align(
                     alignment: const Alignment(0, -0.72),
                     child: SvgPicture.asset(
@@ -51,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 120,
                     ),
                   ),
-                  AnimatedPadding(
+                  AnimatedPadding(  // Aquest bloc conté tot el formulari d’inici de sessió.
                     duration: const Duration(milliseconds: 250),
                     curve: Curves.easeOut,
                     padding: EdgeInsets.only(bottom: formBottomOffset),
@@ -61,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
-                          children: [
+                          children: [ // Aquesta targeta agrupa els camps principals del formulari
                             Container(
                               width: double.infinity,
                               constraints: const BoxConstraints(maxWidth: 460),
@@ -216,6 +224,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
+// Aquest widget encapsula l'estil comú dels camps del formulari
+// per evitar duplicació de codi i mantenir una aparença uniforme.
 class _InputField extends StatelessWidget {
   const _InputField({
     required this.controller,
