@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cims/app/router/app_router.dart';
 
 void main() {
   runApp(const MyApp());
@@ -7,14 +8,13 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  static final AppRouter _appRouter = AppRouter();
+
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('Hello World', style: TextStyle(fontSize: 24)),
-        ),
-      ),
+    return MaterialApp.router(
+      debugShowCheckedModeBanner: true,
+      routerConfig: _appRouter.config(),
     );
   }
 }
