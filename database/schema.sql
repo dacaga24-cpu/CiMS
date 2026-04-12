@@ -103,4 +103,21 @@ CREATE TABLE IF NOT EXISTS peak_status (
   CONSTRAINT fk_peak_status_peak
     FOREIGN KEY (peak_id) REFERENCES peaks(id)
     ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 7. password_reset_tokens
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id          INT          NOT NULL AUTO_INCREMENT,
+  user_id     INT          NOT NULL,
+  token       VARCHAR(255) NOT NULL,
+  expires_at  DATETIME     NOT NULL,
+  is_used     TINYINT      NOT NULL DEFAULT 0,
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_password_reset_tokens_token (token),
+  INDEX idx_password_reset_tokens_user_id (user_id),
+  INDEX idx_password_reset_tokens_expires_at (expires_at),
+  CONSTRAINT fk_password_reset_tokens_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4; 
