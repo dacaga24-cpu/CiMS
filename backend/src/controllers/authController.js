@@ -1,7 +1,12 @@
 const AuthService = require('../services/authService');
 const UserModel = require('../models/userModel');
 
+// El controller és la capa que gestiona la comunicació HTTP.
+// Extreu les dades de la petició, delega la feina al service
+// i envia la resposta HTTP. Mai conté lògica de negoci ni SQL.
 const AuthController = {
+
+  // Extreu els camps del body, crida al service i retorna la resposta HTTP.
   async register(req, res, next) {
     try {
       const { firstName, lastName, email, password } = req.body;
@@ -12,6 +17,7 @@ const AuthController = {
     }
   },
 
+  // Extreu email i contrasenya del body, els passa al service.
   async login(req, res, next) {
     try {
       const { email, password } = req.body;
@@ -21,6 +27,7 @@ const AuthController = {
       next(error);
     }
   },
+  
   // Endpoint per obtenir el perfil de l'usuari autenticat
   async getProfile(req, res, next) {
     try {
