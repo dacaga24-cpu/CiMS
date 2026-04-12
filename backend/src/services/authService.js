@@ -1,10 +1,13 @@
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const UserModel = require('../models/userModel');
+const PasswordResetModel = require('../models/passwordResetModel');
 
 // Nombre de vegades que bcrypt processa la contrasenya per generar el hash.
 // 10 és l'estàndard de la indústria — uns 100ms en un servidor modern.
 const SALT_ROUNDS = 10;
+const RESET_TOKEN_EXPIRY_HOURS = 1;
 
 // Servei d'autenticació — conté tota la lògica de registre, login i gestió de contrasenyes.
 // Cap altra capa ha de saber com funciona bcrypt o JWT.
@@ -77,6 +80,86 @@ const AuthService = {
       message: 'Login successful',
       token,
       userId: user.id,
+    };
+  },
+
+  async requestPasswordReset(email) {
+    const user = await UserModel.findByEmail(email);
+
+    if (!user) {
+      // Per seguretat, no revelar si l'email existeix o no
+      return {
+        message: 'If the email exists, a reset token has been generated',
+      };
+    }
+
+    // Eliminar tokens anteriors d'aquest usuari
+    await PasswordResetModel.deleteByUserId(user.id);
+
+    // Generar token aleatori segur
+    const token = crypto.randomBytes(32).toString('hex');
+
+    // Calcular data d'expiració
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + RESET_TOKEN_EXPIRY_HOURS);
+
+    // Guardar el token
+    await PasswordResetModel.create({
+      userId: user.id,
+      token,
+      expiresAt,
+    });
+
+    return {
+      message: 'If the email exists, a reset token has been generated',
+      token, // En producció, això s'enviaria per email
+    };
+  },
+
+  async resetPassword({ token, newPassword }) {
+    const resetToken = await PasswordResetModel.findByToken(token);
+
+    if (!resetToken) {
+      const error = new Error('Invalid or expired reset token');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Verificar si el token ja s'ha utilitzat
+    if (resetToken.is_used) {
+      const error = new Error('Reset token has already been used');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Verificar si el token ha expirat
+    const now = new Date();
+    const expiresAt = new Date(resetToken.expires_at);
+
+    if (now > expiresAt) {
+      const error = new Error('Reset token has expired');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Hash de la nova contrasenya
+    const hashedPassword = await this.hashPassword(newPassword);
+
+    // Actualitzar la contrasenya de l'usuari
+    const sql = `
+      UPDATE users
+      SET password = ?
+      WHERE id = ?
+    `;
+
+    const pool = require('../config/db');
+    await pool.execute(sql, [hashedPassword, resetToken.user_id]);
+
+    // Marcar el token com a utilitzat
+    await PasswordResetModel.markAsUsed(resetToken.id);
+
+    return {
+      message: 'Password has been reset successfully',
     };
   },
 };

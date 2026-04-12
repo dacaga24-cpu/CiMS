@@ -27,6 +27,22 @@ const AuthController = {
       next(error);
     }
   },
+
+  async requestPasswordReset(req, res, next) {
+    try {
+      const { email } = req.body;
+      const result = await AuthService.requestPasswordReset(email);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async resetPassword(req, res, next) {
+    try {
+      const { token, newPassword } = req.body;
+      const result = await AuthService.resetPassword({ token, newPassword });
+      res.status(200).json(result);
   
   // Endpoint per obtenir el perfil de l'usuari autenticat
   async getProfile(req, res, next) {
