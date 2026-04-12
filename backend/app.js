@@ -1,6 +1,5 @@
-// app.js
-// Responsabilidad: Configuracion de Express — middlewares globales y registro de rutas.
-// NO contiene logica de negocio ni definiciones de endpoints individuales.
+// Configuració d'Express — middlewares globals i registre de rutes.
+// NO conté lògica de negoci ni definicions d'endpoints individuals.
 
 const express = require('express');
 const cors = require('cors');
@@ -10,19 +9,19 @@ const errorHandler = require('./src/middleware/errorHandler');
 
 const app = express();
 
-// Middlewares globales
-app.use(cors());
-app.use(express.json());
+// Middlewares globals
+app.use(cors()); // Permet peticions des d'altres dominis (Flutter)
+app.use(express.json()); // Converteix el body de les peticions JSON a objectes JavaScript
 
-// Health check — unico endpoint con codigo real (verificacion de arranque)
+// Health check — únic endpoint amb codi real (verificació d'arrencada)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Registro de rutas
+// Registre de rutes
 app.use('/api/auth', authRoutes);
 
-// Manejador global de errores (debe ir al final)
+// Gestor global d'errors (ha d'anar al final)
 app.use(errorHandler);
 
 module.exports = app;

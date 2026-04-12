@@ -12,9 +12,9 @@ const pool = mysql.createPool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
+  waitForConnections: true,   // Si no hi ha connexions lliures, espera en lloc de fallar
+  connectionLimit: 10,        // Nombre màxim de connexions simultànies
+  queueLimit: 0,              // 0 = sense límit de peticions en cua
 });
 
 module.exports = pool;
