@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 
+enum LoginNavigationDestination {
+  none,
+  register,
+}
+
 class LoginController extends ChangeNotifier {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
   bool obscurePassword = true;
+
+  LoginNavigationDestination _destination = LoginNavigationDestination.none;
+  LoginNavigationDestination get destination => _destination;
 
   void togglePasswordVisibility() {
     obscurePassword = !obscurePassword;
@@ -20,7 +28,12 @@ class LoginController extends ChangeNotifier {
   }
 
   void onRegisterTap() {
-    // TODO: navegar a registre en una tasca futura
+    _destination = LoginNavigationDestination.register;
+    notifyListeners();
+  }
+
+  void consumeNavigation() {
+    _destination = LoginNavigationDestination.none;
   }
 
   @override

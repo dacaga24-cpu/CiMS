@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../../router/app_router.dart';
 
 import 'login_controller.dart';
 
@@ -21,10 +22,24 @@ class _LoginScreenState extends State<LoginScreen> {
   late final LoginController controller;
 
   // Aquest mètode prepara el controlador quan la pantalla es carrega per primera vegada.
+  // També connecta la pantalla amb els canvis del controlador per poder reaccionar,
+  // per exemple quan l’usuari demana anar a la pantalla de registre.
   @override
   void initState() {
     super.initState();
-    controller = LoginController();
+    controller = LoginController()..addListener(_handleControllerChanges);
+  }
+
+  // Aquest mètode escolta els canvis del controlador i actua quan cal canviar de pantalla.
+  // En aquest cas, si el controlador indica que s’ha d’anar al registre,
+  // es consumeix aquesta acció i es fa la navegació corresponent.
+  void _handleControllerChanges() {
+    if (!mounted) return;
+
+    if (controller.destination == LoginNavigationDestination.register) {
+      controller.consumeNavigation();
+      context.router.push(const RegisterRoute());
+    }
   }
 
   // Aquest mètode allibera el controlador quan la pantalla deixa d’utilitzar-se,
@@ -50,7 +65,8 @@ class _LoginScreenState extends State<LoginScreen> {
             child: GestureDetector(
               onTap: () => FocusScope.of(context).unfocus(),
               child: Stack(
-                children: [ // Aquest bloc mostra el logotip a la part superior de la pantalla.
+                children: [
+                  // Aquest bloc mostra el logotip a la part superior de la pantalla.
                   Align(
                     alignment: const Alignment(0, -0.72),
                     child: SvgPicture.asset(
@@ -59,7 +75,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 120,
                     ),
                   ),
-                  AnimatedPadding(  // Aquest bloc conté tot el formulari d’inici de sessió.
+                  AnimatedPadding(
+                    // Aquest bloc conté tot el formulari d’inici de sessió.
                     duration: const Duration(milliseconds: 250),
                     curve: Curves.easeOut,
                     padding: EdgeInsets.only(bottom: formBottomOffset),
@@ -69,7 +86,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
-                          children: [ // Aquesta targeta agrupa els camps principals del formulari
+                          children: [
+                            // Aquesta targeta agrupa els camps principals del formulari
                             Container(
                               width: double.infinity,
                               constraints: const BoxConstraints(maxWidth: 460),
@@ -132,7 +150,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                     keyboardType: TextInputType.text,
                                     obscureText: controller.obscurePassword,
                                     suffixIcon: IconButton(
-                                      onPressed: controller.togglePasswordVisibility,
+                                      onPressed:
+                                          controller.togglePasswordVisibility,
                                       icon: Icon(
                                         controller.obscurePassword
                                             ? Icons.visibility_off_outlined
@@ -168,7 +187,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                           backgroundColor: Colors.transparent,
                                           shadowColor: Colors.transparent,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(28),
+                                            borderRadius:
+                                                BorderRadius.circular(28),
                                           ),
                                         ),
                                         child: const Text(
