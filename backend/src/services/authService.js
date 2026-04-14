@@ -9,6 +9,14 @@ const PasswordResetModel = require('../models/passwordResetModel');
 const SALT_ROUNDS = 10;
 const RESET_TOKEN_EXPIRY_HOURS = 1;
 
+// Hash ràpid per a tokens de reset.                                                                                                                                                        
+// A diferència de les contrasenyes, els tokens són valors aleatoris de 256 bits
+// generats per nosaltres, per tant no cal bcrypt (que és lent per resistir fuerza bruta                                                                                                    
+// sobre contrasenyes febles). SHA-256 és suficient i instantani.                                                                                                                           
+function hashResetToken(token) {                                                                                                                                                            
+  return crypto.createHash('sha256').update(token).digest('hex');                                                                                                                           
+}     
+
 // Servei d'autenticació — conté tota la lògica de registre, login i gestió de contrasenyes.
 // Cap altra capa ha de saber com funciona bcrypt o JWT.
 const AuthService = {
@@ -98,6 +106,10 @@ const AuthService = {
     // Generar token aleatori segur
     const token = crypto.randomBytes(32).toString('hex');
 
+    // A la BBDD hi guardem NOMÉS el hash. Si algú hi accedeix, no podrà                                                                                                                    
+    // fer servir els tokens actius per resetejar contrasenyes.
+    const tokenHash = hashResetToken(token); 
+
     // Calcular data d'expiració
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + RESET_TOKEN_EXPIRY_HOURS);
@@ -119,7 +131,10 @@ const AuthService = {
     },
 
   async resetPassword({ token, newPassword }) {
-    const resetToken = await PasswordResetModel.findByToken(token);
+    // L'usuari ens envia el token origina l; nosaltres el hashegem i el
+    // comparem amb el hash guardat a la BBDD.                                                                                                                                              
+    const tokenHash = hashResetToken(token);   
+    const resetToken = await PasswordResetModel.findByToken(tokenHash);
 
     if (!resetToken) {
       const error = new Error('Invalid or expired reset token');
@@ -151,7 +166,7 @@ const AuthService = {
 
     return { message: 'Password has been reset successfully' };
 
-  }, 
+  },
 };
 
 module.exports = AuthService;
