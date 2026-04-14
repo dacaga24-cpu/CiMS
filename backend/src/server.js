@@ -1,9 +1,10 @@
 // Punt d'entrada de l'aplicació.
 // Carrega les variables d'entorn, arrenca el servidor HTTP
 // i verifica la connexió amb la base de dades.
-const app = require('./app');
-const testDb = require('./src/config/testDb');
 require('dotenv').config();
+
+const app = require('../app');
+const testDb = require('./config/testDb');
 
 const PORT = process.env.PORT || 3000;
 
