@@ -28,8 +28,8 @@ const AuthController = {
         throw badRequest('Password must be at least 8 characters long');
       }
 
-      const {id} = await AuthService.register({ firstName, lastName, email, password });
-      res.status(201).json({ message: 'User created', userId: user.id });
+      const { id } = await AuthService.register({ firstName, lastName, email, password });
+      res.status(201).json({ message: 'User created', userId: id });
     } catch (error) {
       next(error);
     }
@@ -94,7 +94,8 @@ const AuthController = {
         throw error;
       }
 
-      res.status(200).json(userWithoutPassword);
+      // findById ja retorna l'usuari sense el password, no cal filtrar-lo aquí.
+      res.status(200).json(user);
     } catch (error) {
       next(error);
     }
