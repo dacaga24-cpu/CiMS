@@ -5,6 +5,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'register_controller.dart';
 
 @RoutePage()
+// Aquesta pantalla mostra el formulari de registre de l’aplicació.
+// La seva funció és recollir les dades bàsiques per crear un compte nou
+// i connectar la interfície amb la lògica que valida i gestiona el procés de registre.
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -12,22 +15,30 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
+// Aquesta classe gestiona el comportament intern de la pantalla.
+// Aquí es crea el controlador, es mantenen actualitzats els canvis del formulari
+// i es construeix tota la interfície que veu l’usuari.
 class _RegisterScreenState extends State<RegisterScreen> {
   late final RegisterController controller;
 
   @override
+  // Aquest mètode prepara el controlador quan la pantalla es carrega per primera vegada.
   void initState() {
     super.initState();
     controller = RegisterController();
   }
 
   @override
+  // Aquest mètode allibera el controlador quan la pantalla deixa d’utilitzar-se.
   void dispose() {
     controller.dispose();
     super.dispose();
   }
 
   @override
+  // Aquest mètode construeix la part visual de la pantalla de registre.
+  // També ajusta la posició del formulari quan apareix el teclat,
+  // perquè els camps continuïn sent accessibles mentre l’usuari escriu.
   Widget build(BuildContext context) {
     final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
     final formBottomOffset = keyboardInset > 0 ? keyboardInset : 56.0;
@@ -43,6 +54,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               onTap: () => FocusScope.of(context).unfocus(),
               child: Stack(
                 children: [
+                  // Aquest bloc mostra el logotip a la part superior de la pantalla
                   Align(
                     alignment: const Alignment(0, -0.72),
                     child: SvgPicture.asset(
@@ -51,6 +63,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       height: 92,
                     ),
                   ),
+                  // Aquest bloc conté el formulari principal i el desplaça quan apareix el teclat.
                   AnimatedPadding(
                     duration: const Duration(milliseconds: 250),
                     curve: Curves.easeOut,
@@ -62,6 +75,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            // Aquesta targeta agrupa els camps necessaris per crear el compte i els botons principals relacionats amb el registre.
                             Container(
                               width: double.infinity,
                               constraints: const BoxConstraints(maxWidth: 460),
@@ -109,7 +123,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     obscureText: controller.obscurePassword,
                                     onChanged: controller.onPasswordChanged,
                                     suffixIcon: IconButton(
-                                      onPressed: controller.togglePasswordVisibility,
+                                      onPressed:
+                                          controller.togglePasswordVisibility,
                                       icon: Icon(
                                         controller.obscurePassword
                                             ? Icons.visibility_off_outlined
@@ -149,6 +164,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ),
                                   ),
                                   if (controller.hasPasswordMismatch) ...[
+                                    // Aquest missatge només es mostra quan les dues contrasenyes no coincideixen.
                                     const SizedBox(height: 10),
                                     const Row(
                                       children: [
@@ -173,6 +189,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ],
                                   const SizedBox(height: 28),
                                   SizedBox(
+                                    // Aquest botó inicia el procés de creació del compte amb les dades que l’usuari ha introduït al formulari.
                                     width: double.infinity,
                                     height: 54,
                                     child: DecoratedBox(
@@ -193,7 +210,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         ],
                                       ),
                                       child: ElevatedButton(
-                                        onPressed: controller.onCreateAccountTap,
+                                        onPressed:
+                                            controller.onCreateAccountTap,
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.transparent,
                                           shadowColor: Colors.transparent,
@@ -227,12 +245,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ),
                                   const SizedBox(height: 16),
                                   SizedBox(
+                                    // Aquest botó permet tornar al flux d’accés per a usuaris que ja disposen d’un compte i no necessiten registrar-se.
                                     width: double.infinity,
                                     height: 50,
                                     child: ElevatedButton(
-                                      onPressed: controller.onAlreadyHaveAccountTap,
+                                      onPressed:
+                                          controller.onAlreadyHaveAccountTap,
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFFD9D9D9),
+                                        backgroundColor:
+                                            const Color(0xFFD9D9D9),
                                         elevation: 0,
                                         shape: RoundedRectangleBorder(
                                           borderRadius:
@@ -254,7 +275,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                             const SizedBox(height: 18),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              // Aquest bloc informa l’usuari que el registre implica l’acceptació de les condicions bàsiques del servei.
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
                               child: Wrap(
                                 alignment: WrapAlignment.center,
                                 children: [
@@ -296,6 +319,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 }
 
+// Aquest component reutilitzable representa un camp de text amb el mateix estil visual.
+// Serveix per mantenir coherència entre els camps del formulari i evitar repetir codi.
 class _InputField extends StatelessWidget {
   const _InputField({
     required this.controller,
@@ -306,6 +331,9 @@ class _InputField extends StatelessWidget {
     this.suffixIcon,
   });
 
+  // Aquest bloc defineix la informació necessària per configurar el camp:
+  // el text introduït, l’ajuda visual, el tipus d’entrada,
+  // si el contingut s’ha d’ocultar i l’acció a executar quan canvia.
   final TextEditingController controller;
   final String hintText;
   final TextInputType keyboardType;
@@ -314,6 +342,7 @@ class _InputField extends StatelessWidget {
   final Widget? suffixIcon;
 
   @override
+  // Aquest mètode construeix visualment el camp de text amb l’estil comú del formulari.
   Widget build(BuildContext context) {
     return Container(
       height: 56,
