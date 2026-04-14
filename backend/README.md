@@ -115,11 +115,3 @@ services/ conté la lògica principal
 models/ accedeix a la base de dades
 middleware/ gestiona autenticació i errors
 config/ conté la configuració de connexió i comprovacions inicials
-
-# Autors:
-
-Edim Batalla
-Marco Bia
-Daniel Caravaca
-
-BemenFP - 2026
