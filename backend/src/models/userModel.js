@@ -28,7 +28,7 @@ const UserModel = {
   // Retorna l'objecte usuari o null si no existeix.
   async findById(id) {
     const sql = `
-      SELECT id, first_name, last_name, email, password, is_active, created_at, updated_at
+      SELECT id, first_name, last_name, email, is_active, created_at, updated_at
       FROM users
       WHERE id = ?
       LIMIT 1
@@ -52,6 +52,16 @@ const UserModel = {
 
     const [rows] = await pool.execute(sql, [email]);
     return rows[0] || null;
+  },
+
+  async updatePassword(id, hashedPassword) {
+  const sql = `
+    UPDATE users
+    SET password = ?
+    WHERE id = ?
+  `;
+  const [result] = await pool.execute(sql, [hashedPassword, id]);
+  return result.affectedRows;
   },
 };
 
