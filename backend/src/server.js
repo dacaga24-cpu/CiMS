@@ -3,7 +3,7 @@
 // i verifica la connexió amb la base de dades.
 require('dotenv').config();
 
-const app = require('../app');
+const app = require('./app');
 const testDb = require('./config/testDb');
 
 const PORT = process.env.PORT || 3000;

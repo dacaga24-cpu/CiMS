@@ -114,10 +114,10 @@ const AuthService = {
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + RESET_TOKEN_EXPIRY_HOURS);
 
-    // Guardar el token
+    // Guardem el HASH del token, mai el token en clar.
     await PasswordResetModel.create({
       userId: user.id,
-      token,
+      token: tokenHash,
       expiresAt,
     });
 
