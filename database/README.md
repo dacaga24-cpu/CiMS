@@ -1,4 +1,4 @@
-# Database – CiMS APP
+# Database – CiMS
 
 **Autors:** Edim Batalla, Marco Bia, Daniel Caravaca
 **BemenFP – 2026**
