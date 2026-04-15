@@ -1,6 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import '../../router/app_router.dart';
 
 import 'register_controller.dart';
 
@@ -21,24 +21,67 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   late final RegisterController controller;
 
+  // Aquest mètode prepara el controlador quan la pantalla es carrega.
+  // També connecta la vista amb els canvis que poden requerir navegació o avisos.
   @override
-  // Aquest mètode prepara el controlador quan la pantalla es carrega per primera vegada.
   void initState() {
     super.initState();
-    controller = RegisterController();
+    controller = RegisterController()..addListener(_handleControllerChanges);
   }
 
-  @override
+  // Aquest mètode reacciona als canvis del controlador.
+  // Serveix per gestionar la navegació a altres pantalles
+  // o mostrar accions puntuals relacionades amb el registre.
+  void _handleControllerChanges() {
+    if (!mounted) return;
+
+    if (controller.destination == RegisterNavigationDestination.login) {
+      controller.consumeNavigation();
+
+      if (context.router.canPop()) {
+        context.router.pop();
+      } else {
+        context.router.replace(const LoginRoute());
+      }
+      return;
+    }
+
+    if (controller.destination == RegisterNavigationDestination.terms) {
+      controller.consumeNavigation();
+
+      // Aquest diàleg informa l’usuari que l’accés als termes del servei
+      // encara no està disponible dins de l’aplicació.
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Termes de Servei'),
+          content: const Text(
+            'Aquesta funcionalitat encara no està implementada.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('D\'acord'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
   // Aquest mètode allibera el controlador quan la pantalla deixa d’utilitzar-se.
+  @override
   void dispose() {
+    controller.removeListener(_handleControllerChanges);
     controller.dispose();
     super.dispose();
   }
 
-  @override
+
   // Aquest mètode construeix la part visual de la pantalla de registre.
   // També ajusta la posició del formulari quan apareix el teclat,
   // perquè els camps continuïn sent accessibles mentre l’usuari escriu.
+  @override
   Widget build(BuildContext context) {
     final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
     final formBottomOffset = keyboardInset > 0 ? keyboardInset : 56.0;
@@ -54,15 +97,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               onTap: () => FocusScope.of(context).unfocus(),
               child: Stack(
                 children: [
-                  // Aquest bloc mostra el logotip a la part superior de la pantalla
-                  Align(
-                    alignment: const Alignment(0, -0.72),
-                    child: SvgPicture.asset(
-                      'assets/images/cims_logo.svg',
-                      width: 92,
-                      height: 92,
-                    ),
-                  ),
                   // Aquest bloc conté el formulari principal i el desplaça quan apareix el teclat.
                   AnimatedPadding(
                     duration: const Duration(milliseconds: 250),
@@ -91,6 +125,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
+                                    'Nom',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF1E1E1E),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _InputField(
+                                    controller: controller.firstNameController,
+                                    hintText: 'Nom',
+                                    keyboardType: TextInputType.name,
+                                    obscureText: false,
+                                    onChanged: controller.onFirstNameChanged,
+                                  ),
+                                  const SizedBox(height: 24),
+                                  const Text(
+                                    'Cognom',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF1E1E1E),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _InputField(
+                                    controller: controller.lastNameController,
+                                    hintText: 'Cognom',
+                                    keyboardType: TextInputType.name,
+                                    obscureText: false,
+                                    onChanged: controller.onLastNameChanged,
+                                  ),
+                                  const SizedBox(height: 24),
+                                  const Text(
                                     'Correu',
                                     style: TextStyle(
                                       fontSize: 16,
@@ -106,6 +174,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     obscureText: false,
                                     onChanged: controller.onEmailChanged,
                                   ),
+                                  if (controller.hasInvalidEmail) ...[  // Aquest missatge es mostra quan el correu no té un format correcte.
+                                    const SizedBox(height: 10),
+                                    const Text(
+                                      'Introdueix un correu electrònic vàlid',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFFD93025),
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 24),
                                   const Text(
                                     'Contrasenya',
@@ -133,6 +212,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ),
                                     ),
                                   ),
+                                  if (controller.hasShortPassword) ...[ // Aquest missatge informa que la contrasenya encara no compleix la longitud mínima.
+                                    const SizedBox(height: 10),
+                                    const Text(
+                                      'La contrasenya ha de tenir almenys 8 caràcters',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFFD93025),
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 24),
                                   const Text(
                                     'Confirmar Contrasenya',
@@ -163,8 +253,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ),
                                     ),
                                   ),
-                                  if (controller.hasPasswordMismatch) ...[
-                                    // Aquest missatge només es mostra quan les dues contrasenyes no coincideixen.
+                                  if (controller.hasPasswordMismatch) ...[ // Aquest missatge només es mostra quan les dues contrasenyes no coincideixen.
                                     const SizedBox(height: 10),
                                     const Row(
                                       children: [
@@ -185,6 +274,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           ),
                                         ),
                                       ],
+                                    ),
+                                  ],
+                                  if (controller.errorMessage != null) ...[ // Aquest bloc mostra un error general del procés de registre.
+                                    const SizedBox(height: 14),
+                                    Text(
+                                      controller.errorMessage!,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFFD93025),
+                                      ),
                                     ),
                                   ],
                                   const SizedBox(height: 28),
@@ -210,8 +310,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         ],
                                       ),
                                       child: ElevatedButton(
-                                        onPressed:
-                                            controller.onCreateAccountTap,
+                                        onPressed: controller.isLoading
+                                            ? null
+                                            : controller.onCreateAccountTap,
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.transparent,
                                           shadowColor: Colors.transparent,
@@ -220,26 +321,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                                 BorderRadius.circular(28),
                                           ),
                                         ),
-                                        child: const Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              'Crear compte',
-                                              style: TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.w700,
-                                                color: Colors.white,
+                                        child: controller.isLoading
+                                            ? const SizedBox(
+                                                width: 22,
+                                                height: 22,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  strokeWidth: 2.4,
+                                                  color: Colors.white,
+                                                ),
+                                              )
+                                            : const Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    'Crear compte',
+                                                    style: TextStyle(
+                                                      fontSize: 20,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                  SizedBox(width: 8),
+                                                  Icon(
+                                                    Icons.arrow_forward,
+                                                    color: Colors.white,
+                                                    size: 20,
+                                                  ),
+                                                ],
                                               ),
-                                            ),
-                                            SizedBox(width: 8),
-                                            Icon(
-                                              Icons.arrow_forward,
-                                              color: Colors.white,
-                                              size: 20,
-                                            ),
-                                          ],
-                                        ),
                                       ),
                                     ),
                                   ),
@@ -341,8 +453,9 @@ class _InputField extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final Widget? suffixIcon;
 
-  @override
+
   // Aquest mètode construeix visualment el camp de text amb l’estil comú del formulari.
+  @override
   Widget build(BuildContext context) {
     return Container(
       height: 56,
