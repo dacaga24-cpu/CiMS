@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -48,18 +49,20 @@ class ApiClientImpl implements ApiClient {
     required String password,
   }) async {
     try {
-      final response = await _client.post(
-        Uri.parse('$_baseUrl/api/auth/register'),
-        headers: const {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'firstName': firstName,
-          'lastName': lastName,
-          'email': email,
-          'password': password,
-        }),
-      );
+      final response = await _client
+          .post(
+            Uri.parse('$_baseUrl/api/auth/register'),
+            headers: const {
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+              'firstName': firstName,
+              'lastName': lastName,
+              'email': email,
+              'password': password,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
 
       // Aquest bloc comprova si el servidor ha acceptat correctament la creació del compte.
       if (response.statusCode == 201) {
@@ -76,6 +79,10 @@ class ApiClientImpl implements ApiClient {
           'No s\'ha pogut completar el registre';
 
       throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
     } catch (error) {
       // Aquest bloc diferencia els errors ja controlats dels errors de connexió
       // o problemes inesperats durant la comunicació amb el servidor.
@@ -93,16 +100,18 @@ class ApiClientImpl implements ApiClient {
     required String password,
   }) async {
     try {
-      final response = await _client.post(
-        Uri.parse('$_baseUrl/api/auth/login'),
-        headers: const {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-        }),
-      );
+      final response = await _client
+          .post(
+            Uri.parse('$_baseUrl/api/auth/login'),
+            headers: const {
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+              'email': email,
+              'password': password,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic>? data = _tryParseJson(response.body);
@@ -125,6 +134,10 @@ class ApiClientImpl implements ApiClient {
           'No s\'ha pogut iniciar sessió';
 
       throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
     } catch (error) {
       if (error is ApiException) rethrow;
 
