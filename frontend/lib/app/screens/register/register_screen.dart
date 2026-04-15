@@ -5,8 +5,8 @@ import '../../router/app_router.dart';
 import 'register_controller.dart';
 
 // Aquesta pantalla mostra el formulari de registre de l’aplicació.
-// La seva funció és recollir les dades bàsiques per crear un compte nou
-// i connectar la interfície amb la lògica que valida i gestiona el procés de registre.
+// La seva funció és recollir les dades necessàries per crear un compte nou
+// i connectar la interfície amb la lògica que controla el procés de registre.
 @RoutePage()
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -16,9 +16,10 @@ class RegisterScreen extends StatefulWidget {
 }
 
 // Aquesta classe gestiona el comportament intern de la pantalla.
-// Aquí es crea el controlador, es mantenen actualitzats els canvis del formulari
+// Aquí es crea el controlador, s’escolten els seus canvis
 // i es construeix tota la interfície que veu l’usuari.
 class _RegisterScreenState extends State<RegisterScreen> {
+  // Aquest controlador concentra l’estat i les accions del formulari de registre.
   late final RegisterController controller;
 
   // Aquest mètode prepara el controlador quan la pantalla es carrega.
@@ -77,7 +78,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-
   // Aquest mètode construeix la part visual de la pantalla de registre.
   // També ajusta la posició del formulari quan apareix el teclat,
   // perquè els camps continuïn sent accessibles mentre l’usuari escriu.
@@ -97,7 +97,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               onTap: () => FocusScope.of(context).unfocus(),
               child: Stack(
                 children: [
-                  // Aquest bloc conté el formulari principal i el desplaça quan apareix el teclat.
+                  // Aquest bloc conté el formulari principal
+                  // i el desplaça suaument quan apareix el teclat.
                   AnimatedPadding(
                     duration: const Duration(milliseconds: 250),
                     curve: Curves.easeOut,
@@ -109,7 +110,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Aquesta targeta agrupa els camps necessaris per crear el compte i els botons principals relacionats amb el registre.
+                            // Aquesta targeta agrupa els camps del registre
+                            // i els botons principals relacionats amb la creació del compte.
                             Container(
                               width: double.infinity,
                               constraints: const BoxConstraints(maxWidth: 460),
@@ -139,7 +141,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     keyboardType: TextInputType.name,
                                     obscureText: false,
                                     onChanged: controller.onFirstNameChanged,
+                                    enabled: !controller.isLoading,
                                   ),
+                                  // Aquest missatge indica que el camp del nom encara no s’ha omplert.
+                                  if (controller.hasEmptyFirstName) ...[
+                                    const SizedBox(height: 10),
+                                    const Text(
+                                      'El nom és obligatori',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFFD93025),
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 24),
                                   const Text(
                                     'Cognom',
@@ -156,7 +171,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     keyboardType: TextInputType.name,
                                     obscureText: false,
                                     onChanged: controller.onLastNameChanged,
+                                    enabled: !controller.isLoading,
                                   ),
+                                  // Aquest missatge indica que el camp del cognom encara no s’ha omplert.
+                                  if (controller.hasEmptyLastName) ...[
+                                    const SizedBox(height: 10),
+                                    const Text(
+                                      'El cognom és obligatori',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFFD93025),
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 24),
                                   const Text(
                                     'Correu',
@@ -173,8 +201,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     keyboardType: TextInputType.emailAddress,
                                     obscureText: false,
                                     onChanged: controller.onEmailChanged,
+                                    enabled: !controller.isLoading,
                                   ),
-                                  if (controller.hasInvalidEmail) ...[  // Aquest missatge es mostra quan el correu no té un format correcte.
+                                  // Aquest missatge indica que el correu és un camp obligatori.
+                                  if (controller.hasEmptyEmail) ...[
+                                    const SizedBox(height: 10),
+                                    const Text(
+                                      'El correu és obligatori',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFFD93025),
+                                      ),
+                                    ),
+                                  ],
+                                  // Aquest missatge es mostra quan el correu no té un format correcte.
+                                  if (controller.hasInvalidEmail) ...[
                                     const SizedBox(height: 10),
                                     const Text(
                                       'Introdueix un correu electrònic vàlid',
@@ -201,9 +243,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     keyboardType: TextInputType.text,
                                     obscureText: controller.obscurePassword,
                                     onChanged: controller.onPasswordChanged,
+                                    enabled: !controller.isLoading,
                                     suffixIcon: IconButton(
-                                      onPressed:
-                                          controller.togglePasswordVisibility,
+                                      onPressed: controller.isLoading
+                                          ? null
+                                          : controller.togglePasswordVisibility,
                                       icon: Icon(
                                         controller.obscurePassword
                                             ? Icons.visibility_off_outlined
@@ -212,7 +256,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ),
                                     ),
                                   ),
-                                  if (controller.hasShortPassword) ...[ // Aquest missatge informa que la contrasenya encara no compleix la longitud mínima.
+                                  // Aquest missatge indica que la contrasenya és obligatòria.
+                                  if (controller.hasEmptyPassword) ...[
+                                    const SizedBox(height: 10),
+                                    const Text(
+                                      'La contrasenya és obligatòria',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFFD93025),
+                                      ),
+                                    ),
+                                  ],
+                                  // Aquest missatge informa que la contrasenya encara no compleix la longitud mínima.
+                                  if (controller.hasShortPassword) ...[
                                     const SizedBox(height: 10),
                                     const Text(
                                       'La contrasenya ha de tenir almenys 8 caràcters',
@@ -242,9 +299,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         controller.obscureConfirmPassword,
                                     onChanged:
                                         controller.onConfirmPasswordChanged,
+                                    enabled: !controller.isLoading,
                                     suffixIcon: IconButton(
-                                      onPressed: controller
-                                          .toggleConfirmPasswordVisibility,
+                                      onPressed: controller.isLoading
+                                          ? null
+                                          : controller
+                                              .toggleConfirmPasswordVisibility,
                                       icon: Icon(
                                         controller.obscureConfirmPassword
                                             ? Icons.visibility_off_outlined
@@ -253,7 +313,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ),
                                     ),
                                   ),
-                                  if (controller.hasPasswordMismatch) ...[ // Aquest missatge només es mostra quan les dues contrasenyes no coincideixen.
+                                  // Aquest missatge indica que cal omplir també la confirmació de contrasenya.
+                                  if (controller.hasEmptyConfirmPassword) ...[
+                                    const SizedBox(height: 10),
+                                    const Text(
+                                      'Has de confirmar la contrasenya',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFFD93025),
+                                      ),
+                                    ),
+                                  ],
+                                  // Aquest missatge només es mostra quan les dues contrasenyes no coincideixen.
+                                  if (controller.hasPasswordMismatch) ...[
                                     const SizedBox(height: 10),
                                     const Row(
                                       children: [
@@ -276,7 +349,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ],
                                     ),
                                   ],
-                                  if (controller.errorMessage != null) ...[ // Aquest bloc mostra un error general del procés de registre.
+                                  // Aquest bloc mostra un error general del procés de registre.
+                                  if (controller.errorMessage != null) ...[
                                     const SizedBox(height: 14),
                                     Text(
                                       controller.errorMessage!,
@@ -288,8 +362,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ),
                                   ],
                                   const SizedBox(height: 28),
+                                  // Aquest botó inicia el procés de creació del compte amb les dades del formulari.
+                                  // Quan hi ha una operació en curs, es desactiva i mostra un indicador de càrrega.
                                   SizedBox(
-                                    // Aquest botó inicia el procés de creació del compte amb les dades que l’usuari ha introduït al formulari.
                                     width: double.infinity,
                                     height: 54,
                                     child: DecoratedBox(
@@ -356,13 +431,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 16),
+                                  // Aquest botó permet tornar a la pantalla d’accés
+                                  // si l’usuari ja disposa d’un compte.
                                   SizedBox(
-                                    // Aquest botó permet tornar al flux d’accés per a usuaris que ja disposen d’un compte i no necessiten registrar-se.
                                     width: double.infinity,
                                     height: 50,
                                     child: ElevatedButton(
-                                      onPressed:
-                                          controller.onAlreadyHaveAccountTap,
+                                      onPressed: controller.isLoading
+                                          ? null
+                                          : controller.onAlreadyHaveAccountTap,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor:
                                             const Color(0xFFD9D9D9),
@@ -386,8 +463,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                             ),
                             const SizedBox(height: 18),
+                            // Aquest bloc informa l’usuari que el registre implica l’acceptació
+                            // de les condicions bàsiques del servei.
                             Padding(
-                              // Aquest bloc informa l’usuari que el registre implica l’acceptació de les condicions bàsiques del servei.
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 12),
                               child: Wrap(
@@ -402,7 +480,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ),
                                   ),
                                   GestureDetector(
-                                    onTap: controller.onTermsTap,
+                                    onTap: controller.isLoading
+                                        ? null
+                                        : controller.onTermsTap,
                                     child: const Text(
                                       'Termes de Servei',
                                       textAlign: TextAlign.center,
@@ -441,6 +521,7 @@ class _InputField extends StatelessWidget {
     required this.obscureText,
     required this.onChanged,
     this.suffixIcon,
+    this.enabled = true,
   });
 
   // Aquest bloc defineix la informació necessària per configurar el camp:
@@ -452,7 +533,7 @@ class _InputField extends StatelessWidget {
   final bool obscureText;
   final ValueChanged<String> onChanged;
   final Widget? suffixIcon;
-
+  final bool enabled;
 
   // Aquest mètode construeix visualment el camp de text amb l’estil comú del formulari.
   @override
@@ -468,6 +549,7 @@ class _InputField extends StatelessWidget {
         keyboardType: keyboardType,
         obscureText: obscureText,
         onChanged: onChanged,
+        enabled: enabled,
         decoration: InputDecoration(
           border: InputBorder.none,
           hintText: hintText,

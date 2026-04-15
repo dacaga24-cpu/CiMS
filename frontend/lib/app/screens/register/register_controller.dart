@@ -11,7 +11,7 @@ enum RegisterNavigationDestination {
   terms,
 }
 
-// Aquest controlador gestiona tot el comportament funcional de la pantalla de registre.
+// Aquest controlador gestiona el comportament funcional de la pantalla de registre.
 // S’encarrega de controlar els camps del formulari, validar les dades,
 // comunicar-se amb l’API i indicar a la vista què ha de mostrar o cap on ha de navegar.
 class RegisterController extends ChangeNotifier {
@@ -32,7 +32,7 @@ class RegisterController extends ChangeNotifier {
   final confirmPasswordController = TextEditingController();
 
   // Aquest bloc manté l’estat general de la pantalla.
-  // Aquí es controla què s’ha de mostrar a la interfície, si hi ha càrrega en curs,
+  // Aquí es controla si la contrasenya es mostra o s’oculta, si hi ha una petició en curs,
   // si s’han d’ensenyar validacions i quin és el següent destí de navegació.
   bool obscurePassword = true;
   bool obscureConfirmPassword = true;
@@ -47,12 +47,10 @@ class RegisterController extends ChangeNotifier {
   // Aquests getters resumeixen les validacions principals del formulari.
   // Són rellevants perquè permeten a la vista saber si hi ha errors,
   // si les contrasenyes coincideixen i si el formulari ja es pot enviar.
-
   bool get passwordsMatch =>
       passwordController.text == confirmPasswordController.text;
 
   bool get hasPasswordMismatch =>
-      showValidation &&
       passwordController.text.isNotEmpty &&
       confirmPasswordController.text.isNotEmpty &&
       !passwordsMatch;
@@ -67,6 +65,25 @@ class RegisterController extends ChangeNotifier {
       _isValidEmail(emailController.text.trim()) &&
       passwordController.text.length >= 8;
 
+  // Aquests indicadors permeten mostrar a la interfície quins camps obligatoris
+  // encara no s’han omplert després d’intentar enviar el formulari.
+  bool get hasEmptyFirstName =>
+      showValidation && firstNameController.text.trim().isEmpty;
+
+  bool get hasEmptyLastName =>
+      showValidation && lastNameController.text.trim().isEmpty;
+
+  bool get hasEmptyEmail =>
+      showValidation && emailController.text.trim().isEmpty;
+
+  bool get hasEmptyPassword =>
+      showValidation && passwordController.text.isEmpty;
+
+  bool get hasEmptyConfirmPassword =>
+      showValidation && confirmPasswordController.text.isEmpty;
+
+  // Aquests indicadors controlen els errors de format més importants del formulari,
+  // com ara un correu no vàlid o una contrasenya massa curta.
   bool get hasInvalidEmail =>
       showValidation &&
       emailController.text.trim().isNotEmpty &&
@@ -121,6 +138,8 @@ class RegisterController extends ChangeNotifier {
   // i finalment envia les dades a l’API. Si el registre va bé, prepara la navegació al login;
   // si falla, guarda un missatge d’error perquè la vista el pugui mostrar.
   Future<void> onCreateAccountTap() async {
+    if (isLoading) return;
+
     showValidation = true;
     errorMessage = null;
     notifyListeners();

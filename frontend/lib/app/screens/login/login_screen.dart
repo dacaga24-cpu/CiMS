@@ -5,10 +5,9 @@ import '../../router/app_router.dart';
 
 import 'login_controller.dart';
 
-// Aquesta pantalla mostra la interfície inicial de login de l'aplicació.
-// La seva responsabilitat és únicament visual: pintar el formulari,
-// recollir la interacció de l'usuari i delegar les accions al controller.
-// No conté lògica de negoci ni integració amb backend.
+// Aquesta pantalla mostra la interfície d’inici de sessió de l’aplicació.
+// La seva funció és presentar el formulari, recollir la interacció de l’usuari
+// i connectar la vista amb la lògica del controlador.
 @RoutePage()
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,12 +17,15 @@ class LoginScreen extends StatefulWidget {
 }
 
 // Aquesta classe gestiona el comportament intern de la pantalla.
+// Aquí es crea el controlador, s’escolten els seus canvis
+// i es construeix tota la interfície que veu l’usuari.
 class _LoginScreenState extends State<LoginScreen> {
+  // Aquest controlador concentra l’estat i les accions del formulari de login.
   late final LoginController controller;
 
   // Aquest mètode prepara el controlador quan la pantalla es carrega per primera vegada.
-  // També connecta la pantalla amb els canvis del controlador per poder reaccionar,
-  // per exemple quan l’usuari demana anar a la pantalla de registre.
+  // També connecta la pantalla amb els canvis del controlador per poder reaccionar
+  // quan cal navegar a una altra part de l’aplicació.
   @override
   void initState() {
     super.initState();
@@ -31,25 +33,33 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // Aquest mètode escolta els canvis del controlador i actua quan cal canviar de pantalla.
-  // En aquest cas, si el controlador indica que s’ha d’anar al registre,
-  // es consumeix aquesta acció i es fa la navegació corresponent.
+  // En aquest cas, gestiona la navegació cap al registre o cap al dashboard
+  // després d’un inici de sessió correcte.
   void _handleControllerChanges() {
     if (!mounted) return;
 
     if (controller.destination == LoginNavigationDestination.register) {
       controller.consumeNavigation();
       context.router.push(const RegisterRoute());
+      return;
+    }
+
+    if (controller.destination == LoginNavigationDestination.dashboard) {
+      controller.consumeNavigation();
+      context.router.replace(const DashboardRoute());
     }
   }
 
-  // Aquest mètode allibera el controlador quan la pantalla deixa d’utilitzar-se,
+  // Aquest mètode allibera el controlador quan la pantalla deixa d’utilitzar-se.
   @override
   void dispose() {
     controller.dispose();
     super.dispose();
   }
 
-// Aquest mètode construeix la part visual de la pantalla de login.
+  // Aquest mètode construeix la part visual de la pantalla de login.
+  // També ajusta la posició del formulari quan apareix el teclat
+  // perquè els camps continuïn sent còmodes d’utilitzar.
   @override
   Widget build(BuildContext context) {
     final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
@@ -67,6 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Stack(
                 children: [
                   // Aquest bloc mostra el logotip a la part superior de la pantalla.
+                  // Serveix per reforçar la identitat visual de l’aplicació en el punt d’accés.
                   Align(
                     alignment: const Alignment(0, -0.72),
                     child: SvgPicture.asset(
@@ -75,8 +86,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 120,
                     ),
                   ),
+                  // Aquest bloc conté tot el formulari d’inici de sessió
+                  // i el desplaça suaument quan apareix el teclat.
                   AnimatedPadding(
-                    // Aquest bloc conté tot el formulari d’inici de sessió.
                     duration: const Duration(milliseconds: 250),
                     curve: Curves.easeOut,
                     padding: EdgeInsets.only(bottom: formBottomOffset),
@@ -87,7 +99,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Aquesta targeta agrupa els camps principals del formulari
+                            // Aquesta targeta agrupa els camps principals del formulari,
+                            // els missatges de validació i l’acció principal d’iniciar sessió.
                             Container(
                               width: double.infinity,
                               constraints: const BoxConstraints(maxWidth: 460),
@@ -116,8 +129,23 @@ class _LoginScreenState extends State<LoginScreen> {
                                     hintText: 'elteu@correu.com',
                                     keyboardType: TextInputType.emailAddress,
                                     obscureText: false,
+                                    enabled: !controller.isLoading,
+                                    onChanged: controller.onEmailChanged,
                                   ),
+                                  // Aquest missatge es mostra quan el correu no té un format correcte.
+                                  if (controller.hasInvalidEmail) ...[
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'Introdueix un correu electrònic vàlid',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 26),
+                                  // Aquest bloc mostra el camp de contrasenya
+                                  // i l’accés a la futura recuperació de contrasenya.
                                   Row(
                                     children: [
                                       const Expanded(
@@ -149,9 +177,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                     hintText: '••••••••••••',
                                     keyboardType: TextInputType.text,
                                     obscureText: controller.obscurePassword,
+                                    enabled: !controller.isLoading,
+                                    onChanged: controller.onPasswordChanged,
+                                    onSubmitted: (_) => controller.onLoginTap(),
                                     suffixIcon: IconButton(
-                                      onPressed:
-                                          controller.togglePasswordVisibility,
+                                      onPressed: controller.isLoading
+                                          ? null
+                                          : controller.togglePasswordVisibility,
                                       icon: Icon(
                                         controller.obscurePassword
                                             ? Icons.visibility_off_outlined
@@ -160,7 +192,33 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     ),
                                   ),
+                                  // Aquest missatge informa que la contrasenya és obligatòria.
+                                  if (controller.hasEmptyPassword) ...[
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'La contrasenya és obligatòria',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                  ],
+                                  // Aquest bloc mostra un error general del procés de login,
+                                  // com ara credencials incorrectes o problemes de connexió.
+                                  if (controller.errorMessage != null) ...[
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      controller.errorMessage!,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 34),
+                                  // Aquest botó inicia el procés d’autenticació.
+                                  // Quan hi ha una petició en curs, es desactiva i mostra un indicador de càrrega.
                                   SizedBox(
                                     width: double.infinity,
                                     height: 54,
@@ -182,23 +240,42 @@ class _LoginScreenState extends State<LoginScreen> {
                                         ],
                                       ),
                                       child: ElevatedButton(
-                                        onPressed: controller.onLoginTap,
+                                        onPressed: controller.isLoading
+                                            ? null
+                                            : () => controller.onLoginTap(),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.transparent,
                                           shadowColor: Colors.transparent,
+                                          disabledBackgroundColor:
+                                              Colors.transparent,
+                                          disabledForegroundColor: Colors.white,
                                           shape: RoundedRectangleBorder(
                                             borderRadius:
                                                 BorderRadius.circular(28),
                                           ),
                                         ),
-                                        child: const Text(
-                                          'Iniciar Sessió',
-                                          style: TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white,
-                                          ),
-                                        ),
+                                        child: controller.isLoading
+                                            ? const SizedBox(
+                                                width: 24,
+                                                height: 24,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  strokeWidth: 2.5,
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation<
+                                                          Color>(
+                                                    Colors.white,
+                                                  ),
+                                                ),
+                                              )
+                                            : const Text(
+                                                'Iniciar Sessió',
+                                                style: TextStyle(
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
                                       ),
                                     ),
                                   ),
@@ -206,6 +283,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                             const SizedBox(height: 20),
+                            // Aquest bloc ofereix l’accés al registre
+                            // per als usuaris que encara no tenen un compte creat.
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -244,8 +323,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// Aquest widget encapsula l'estil comú dels camps del formulari
-// per evitar duplicació de codi i mantenir una aparença uniforme.
+// Aquest component reutilitzable representa un camp de text amb el mateix estil visual.
+// Serveix per mantenir coherència entre els camps del formulari i evitar repetir codi.
 class _InputField extends StatelessWidget {
   const _InputField({
     required this.controller,
@@ -253,14 +332,24 @@ class _InputField extends StatelessWidget {
     required this.keyboardType,
     required this.obscureText,
     this.suffixIcon,
+    this.enabled = true,
+    this.onChanged,
+    this.onSubmitted,
   });
 
+  // Aquest bloc defineix la informació necessària per configurar el camp:
+  // el text introduït, el tipus d’entrada, si el contingut s’ha d’ocultar
+  // i les accions opcionals relacionades amb els canvis o l’enviament.
   final TextEditingController controller;
   final String hintText;
   final TextInputType keyboardType;
   final bool obscureText;
   final Widget? suffixIcon;
+  final bool enabled;
+  final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
 
+  // Aquest mètode construeix visualment el camp de text amb l’estil comú del formulari.
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -273,6 +362,9 @@ class _InputField extends StatelessWidget {
         controller: controller,
         keyboardType: keyboardType,
         obscureText: obscureText,
+        enabled: enabled,
+        onChanged: onChanged,
+        onSubmitted: onSubmitted,
         decoration: InputDecoration(
           border: InputBorder.none,
           hintText: hintText,
