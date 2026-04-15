@@ -21,15 +21,17 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   late final RegisterController controller;
 
+  // Aquest mètode prepara el controlador quan la pantalla es carrega.
+  // També connecta la vista amb els canvis que poden requerir navegació o avisos.
   @override
-  // Aquest mètode prepara el controlador quan la pantalla es carrega per primera vegada.
   void initState() {
     super.initState();
     controller = RegisterController()..addListener(_handleControllerChanges);
   }
 
-  // Aquest mètode escolta els canvis del controlador i actua quan cal navegar
-  // a una altra pantalla o mostrar una acció puntual relacionada amb el registre.
+  // Aquest mètode reacciona als canvis del controlador.
+  // Serveix per gestionar la navegació a altres pantalles
+  // o mostrar accions puntuals relacionades amb el registre.
   void _handleControllerChanges() {
     if (!mounted) return;
 
@@ -47,6 +49,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (controller.destination == RegisterNavigationDestination.terms) {
       controller.consumeNavigation();
 
+      // Aquest diàleg informa l’usuari que l’accés als termes del servei
+      // encara no està disponible dins de l’aplicació.
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -65,18 +69,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  @override
   // Aquest mètode allibera el controlador quan la pantalla deixa d’utilitzar-se.
+  @override
   void dispose() {
     controller.removeListener(_handleControllerChanges);
     controller.dispose();
     super.dispose();
   }
 
-  @override
+
   // Aquest mètode construeix la part visual de la pantalla de registre.
   // També ajusta la posició del formulari quan apareix el teclat,
   // perquè els camps continuïn sent accessibles mentre l’usuari escriu.
+  @override
   Widget build(BuildContext context) {
     final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
     final formBottomOffset = keyboardInset > 0 ? keyboardInset : 56.0;
@@ -169,7 +174,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     obscureText: false,
                                     onChanged: controller.onEmailChanged,
                                   ),
-                                  if (controller.hasInvalidEmail) ...[
+                                  if (controller.hasInvalidEmail) ...[  // Aquest missatge es mostra quan el correu no té un format correcte.
                                     const SizedBox(height: 10),
                                     const Text(
                                       'Introdueix un correu electrònic vàlid',
@@ -207,7 +212,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ),
                                     ),
                                   ),
-                                  if (controller.hasShortPassword) ...[
+                                  if (controller.hasShortPassword) ...[ // Aquest missatge informa que la contrasenya encara no compleix la longitud mínima.
                                     const SizedBox(height: 10),
                                     const Text(
                                       'La contrasenya ha de tenir almenys 8 caràcters',
@@ -248,8 +253,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ),
                                     ),
                                   ),
-                                  if (controller.hasPasswordMismatch) ...[
-                                    // Aquest missatge només es mostra quan les dues contrasenyes no coincideixen.
+                                  if (controller.hasPasswordMismatch) ...[ // Aquest missatge només es mostra quan les dues contrasenyes no coincideixen.
                                     const SizedBox(height: 10),
                                     const Row(
                                       children: [
@@ -272,7 +276,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ],
                                     ),
                                   ],
-                                  if (controller.errorMessage != null) ...[
+                                  if (controller.errorMessage != null) ...[ // Aquest bloc mostra un error general del procés de registre.
                                     const SizedBox(height: 14),
                                     Text(
                                       controller.errorMessage!,
@@ -449,8 +453,9 @@ class _InputField extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final Widget? suffixIcon;
 
-  @override
+
   // Aquest mètode construeix visualment el camp de text amb l’estil comú del formulari.
+  @override
   Widget build(BuildContext context) {
     return Container(
       height: 56,

@@ -1,3 +1,7 @@
+# Aquest fitxer és la configuració principal del projecte Flutter.
+# Serveix per definir l’entorn de treball, les llibreries que necessita l’aplicació,
+# les eines de desenvolupament i els recursos visuals o fitxers que s’han d’incloure al projecte.
+
 name: cims
 description: Frontend multiplataforma de CiMS per consultar cims, registrar ascensions i gestionar el progrés de l'usuari.
 publish_to: 'none'

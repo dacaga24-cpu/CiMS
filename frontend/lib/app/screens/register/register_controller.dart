@@ -3,17 +3,26 @@ import 'package:flutter/material.dart';
 import '../../../app/client/api/api_client_impl.dart';
 import '../../../core/client/api_client.dart';
 
+// Aquest bloc defineix els possibles destins de navegació de la pantalla de registre.
+// Serveix per indicar si l’usuari ha de tornar al login o obrir la pantalla de termes.
 enum RegisterNavigationDestination {
   none,
   login,
   terms,
 }
 
+// Aquest controlador gestiona tot el comportament funcional de la pantalla de registre.
+// S’encarrega de controlar els camps del formulari, validar les dades,
+// comunicar-se amb l’API i indicar a la vista què ha de mostrar o cap on ha de navegar.
 class RegisterController extends ChangeNotifier {
+  // El controlador pot rebre un client d’API extern o crear-ne un per defecte.
+  // Això permet reutilitzar la mateixa lògica tant en execució normal com en proves.
   RegisterController({
     ApiClient? apiClient,
   }) : _apiClient = apiClient ?? ApiClientImpl();
 
+  // Aquest bloc agrupa la connexió amb l’API i els controladors de text del formulari.
+  // Gràcies a això es poden llegir i gestionar les dades que l’usuari escriu a cada camp.
   final ApiClient _apiClient;
 
   final firstNameController = TextEditingController();
@@ -22,6 +31,9 @@ class RegisterController extends ChangeNotifier {
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
 
+  // Aquest bloc manté l’estat general de la pantalla.
+  // Aquí es controla què s’ha de mostrar a la interfície, si hi ha càrrega en curs,
+  // si s’han d’ensenyar validacions i quin és el següent destí de navegació.
   bool obscurePassword = true;
   bool obscureConfirmPassword = true;
   bool showValidation = false;
@@ -31,6 +43,10 @@ class RegisterController extends ChangeNotifier {
   RegisterNavigationDestination _destination =
       RegisterNavigationDestination.none;
   RegisterNavigationDestination get destination => _destination;
+
+  // Aquests getters resumeixen les validacions principals del formulari.
+  // Són rellevants perquè permeten a la vista saber si hi ha errors,
+  // si les contrasenyes coincideixen i si el formulari ja es pot enviar.
 
   bool get passwordsMatch =>
       passwordController.text == confirmPasswordController.text;
@@ -61,6 +77,8 @@ class RegisterController extends ChangeNotifier {
       passwordController.text.isNotEmpty &&
       passwordController.text.length < 8;
 
+  // Aquests mètodes responen als canvis que fa l’usuari als camps del formulari.
+  // La seva funció és netejar errors previs i avisar la interfície perquè es refresqui.
   void onFirstNameChanged(String value) {
     errorMessage = null;
     notifyListeners();
@@ -86,6 +104,8 @@ class RegisterController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Aquests mètodes permeten mostrar o ocultar la contrasenya.
+  // Són útils per millorar la comoditat de l’usuari mentre escriu.
   void togglePasswordVisibility() {
     obscurePassword = !obscurePassword;
     notifyListeners();
@@ -96,6 +116,10 @@ class RegisterController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Aquest mètode gestiona l’acció principal de crear un compte.
+  // Primer activa les validacions, després comprova si el formulari és correcte
+  // i finalment envia les dades a l’API. Si el registre va bé, prepara la navegació al login;
+  // si falla, guarda un missatge d’error perquè la vista el pugui mostrar.
   Future<void> onCreateAccountTap() async {
     showValidation = true;
     errorMessage = null;
@@ -129,25 +153,33 @@ class RegisterController extends ChangeNotifier {
     }
   }
 
+  // Aquest mètode envia l’usuari a la pantalla d’inici de sessió
+  // quan ja té un compte creat.
   void onAlreadyHaveAccountTap() {
     _destination = RegisterNavigationDestination.login;
     notifyListeners();
   }
 
+  // Aquest mètode prepara la navegació cap a la pantalla de termes del servei.
   void onTermsTap() {
     _destination = RegisterNavigationDestination.terms;
     notifyListeners();
   }
 
+  // Aquest mètode reinicia el destí de navegació després que la vista ja l’hagi consumit.
+  // Això evita repetir la mateixa redirecció més d’una vegada.
   void consumeNavigation() {
     _destination = RegisterNavigationDestination.none;
   }
 
+  // Aquest mètode comprova de manera bàsica si el correu escrit té un format vàlid.
   bool _isValidEmail(String email) {
     final regex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
     return regex.hasMatch(email);
   }
 
+  // Aquest mètode allibera els recursos associats als camps del formulari
+  // quan el controlador deixa d’utilitzar-se.
   @override
   void dispose() {
     firstNameController.dispose();
