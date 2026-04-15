@@ -52,7 +52,6 @@ class RegisterController extends ChangeNotifier {
       passwordController.text == confirmPasswordController.text;
 
   bool get hasPasswordMismatch =>
-      showValidation &&
       passwordController.text.isNotEmpty &&
       confirmPasswordController.text.isNotEmpty &&
       !passwordsMatch;
@@ -66,6 +65,21 @@ class RegisterController extends ChangeNotifier {
       passwordsMatch &&
       _isValidEmail(emailController.text.trim()) &&
       passwordController.text.length >= 8;
+
+  bool get hasEmptyFirstName =>
+      showValidation && firstNameController.text.trim().isEmpty;
+
+  bool get hasEmptyLastName =>
+      showValidation && lastNameController.text.trim().isEmpty;
+
+  bool get hasEmptyEmail =>
+      showValidation && emailController.text.trim().isEmpty;
+
+  bool get hasEmptyPassword =>
+      showValidation && passwordController.text.isEmpty;
+
+  bool get hasEmptyConfirmPassword =>
+      showValidation && confirmPasswordController.text.isEmpty;
 
   bool get hasInvalidEmail =>
       showValidation &&
@@ -121,6 +135,8 @@ class RegisterController extends ChangeNotifier {
   // i finalment envia les dades a l’API. Si el registre va bé, prepara la navegació al login;
   // si falla, guarda un missatge d’error perquè la vista el pugui mostrar.
   Future<void> onCreateAccountTap() async {
+    if (isLoading) return;
+
     showValidation = true;
     errorMessage = null;
     notifyListeners();
