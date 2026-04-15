@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/client/api/api_client_impl.dart';
 import '../../../core/client/api_client.dart';
-import '../../client/api/api_client_impl.dart';
+import '../../../core/usecase/auth/login_usecase.dart';
 
 // Aquest bloc defineix els possibles destins de navegació després d’interactuar
 // amb la pantalla de login. Serveix per indicar si l’usuari ha d’anar
@@ -16,15 +17,20 @@ enum LoginNavigationDestination {
 // S’encarrega de controlar els camps del formulari, validar les dades,
 // comunicar-se amb el backend i indicar a la vista què ha de mostrar o cap on ha de navegar.
 class LoginController extends ChangeNotifier {
-  // El controlador pot rebre un client d’API extern o crear-ne un per defecte.
-  // Això permet reutilitzar la mateixa lògica en diferents contextos, com ara proves o execució normal.
+  // El controlador pot rebre el cas d’ús del login des de fora o crear-ne un per defecte.
+  // Això permet desacoblar la pantalla de la implementació concreta de l’API
+  // i facilita l’evolució de l’arquitectura.
   LoginController({
-    ApiClient? apiClient,
-  }) : _apiClient = apiClient ?? ApiClientImpl();
+    LoginUseCase? loginUseCase,
+  }) : _loginUseCase = loginUseCase ??
+            LoginUseCase(
+              apiClient: ApiClientImpl(),
+            );
 
-  // Aquest bloc agrupa la connexió amb l’API i els controladors de text del formulari.
-  // Gràcies a això, el controlador pot llegir i gestionar les dades que l’usuari escriu.
-  final ApiClient _apiClient;
+  // Aquest bloc agrupa el cas d’ús principal del login i els controladors de text del formulari.
+  // Gràcies a això, el controlador pot llegir les dades de la vista
+  // i delegar l’acció de negoci fora de la pantalla.
+  final LoginUseCase _loginUseCase;
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
@@ -79,8 +85,8 @@ class LoginController extends ChangeNotifier {
 
   // Aquest mètode gestiona l’acció principal d’iniciar sessió.
   // Primer activa les validacions, després comprova si el formulari és correcte
-  // i finalment envia les credencials al backend. Si tot va bé, prepara l’entrada al dashboard;
-  // si falla, guarda un missatge d’error perquè la vista el pugui mostrar.
+  // i finalment delega l’operació d’autenticació al cas d’ús corresponent.
+  // Si tot va bé, prepara l’entrada al dashboard; si falla, guarda un missatge d’error.
   Future<void> onLoginTap() async {
     if (isLoading) return;
 
@@ -94,7 +100,7 @@ class LoginController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _apiClient.login(
+      await _loginUseCase.execute(
         email: emailController.text.trim(),
         password: passwordController.text,
       );
