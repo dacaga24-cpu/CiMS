@@ -1,11 +1,18 @@
 const pool = require('../config/db');
 
-
+// Aquest model centralitza l'accés a les dades dels cims.
+// La seva funció és recuperar cims, aplicar filtres del catàleg
+// i unir-los amb les comarques a les quals pertanyen.
 const PeakModel = {
 
-
+    // Aquest mètode retorna la llista de cims que compleixen els filtres rebuts.
+    // Tots els filtres són opcionals i es combinen amb AND,
+    // de manera que si no s'especifica cap filtre es retornen tots els cims.
     async findAll({ regionId, minAltitude, maxAltitude, search } = {}) {
 
+        // Aquest bloc construeix la consulta de forma dinàmica.
+        // Es parteix d'una base amb JOIN a peak_regions només quan cal filtrar per regió,
+        // per evitar duplicar files quan un cim pertany a més d'una comarca.
         const conditions = [];
         const params = [];
 
@@ -31,6 +38,8 @@ const PeakModel = {
         params.push(maxAltitude);
         }
 
+        // La cerca per nom és insensible a majúscules gràcies al collation utf8mb4_unicode_ci
+        // definit a l'schema, de manera que no cal forçar LOWER() a la consulta.
         if (search) {
         conditions.push('p.name LIKE ?');
         params.push(`%${search}%`);
@@ -46,6 +55,9 @@ const PeakModel = {
         return rows;
     },
 
+    // Aquest mètode busca un cim pel seu identificador i hi afegeix
+    // la llista de comarques a les quals pertany.
+    // Es fa servir a la pantalla de detall del cim.
     async findById(id) {
         const sqlPeak = `
         SELECT id, name, altitude, latitude, longitude, description,
@@ -62,7 +74,9 @@ const PeakModel = {
         return null;
         }
 
-
+        // Aquesta segona consulta recupera les comarques associades al cim.
+        // Es fa en una crida separada per mantenir la resposta ben estructurada
+        // i evitar files duplicades a la consulta principal.
         const sqlRegions = `
         SELECT r.id, r.name
         FROM regions r
