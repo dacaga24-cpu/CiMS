@@ -1,13 +1,13 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import '../../router/app_router.dart';
 
 import 'register_controller.dart';
 
-@RoutePage()
 // Aquesta pantalla mostra el formulari de registre de l’aplicació.
 // La seva funció és recollir les dades bàsiques per crear un compte nou
 // i connectar la interfície amb la lògica que valida i gestiona el procés de registre.
+@RoutePage()
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -25,12 +25,50 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // Aquest mètode prepara el controlador quan la pantalla es carrega per primera vegada.
   void initState() {
     super.initState();
-    controller = RegisterController();
+    controller = RegisterController()..addListener(_handleControllerChanges);
+  }
+
+  // Aquest mètode escolta els canvis del controlador i actua quan cal navegar
+  // a una altra pantalla o mostrar una acció puntual relacionada amb el registre.
+  void _handleControllerChanges() {
+    if (!mounted) return;
+
+    if (controller.destination == RegisterNavigationDestination.login) {
+      controller.consumeNavigation();
+
+      if (context.router.canPop()) {
+        context.router.pop();
+      } else {
+        context.router.replace(const LoginRoute());
+      }
+      return;
+    }
+
+    if (controller.destination == RegisterNavigationDestination.terms) {
+      controller.consumeNavigation();
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Termes de Servei'),
+          content: const Text(
+            'Aquesta funcionalitat encara no està implementada.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('D\'acord'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   @override
   // Aquest mètode allibera el controlador quan la pantalla deixa d’utilitzar-se.
   void dispose() {
+    controller.removeListener(_handleControllerChanges);
     controller.dispose();
     super.dispose();
   }
@@ -54,15 +92,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               onTap: () => FocusScope.of(context).unfocus(),
               child: Stack(
                 children: [
-                  // Aquest bloc mostra el logotip a la part superior de la pantalla
-                  Align(
-                    alignment: const Alignment(0, -0.72),
-                    child: SvgPicture.asset(
-                      'assets/images/cims_logo.svg',
-                      width: 92,
-                      height: 92,
-                    ),
-                  ),
                   // Aquest bloc conté el formulari principal i el desplaça quan apareix el teclat.
                   AnimatedPadding(
                     duration: const Duration(milliseconds: 250),
@@ -91,6 +120,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
+                                    'Nom',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF1E1E1E),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _InputField(
+                                    controller: controller.firstNameController,
+                                    hintText: 'Nom',
+                                    keyboardType: TextInputType.name,
+                                    obscureText: false,
+                                    onChanged: controller.onFirstNameChanged,
+                                  ),
+                                  const SizedBox(height: 24),
+                                  const Text(
+                                    'Cognom',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF1E1E1E),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _InputField(
+                                    controller: controller.lastNameController,
+                                    hintText: 'Cognom',
+                                    keyboardType: TextInputType.name,
+                                    obscureText: false,
+                                    onChanged: controller.onLastNameChanged,
+                                  ),
+                                  const SizedBox(height: 24),
+                                  const Text(
                                     'Correu',
                                     style: TextStyle(
                                       fontSize: 16,
@@ -106,6 +169,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     obscureText: false,
                                     onChanged: controller.onEmailChanged,
                                   ),
+                                  if (controller.hasInvalidEmail) ...[
+                                    const SizedBox(height: 10),
+                                    const Text(
+                                      'Introdueix un correu electrònic vàlid',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFFD93025),
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 24),
                                   const Text(
                                     'Contrasenya',
@@ -133,6 +207,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ),
                                     ),
                                   ),
+                                  if (controller.hasShortPassword) ...[
+                                    const SizedBox(height: 10),
+                                    const Text(
+                                      'La contrasenya ha de tenir almenys 8 caràcters',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFFD93025),
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 24),
                                   const Text(
                                     'Confirmar Contrasenya',
@@ -187,6 +272,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ],
                                     ),
                                   ],
+                                  if (controller.errorMessage != null) ...[
+                                    const SizedBox(height: 14),
+                                    Text(
+                                      controller.errorMessage!,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFFD93025),
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 28),
                                   SizedBox(
                                     // Aquest botó inicia el procés de creació del compte amb les dades que l’usuari ha introduït al formulari.
@@ -210,8 +306,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         ],
                                       ),
                                       child: ElevatedButton(
-                                        onPressed:
-                                            controller.onCreateAccountTap,
+                                        onPressed: controller.isLoading
+                                            ? null
+                                            : controller.onCreateAccountTap,
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.transparent,
                                           shadowColor: Colors.transparent,
@@ -220,26 +317,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                                 BorderRadius.circular(28),
                                           ),
                                         ),
-                                        child: const Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              'Crear compte',
-                                              style: TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.w700,
-                                                color: Colors.white,
+                                        child: controller.isLoading
+                                            ? const SizedBox(
+                                                width: 22,
+                                                height: 22,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  strokeWidth: 2.4,
+                                                  color: Colors.white,
+                                                ),
+                                              )
+                                            : const Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    'Crear compte',
+                                                    style: TextStyle(
+                                                      fontSize: 20,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                  SizedBox(width: 8),
+                                                  Icon(
+                                                    Icons.arrow_forward,
+                                                    color: Colors.white,
+                                                    size: 20,
+                                                  ),
+                                                ],
                                               ),
-                                            ),
-                                            SizedBox(width: 8),
-                                            Icon(
-                                              Icons.arrow_forward,
-                                              color: Colors.white,
-                                              size: 20,
-                                            ),
-                                          ],
-                                        ),
                                       ),
                                     ),
                                   ),
