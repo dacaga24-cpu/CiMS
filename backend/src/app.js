@@ -1,5 +1,6 @@
-// Configuració d'Express — middlewares globals i registre de rutes.
-// NO conté lògica de negoci ni definicions d'endpoints individuals.
+// Aquest fitxer prepara la configuració general del servidor.
+// Aquí es defineixen els elements comuns que s’aplicaran a totes les peticions
+// i es connecten les rutes principals amb l’aplicació.
 
 const express = require('express');
 const cors = require('cors');
@@ -9,19 +10,23 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-// Middlewares globals
-app.use(cors()); // Permet peticions des d'altres dominis (Flutter)
-app.use(express.json()); // Converteix el body de les peticions JSON a objectes JavaScript
+// Aquest bloc activa els comportaments bàsics que necessita el servidor
+// per rebre peticions externes i interpretar correctament les dades en format JSON.
+app.use(cors()); // Permet que l’aplicació client es pugui comunicar amb el backend des d’un altre origen.
+app.use(express.json()); // Converteix el contingut JSON de les peticions en objectes que el servidor pot utilitzar.
 
-// Health check — únic endpoint amb codi real (verificació d'arrencada)
+// Aquest endpoint senzill serveix per comprovar si el servidor està en funcionament.
+// És útil per validar ràpidament que l’aplicació ha arrencat correctament.
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Registre de rutes
+// Aquest bloc registra les rutes d’autenticació sota un prefix comú.
+// Això ajuda a mantenir organitzats els endpoints relacionats amb usuaris i accés.
 app.use('/api/auth', authRoutes);
 
-// Gestor global d'errors (ha d'anar al final)
+// Aquest gestor s’aplica al final perquè pugui recollir qualsevol error
+// produït durant el recorregut d’una petició.
 app.use(errorHandler);
 
 module.exports = app;

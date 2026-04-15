@@ -1,3 +1,7 @@
+-- Aquest script carrega les comarques inicials a la base de dades del projecte.
+-- És rellevant perquè aquestes dades serveixen com a base territorial
+-- per classificar i relacionar els cims dins de l’aplicació.
+
 USE cims_db;
 
 INSERT INTO regions (name) VALUES

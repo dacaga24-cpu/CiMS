@@ -4,10 +4,10 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import 'register_controller.dart';
 
-@RoutePage()
 // Aquesta pantalla mostra el formulari de registre de l’aplicació.
 // La seva funció és recollir les dades bàsiques per crear un compte nou
 // i connectar la interfície amb la lògica que valida i gestiona el procés de registre.
+@RoutePage()
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 

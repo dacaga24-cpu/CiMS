@@ -1,4 +1,7 @@
-# Frontend — CiMS APP
+# Backend – CiMS
+
+**Autors:** Edim Batalla, Marco Bia, Daniel Caravaca
+**BemenFP – 2026**
 
 ## Objectiu
 
@@ -40,17 +43,3 @@ Això permet separar la interfície, la lògica d'aplicació i l'accés a dades.
 * Comunicació amb el backend mitjançant API.
 * Estructura senzilla i escalable.
 * Organització coherent amb una futura ampliació per funcionalitats.
-
-
-## Estat actual
-
-Aquesta estructura representa la **base inicial del frontend** i serveix com a punt de partida per començar la implementació progressiva de les pantalles i la seva connexió amb el backend.
-
-
-## Autors:
-
-Edim Batalla
-Marco Bia
-Daniel Caravaca
-
-BemenFP - 2026

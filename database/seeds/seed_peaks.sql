@@ -1,3 +1,7 @@
+-- Aquest script afegeix dades inicials a la base de dades del projecte CiMS.
+-- La seva funció és carregar una primera selecció de cims i vincular-los amb la seva comarca
+-- perquè l’aplicació pugui mostrar informació real des del primer moment.
+
 USE cims_db;
 
 INSERT INTO peaks (name, altitude, latitude, longitude) VALUES
