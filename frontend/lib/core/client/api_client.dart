@@ -14,6 +14,9 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
+// Aquesta classe representa la resposta que retorna el servidor
+// quan l’usuari inicia sessió correctament.
+// Agrupa la informació necessària per continuar amb la sessió dins de l’aplicació.
 class LoginResponse {
   const LoginResponse({
     required this.token,
@@ -21,10 +24,15 @@ class LoginResponse {
     this.message,
   });
 
+  // Aquest bloc recull les dades principals de la resposta de login:
+  // el token de sessió, l’identificador de l’usuari i un missatge opcional.
   final String token;
   final int userId;
   final String? message;
 
+  // Aquest constructor transforma la resposta rebuda del backend
+  // en un objecte que l’aplicació pugui utilitzar fàcilment.
+  // També comprova que les dades més importants siguin vàlides abans de continuar.
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
     final userIdRaw = json['userId'];
     int? parsedUserId;
@@ -69,6 +77,9 @@ abstract class ApiClient {
     required String password,
   });
 
+  // Aquest mètode defineix l’operació d’inici de sessió.
+  // Rep les credencials de l’usuari i retorna la informació necessària
+  // per continuar amb la sessió oberta dins de l’aplicació.
   Future<LoginResponse> login({
     required String email,
     required String password,

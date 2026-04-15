@@ -5,8 +5,8 @@ import '../../router/app_router.dart';
 import 'register_controller.dart';
 
 // Aquesta pantalla mostra el formulari de registre de l’aplicació.
-// La seva funció és recollir les dades bàsiques per crear un compte nou
-// i connectar la interfície amb la lògica que valida i gestiona el procés de registre.
+// La seva funció és recollir les dades necessàries per crear un compte nou
+// i connectar la interfície amb la lògica que controla el procés de registre.
 @RoutePage()
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -16,9 +16,10 @@ class RegisterScreen extends StatefulWidget {
 }
 
 // Aquesta classe gestiona el comportament intern de la pantalla.
-// Aquí es crea el controlador, es mantenen actualitzats els canvis del formulari
+// Aquí es crea el controlador, s’escolten els seus canvis
 // i es construeix tota la interfície que veu l’usuari.
 class _RegisterScreenState extends State<RegisterScreen> {
+  // Aquest controlador concentra l’estat i les accions del formulari de registre.
   late final RegisterController controller;
 
   // Aquest mètode prepara el controlador quan la pantalla es carrega.
@@ -96,7 +97,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               onTap: () => FocusScope.of(context).unfocus(),
               child: Stack(
                 children: [
-                  // Aquest bloc conté el formulari principal i el desplaça quan apareix el teclat.
+                  // Aquest bloc conté el formulari principal
+                  // i el desplaça suaument quan apareix el teclat.
                   AnimatedPadding(
                     duration: const Duration(milliseconds: 250),
                     curve: Curves.easeOut,
@@ -108,7 +110,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Aquesta targeta agrupa els camps necessaris per crear el compte i els botons principals relacionats amb el registre.
+                            // Aquesta targeta agrupa els camps del registre
+                            // i els botons principals relacionats amb la creació del compte.
                             Container(
                               width: double.infinity,
                               constraints: const BoxConstraints(maxWidth: 460),
@@ -140,6 +143,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     onChanged: controller.onFirstNameChanged,
                                     enabled: !controller.isLoading,
                                   ),
+                                  // Aquest missatge indica que el camp del nom encara no s’ha omplert.
                                   if (controller.hasEmptyFirstName) ...[
                                     const SizedBox(height: 10),
                                     const Text(
@@ -169,6 +173,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     onChanged: controller.onLastNameChanged,
                                     enabled: !controller.isLoading,
                                   ),
+                                  // Aquest missatge indica que el camp del cognom encara no s’ha omplert.
                                   if (controller.hasEmptyLastName) ...[
                                     const SizedBox(height: 10),
                                     const Text(
@@ -198,6 +203,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     onChanged: controller.onEmailChanged,
                                     enabled: !controller.isLoading,
                                   ),
+                                  // Aquest missatge indica que el correu és un camp obligatori.
                                   if (controller.hasEmptyEmail) ...[
                                     const SizedBox(height: 10),
                                     const Text(
@@ -209,8 +215,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ),
                                     ),
                                   ],
+                                  // Aquest missatge es mostra quan el correu no té un format correcte.
                                   if (controller.hasInvalidEmail) ...[
-                                    // Aquest missatge es mostra quan el correu no té un format correcte.
                                     const SizedBox(height: 10),
                                     const Text(
                                       'Introdueix un correu electrònic vàlid',
@@ -250,6 +256,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ),
                                     ),
                                   ),
+                                  // Aquest missatge indica que la contrasenya és obligatòria.
                                   if (controller.hasEmptyPassword) ...[
                                     const SizedBox(height: 10),
                                     const Text(
@@ -261,8 +268,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ),
                                     ),
                                   ],
+                                  // Aquest missatge informa que la contrasenya encara no compleix la longitud mínima.
                                   if (controller.hasShortPassword) ...[
-                                    // Aquest missatge informa que la contrasenya encara no compleix la longitud mínima.
                                     const SizedBox(height: 10),
                                     const Text(
                                       'La contrasenya ha de tenir almenys 8 caràcters',
@@ -306,6 +313,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ),
                                     ),
                                   ),
+                                  // Aquest missatge indica que cal omplir també la confirmació de contrasenya.
                                   if (controller.hasEmptyConfirmPassword) ...[
                                     const SizedBox(height: 10),
                                     const Text(
@@ -317,8 +325,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ),
                                     ),
                                   ],
+                                  // Aquest missatge només es mostra quan les dues contrasenyes no coincideixen.
                                   if (controller.hasPasswordMismatch) ...[
-                                    // Aquest missatge només es mostra quan les dues contrasenyes no coincideixen.
                                     const SizedBox(height: 10),
                                     const Row(
                                       children: [
@@ -341,8 +349,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       ],
                                     ),
                                   ],
+                                  // Aquest bloc mostra un error general del procés de registre.
                                   if (controller.errorMessage != null) ...[
-                                    // Aquest bloc mostra un error general del procés de registre.
                                     const SizedBox(height: 14),
                                     Text(
                                       controller.errorMessage!,
@@ -354,8 +362,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ),
                                   ],
                                   const SizedBox(height: 28),
+                                  // Aquest botó inicia el procés de creació del compte amb les dades del formulari.
+                                  // Quan hi ha una operació en curs, es desactiva i mostra un indicador de càrrega.
                                   SizedBox(
-                                    // Aquest botó inicia el procés de creació del compte amb les dades que l’usuari ha introduït al formulari.
                                     width: double.infinity,
                                     height: 54,
                                     child: DecoratedBox(
@@ -422,8 +431,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 16),
+                                  // Aquest botó permet tornar a la pantalla d’accés
+                                  // si l’usuari ja disposa d’un compte.
                                   SizedBox(
-                                    // Aquest botó permet tornar al flux d’accés per a usuaris que ja disposen d’un compte i no necessiten registrar-se.
                                     width: double.infinity,
                                     height: 50,
                                     child: ElevatedButton(
@@ -453,8 +463,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                             ),
                             const SizedBox(height: 18),
+                            // Aquest bloc informa l’usuari que el registre implica l’acceptació
+                            // de les condicions bàsiques del servei.
                             Padding(
-                              // Aquest bloc informa l’usuari que el registre implica l’acceptació de les condicions bàsiques del servei.
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 12),
                               child: Wrap(

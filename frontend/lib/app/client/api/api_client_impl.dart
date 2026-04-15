@@ -6,9 +6,9 @@ import 'package:http/http.dart' as http;
 
 import '../../../core/client/api_client.dart';
 
-// Aquesta classe és l’encarregada de comunicar el frontend amb el backend.
-// En aquest cas implementa les operacions d’autenticació
-// i tradueix la resposta del servidor en un resultat o en un error entenedor per a l’aplicació.
+// Aquesta classe s’encarrega de comunicar el frontend amb el backend.
+// Implementa les operacions principals d’autenticació
+// i transforma les respostes del servidor en resultats útils o errors entenedors per a l’aplicació.
 class ApiClientImpl implements ApiClient {
   // El constructor permet reutilitzar un client HTTP o definir una URL base concreta.
   // Si no es proporciona res, es crea una configuració per defecte segons l’entorn d’execució.
@@ -18,13 +18,13 @@ class ApiClientImpl implements ApiClient {
   })  : _client = client ?? http.Client(),
         _baseUrl = baseUrl ?? _resolveBaseUrl();
 
-  // Aquest bloc guarda els dos elements principals necessaris per fer peticions:
+  // Aquest bloc guarda els elements bàsics necessaris per fer peticions:
   // el client HTTP i l’adreça base del backend.
   final http.Client _client;
   final String _baseUrl;
 
   // Aquest mètode decideix automàticament quina adreça del backend s’ha d’utilitzar.
-  // És rellevant perquè l’accés al servidor no és igual en web que en dispositius Android o altres entorns.
+  // És rellevant perquè la manera d’accedir al servidor pot canviar segons la plataforma on s’executa l’app.
   static String _resolveBaseUrl() {
     if (kIsWeb) {
       return 'http://localhost:3000';
@@ -73,13 +73,13 @@ class ApiClientImpl implements ApiClient {
       // per poder mostrar-lo a l’usuari de manera més útil.
       final Map<String, dynamic>? data = _tryParseJson(response.body);
 
-      final message =
-          data?['error']?.toString() ??
+      final message = data?['error']?.toString() ??
           data?['message']?.toString() ??
           'No s\'ha pogut completar el registre';
 
       throw ApiException(message, statusCode: response.statusCode);
     } on TimeoutException {
+      // Aquest error es retorna quan el servidor triga massa a respondre.
       throw const ApiException(
         'El servidor no respon. Torna-ho a provar',
       );
@@ -94,6 +94,9 @@ class ApiClientImpl implements ApiClient {
     }
   }
 
+  // Aquest mètode envia les credencials de l’usuari per iniciar sessió.
+  // Si la resposta és correcta, retorna la informació necessària per continuar
+  // amb la sessió oberta dins de l’aplicació.
   @override
   Future<LoginResponse> login({
     required String email,
@@ -113,6 +116,8 @@ class ApiClientImpl implements ApiClient {
           )
           .timeout(const Duration(seconds: 10));
 
+      // Aquest bloc valida que la resposta correcta del servidor
+      // contingui informació usable per l’aplicació.
       if (response.statusCode == 200) {
         final Map<String, dynamic>? data = _tryParseJson(response.body);
 
@@ -126,19 +131,23 @@ class ApiClientImpl implements ApiClient {
         return LoginResponse.fromJson(data);
       }
 
+      // Si el login falla, es prova d’obtenir un missatge d’error clar
+      // per mostrar-lo a l’usuari.
       final Map<String, dynamic>? data = _tryParseJson(response.body);
 
-      final message =
-          data?['error']?.toString() ??
+      final message = data?['error']?.toString() ??
           data?['message']?.toString() ??
           'No s\'ha pogut iniciar sessió';
 
       throw ApiException(message, statusCode: response.statusCode);
     } on TimeoutException {
+      // Aquest error es retorna quan el servidor no respon dins del temps previst.
       throw const ApiException(
         'El servidor no respon. Torna-ho a provar',
       );
     } catch (error) {
+      // Aquest bloc conserva els errors ja controlats i converteix la resta
+      // en un missatge general de connexió.
       if (error is ApiException) rethrow;
 
       throw const ApiException(
@@ -147,6 +156,9 @@ class ApiClientImpl implements ApiClient {
     }
   }
 
+  // Aquest mètode intenta interpretar el text rebut del servidor com a JSON.
+  // És útil per llegir missatges d’èxit o d’error sense provocar fallades
+  // si la resposta arriba buida o amb un format inesperat.
   Map<String, dynamic>? _tryParseJson(String body) {
     if (body.isEmpty) return null;
 
