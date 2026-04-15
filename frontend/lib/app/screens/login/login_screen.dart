@@ -39,6 +39,12 @@ class _LoginScreenState extends State<LoginScreen> {
     if (controller.destination == LoginNavigationDestination.register) {
       controller.consumeNavigation();
       context.router.push(const RegisterRoute());
+      return;
+    }
+
+    if (controller.destination == LoginNavigationDestination.dashboard) {
+      controller.consumeNavigation();
+      context.router.replace(const DashboardRoute());
     }
   }
 
@@ -49,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-// Aquest mètode construeix la part visual de la pantalla de login.
+  // Aquest mètode construeix la part visual de la pantalla de login.
   @override
   Widget build(BuildContext context) {
     final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
@@ -116,7 +122,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                     hintText: 'elteu@correu.com',
                                     keyboardType: TextInputType.emailAddress,
                                     obscureText: false,
+                                    enabled: !controller.isLoading,
+                                    onChanged: controller.onEmailChanged,
                                   ),
+                                  if (controller.hasInvalidEmail) ...[
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'Introdueix un correu electrònic vàlid',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 26),
                                   Row(
                                     children: [
@@ -149,9 +167,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                     hintText: '••••••••••••',
                                     keyboardType: TextInputType.text,
                                     obscureText: controller.obscurePassword,
+                                    enabled: !controller.isLoading,
+                                    onChanged: controller.onPasswordChanged,
+                                    onSubmitted: (_) => controller.onLoginTap(),
                                     suffixIcon: IconButton(
-                                      onPressed:
-                                          controller.togglePasswordVisibility,
+                                      onPressed: controller.isLoading
+                                          ? null
+                                          : controller.togglePasswordVisibility,
                                       icon: Icon(
                                         controller.obscurePassword
                                             ? Icons.visibility_off_outlined
@@ -160,6 +182,27 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     ),
                                   ),
+                                  if (controller.hasEmptyPassword) ...[
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'La contrasenya és obligatòria',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                  ],
+                                  if (controller.errorMessage != null) ...[
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      controller.errorMessage!,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 34),
                                   SizedBox(
                                     width: double.infinity,
@@ -182,23 +225,42 @@ class _LoginScreenState extends State<LoginScreen> {
                                         ],
                                       ),
                                       child: ElevatedButton(
-                                        onPressed: controller.onLoginTap,
+                                        onPressed: controller.isLoading
+                                            ? null
+                                            : () => controller.onLoginTap(),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.transparent,
                                           shadowColor: Colors.transparent,
+                                          disabledBackgroundColor:
+                                              Colors.transparent,
+                                          disabledForegroundColor: Colors.white,
                                           shape: RoundedRectangleBorder(
                                             borderRadius:
                                                 BorderRadius.circular(28),
                                           ),
                                         ),
-                                        child: const Text(
-                                          'Iniciar Sessió',
-                                          style: TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white,
-                                          ),
-                                        ),
+                                        child: controller.isLoading
+                                            ? const SizedBox(
+                                                width: 24,
+                                                height: 24,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  strokeWidth: 2.5,
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation<
+                                                          Color>(
+                                                    Colors.white,
+                                                  ),
+                                                ),
+                                              )
+                                            : const Text(
+                                                'Iniciar Sessió',
+                                                style: TextStyle(
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
                                       ),
                                     ),
                                   ),
@@ -253,6 +315,9 @@ class _InputField extends StatelessWidget {
     required this.keyboardType,
     required this.obscureText,
     this.suffixIcon,
+    this.enabled = true,
+    this.onChanged,
+    this.onSubmitted,
   });
 
   final TextEditingController controller;
@@ -260,6 +325,9 @@ class _InputField extends StatelessWidget {
   final TextInputType keyboardType;
   final bool obscureText;
   final Widget? suffixIcon;
+  final bool enabled;
+  final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
 
   @override
   Widget build(BuildContext context) {
@@ -273,6 +341,9 @@ class _InputField extends StatelessWidget {
         controller: controller,
         keyboardType: keyboardType,
         obscureText: obscureText,
+        enabled: enabled,
+        onChanged: onChanged,
+        onSubmitted: onSubmitted,
         decoration: InputDecoration(
           border: InputBorder.none,
           hintText: hintText,
