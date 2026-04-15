@@ -26,9 +26,30 @@ class LoginResponse {
   final String? message;
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
+    final userIdRaw = json['userId'];
+    int? parsedUserId;
+
+    if (userIdRaw is int) {
+      parsedUserId = userIdRaw;
+    } else if (userIdRaw is num) {
+      parsedUserId = userIdRaw.toInt();
+    } else if (userIdRaw is String) {
+      parsedUserId = int.tryParse(userIdRaw);
+    }
+
+    if (parsedUserId == null) {
+      throw const ApiException('El userId retornat pel servidor no és vàlid');
+    }
+
+    final token = json['token']?.toString();
+
+    if (token == null || token.isEmpty) {
+      throw const ApiException('El token retornat pel servidor no és vàlid');
+    }
+
     return LoginResponse(
-      token: json['token'] as String,
-      userId: json['userId'] as int,
+      token: token,
+      userId: parsedUserId,
       message: json['message'] as String?,
     );
   }
@@ -38,7 +59,6 @@ class LoginResponse {
 // És rellevant perquè estableix quines operacions ha de poder fer qualsevol
 // implementació encarregada de comunicar-se amb el backend.
 abstract class ApiClient {
-
   // Aquest mètode defineix l’operació de registre d’un nou usuari.
   // Rep les dades necessàries per crear el compte i deixa clar
   // que qualsevol client d’API haurà d’implementar aquest comportament.
@@ -53,5 +73,4 @@ abstract class ApiClient {
     required String email,
     required String password,
   });
-
 }

@@ -6,10 +6,9 @@ import 'package:http/http.dart' as http;
 import '../../../core/client/api_client.dart';
 
 // Aquesta classe és l’encarregada de comunicar el frontend amb el backend.
-// En aquest cas implementa l’operació de registre d’usuari
+// En aquest cas implementa les operacions d’autenticació
 // i tradueix la resposta del servidor en un resultat o en un error entenedor per a l’aplicació.
 class ApiClientImpl implements ApiClient {
-
   // El constructor permet reutilitzar un client HTTP o definir una URL base concreta.
   // Si no es proporciona res, es crea una configuració per defecte segons l’entorn d’execució.
   ApiClientImpl({
@@ -71,13 +70,13 @@ class ApiClientImpl implements ApiClient {
       // per poder mostrar-lo a l’usuari de manera més útil.
       final Map<String, dynamic>? data = _tryParseJson(response.body);
 
-      final message = data?['error']?.toString() ??
+      final message =
+          data?['error']?.toString() ??
           data?['message']?.toString() ??
           'No s\'ha pogut completar el registre';
 
       throw ApiException(message, statusCode: response.statusCode);
     } catch (error) {
-      
       // Aquest bloc diferencia els errors ja controlats dels errors de connexió
       // o problemes inesperats durant la comunicació amb el servidor.
       if (error is ApiException) rethrow;
@@ -115,35 +114,13 @@ class ApiClientImpl implements ApiClient {
           );
         }
 
-        final token = data['token']?.toString();
-        final userIdRaw = data['userId'];
-
-        int? userId;
-
-        if (userIdRaw is int) {
-          userId = userIdRaw;
-        } else if (userIdRaw is num) {
-          userId = userIdRaw.toInt();
-        } else if (userIdRaw is String) {
-          userId = int.tryParse(userIdRaw);
-        }
-
-        if (token == null || token.isEmpty || userId == null) {
-          throw const ApiException(
-            'Falten dades necessàries a la resposta del servidor',
-            statusCode: 200,
-          );
-        }
-        return LoginResponse(
-          token: token,
-          userId: userId,
-          message: data['message']?.toString(),
-        );
+        return LoginResponse.fromJson(data);
       }
 
       final Map<String, dynamic>? data = _tryParseJson(response.body);
 
-      final message = data?['error']?.toString() ??
+      final message =
+          data?['error']?.toString() ??
           data?['message']?.toString() ??
           'No s\'ha pogut iniciar sessió';
 
