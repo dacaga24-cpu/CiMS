@@ -13,6 +13,27 @@ class ApiException implements Exception {
   @override
   String toString() => message;
 }
+
+class LoginResponse {
+  const LoginResponse({
+    required this.token,
+    required this.userId,
+    this.message,
+  });
+
+  final String token;
+  final int userId;
+  final String? message;
+
+  factory LoginResponse.fromJson(Map<String, dynamic> json) {
+    return LoginResponse(
+      token: json['token'] as String,
+      userId: json['userId'] as int,
+      message: json['message'] as String?,
+    );
+  }
+}
+
 // Aquesta classe abstracta defineix el contracte bàsic del client d’API.
 // És rellevant perquè estableix quines operacions ha de poder fer qualsevol
 // implementació encarregada de comunicar-se amb el backend.
@@ -27,4 +48,10 @@ abstract class ApiClient {
     required String email,
     required String password,
   });
+
+  Future<LoginResponse> login({
+    required String email,
+    required String password,
+  });
+
 }

@@ -9,7 +9,7 @@ import '../../../core/client/api_client.dart';
 // En aquest cas implementa l’operació de registre d’usuari
 // i tradueix la resposta del servidor en un resultat o en un error entenedor per a l’aplicació.
 class ApiClientImpl implements ApiClient {
-  
+
   // El constructor permet reutilitzar un client HTTP o definir una URL base concreta.
   // Si no es proporciona res, es crea una configuració per defecte segons l’entorn d’execució.
   ApiClientImpl({
@@ -69,24 +69,105 @@ class ApiClientImpl implements ApiClient {
 
       // Si el registre falla, aquí s’intenta recuperar un missatge clar de la resposta
       // per poder mostrar-lo a l’usuari de manera més útil.
-      final Map<String, dynamic>? data =
-          response.body.isNotEmpty ? jsonDecode(response.body) : null;
+      final Map<String, dynamic>? data = _tryParseJson(response.body);
 
-      final message =
-          data?['error']?.toString() ??
+      final message = data?['error']?.toString() ??
           data?['message']?.toString() ??
           'No s\'ha pogut completar el registre';
 
       throw ApiException(message, statusCode: response.statusCode);
     } catch (error) {
-
+      
       // Aquest bloc diferencia els errors ja controlats dels errors de connexió
-      // o problemes inesperats durant la comunicació amb el servidor.      
+      // o problemes inesperats durant la comunicació amb el servidor.
       if (error is ApiException) rethrow;
 
       throw const ApiException(
         'No s\'ha pogut connectar amb el servidor',
       );
+    }
+  }
+
+  @override
+  Future<LoginResponse> login({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/api/auth/login'),
+        headers: const {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic>? data = _tryParseJson(response.body);
+
+        if (data == null) {
+          throw const ApiException(
+            'La resposta del servidor no és vàlida',
+            statusCode: 200,
+          );
+        }
+
+        final token = data['token']?.toString();
+        final userIdRaw = data['userId'];
+
+        int? userId;
+
+        if (userIdRaw is int) {
+          userId = userIdRaw;
+        } else if (userIdRaw is num) {
+          userId = userIdRaw.toInt();
+        } else if (userIdRaw is String) {
+          userId = int.tryParse(userIdRaw);
+        }
+
+        if (token == null || token.isEmpty || userId == null) {
+          throw const ApiException(
+            'Falten dades necessàries a la resposta del servidor',
+            statusCode: 200,
+          );
+        }
+        return LoginResponse(
+          token: token,
+          userId: userId,
+          message: data['message']?.toString(),
+        );
+      }
+
+      final Map<String, dynamic>? data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'ha pogut iniciar sessió';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
+
+  Map<String, dynamic>? _tryParseJson(String body) {
+    if (body.isEmpty) return null;
+
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 }
