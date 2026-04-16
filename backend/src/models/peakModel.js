@@ -22,7 +22,7 @@ const PeakModel = {
         FROM peaks p
         `;
 
-        if (regionId) {
+        if (regionId !== undefined && minAltitude !== null) {
         sql += ` INNER JOIN peak_regions pr ON pr.peak_id = p.id `;
         conditions.push('pr.region_id = ?');
         params.push(regionId);

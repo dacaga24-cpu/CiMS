@@ -11,7 +11,7 @@ const RegionModel = {
     // on l'usuari pot escollir una regió concreta.
     async findAll() {
         const sql = `
-        SELECT id, name, created_at, updated_at
+        SELECT id, name
         FROM regions
         ORDER BY name ASC
         `;
@@ -25,7 +25,7 @@ const RegionModel = {
     // com a filtre en les consultes de cims.
     async findById(id) {
         const sql = `
-        SELECT id, name, created_at, updated_at
+        SELECT id, name
         FROM regions
         WHERE id = ?
         LIMIT 1
