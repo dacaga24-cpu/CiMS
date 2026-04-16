@@ -6,6 +6,7 @@ const express = require('express');
 const cors = require('cors');
 
 const authRoutes = require('./routes/authRoutes');
+const peakRoutes = require('./routes/peakRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -24,6 +25,10 @@ app.get('/health', (req, res) => {
 // Aquest bloc registra les rutes d’autenticació sota un prefix comú.
 // Això ajuda a mantenir organitzats els endpoints relacionats amb usuaris i accés.
 app.use('/api/auth', authRoutes);
+
+// Aquest bloc registra les rutes del catàleg de cims.
+// Es manté el mateix patró de prefix /api per agrupar tota l'API.
+app.use('/api/peaks', peakRoutes);
 
 // Aquest gestor s’aplica al final perquè pugui recollir qualsevol error
 // produït durant el recorregut d’una petició.
