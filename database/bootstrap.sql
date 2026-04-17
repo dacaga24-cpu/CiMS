@@ -11,12 +11,6 @@
 -- 1) Aquest script elimina i recrea la base de dades `cims_db`.
 -- 2) Les rutes SOURCE són relatives al directori actual del client MySQL.
 -- 3) Per això has d'obrir mysql des de la carpeta `database/`.
---
--- Un cop executat aquest script, carrega els cims amb:
---   node seeds/seed-peaks.js
--- 1) Aquest script elimina i torna a crear la base de dades `cims_db`.
--- 2) Les ordres SOURCE busquen els fitxers a partir de la carpeta actual del client MySQL.
--- 3) Per això convé obrir MySQL des de la carpeta `database/`.
 
 SET NAMES utf8mb4;
 SET @OLD_FOREIGN_KEY_CHECKS = @@FOREIGN_KEY_CHECKS;
