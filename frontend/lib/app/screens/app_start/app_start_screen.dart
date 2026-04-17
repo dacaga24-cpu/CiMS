@@ -1,10 +1,10 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../core/usecase/session/has_saved_session_usecase.dart';
 import '../../router/app_router.dart';
+import '../../widgets/branding/cims_logo.dart';
 import 'app_start_controller.dart';
-
 
 // Aquesta pantalla actua com a punt d’entrada visual de l’aplicació.
 // Mostra el logotip inicial, prepara una animació de presentació
@@ -30,7 +30,6 @@ class _AppStartScreenState extends State<AppStartScreen>
   late final Animation<double> fadeAnimation;
   late final Animation<double> scaleAnimation;
 
-  
   // Aquest mètode prepara tot el necessari quan la pantalla es carrega.
   // Inicialitza la lògica que decidirà la navegació, configura les animacions
   // del logotip i posa en marxa tant l’efecte visual com la comprovació inicial.
@@ -39,7 +38,7 @@ class _AppStartScreenState extends State<AppStartScreen>
     super.initState();
 
     controller = AppStartController(
-      hasSavedSession: () async => false, // TODO: substituir per la comprovació real de sessió guardada
+      hasSavedSessionUseCase: const HasSavedSessionUseCase(),
     )..addListener(_handleControllerChanges);
 
     animationController = AnimationController(
@@ -109,8 +108,7 @@ class _AppStartScreenState extends State<AppStartScreen>
               scale: scaleAnimation,
               child: Transform.translate(
                 offset: const Offset(0, -70),
-                child: SvgPicture.asset(
-                  'assets/images/cims_logo.svg',
+                child: const CimsLogo(
                   width: 110,
                   height: 110,
                 ),
