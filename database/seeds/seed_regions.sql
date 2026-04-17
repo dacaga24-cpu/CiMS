@@ -1,3 +1,6 @@
+SET NAMES utf8mb4;
+SET CHARACTER SET utf8mb4;
+
 USE cims_db;
 
 INSERT INTO regions (name) VALUES
@@ -7,7 +10,6 @@ INSERT INTO regions (name) VALUES
 ('Alt Urgell'),
 ('Alta Ribagorça'),
 ('Anoia'),
-('Aran'),
 ('Bages'),
 ('Baix Camp'),
 ('Baix Ebre'),
@@ -30,10 +32,10 @@ INSERT INTO regions (name) VALUES
 ('Osona'),
 ('Pallars Jussà'),
 ('Pallars Sobirà'),
-("Pla d'Urgell"),
-("Pla de l'Estany"),
+('Pla d''Urgell'),
+('Pla de l''Estany'),
 ('Priorat'),
-("Ribera d'Ebre"),
+('Ribera d''Ebre'),
 ('Ripollès'),
 ('Segarra'),
 ('Segrià'),
@@ -42,5 +44,6 @@ INSERT INTO regions (name) VALUES
 ('Tarragonès'),
 ('Terra Alta'),
 ('Urgell'),
+("Val d'Aran"),
 ('Vallès Occidental'),
 ('Vallès Oriental');
