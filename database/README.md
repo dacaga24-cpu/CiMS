@@ -25,4 +25,14 @@ Un cop dins del client MySQL, executa el script de bootstrap:
 SOURCE bootstrap.sql;
 ```
 
-Això eliminarà i recrearà la base de dades `cims_db` des de zero, aplicant l'esquema i les dades inicials automàticament.
+Això eliminarà i recrearà la base de dades `cims_db` des de zero,
+aplicant l'esquema i les dades inicials automàticament.
+
+Un cop completat, surt del client MySQL i executa el seeding de cims
+des del terminal, situat a la carpeta `database/`:
+
+```bash
+node seeds/seed-peaks.js
+```
+
+Això carregarà tots els cims des del fitxer `data/peaks.csv` a la base de dades.
