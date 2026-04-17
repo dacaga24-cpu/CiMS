@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/client/api/api_client_impl.dart';
 import '../../../core/client/api_client.dart';
+import '../../../core/usecase/auth/register_usecase.dart';
 
 // Aquest bloc defineix els possibles destins de navegació de la pantalla de registre.
 // Serveix per indicar si l’usuari ha de tornar al login o obrir la pantalla de termes.
@@ -15,15 +16,19 @@ enum RegisterNavigationDestination {
 // S’encarrega de controlar els camps del formulari, validar les dades,
 // comunicar-se amb l’API i indicar a la vista què ha de mostrar o cap on ha de navegar.
 class RegisterController extends ChangeNotifier {
-  // El controlador pot rebre un client d’API extern o crear-ne un per defecte.
-  // Això permet reutilitzar la mateixa lògica tant en execució normal com en proves.
+  // El controlador pot rebre el cas d’ús del registre des de fora o crear-ne un per defecte.
+  // Això permet desacoblar el flux de registre de la pantalla
+  // i facilita una arquitectura més neta.
   RegisterController({
-    ApiClient? apiClient,
-  }) : _apiClient = apiClient ?? ApiClientImpl();
+    RegisterUseCase? registerUseCase,
+  }) : _registerUseCase = registerUseCase ??
+            RegisterUseCase(
+              apiClient: ApiClientImpl(),
+            );
 
-  // Aquest bloc agrupa la connexió amb l’API i els controladors de text del formulari.
+  // Aquest bloc agrupa el cas d’ús del registre i els controladors de text del formulari.
   // Gràcies a això es poden llegir i gestionar les dades que l’usuari escriu a cada camp.
-  final ApiClient _apiClient;
+  final RegisterUseCase _registerUseCase;
 
   final firstNameController = TextEditingController();
   final lastNameController = TextEditingController();
@@ -135,8 +140,8 @@ class RegisterController extends ChangeNotifier {
 
   // Aquest mètode gestiona l’acció principal de crear un compte.
   // Primer activa les validacions, després comprova si el formulari és correcte
-  // i finalment envia les dades a l’API. Si el registre va bé, prepara la navegació al login;
-  // si falla, guarda un missatge d’error perquè la vista el pugui mostrar.
+  // i finalment delega l’operació de registre al cas d’ús corresponent.
+  // Si el registre va bé, prepara la navegació al login; si falla, guarda un missatge d’error.
   Future<void> onCreateAccountTap() async {
     if (isLoading) return;
 
@@ -150,7 +155,7 @@ class RegisterController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _apiClient.register(
+      await _registerUseCase.execute(
         firstName: firstNameController.text.trim(),
         lastName: lastNameController.text.trim(),
         email: emailController.text.trim(),
