@@ -18,11 +18,11 @@ const PeakModel = {
 
         let sql = `
         SELECT DISTINCT p.id, p.name, p.altitude, p.latitude, p.longitude,
-                p.description, p.created_at, p.updated_at
+                p.description
         FROM peaks p
         `;
 
-        if (regionId !== undefined && minAltitude !== null) {
+        if (regionId !== undefined && regionId !== null) {
         sql += ` INNER JOIN peak_regions pr ON pr.peak_id = p.id `;
         conditions.push('pr.region_id = ?');
         params.push(regionId);
@@ -60,8 +60,7 @@ const PeakModel = {
     // Es fa servir a la pantalla de detall del cim.
     async findById(id) {
         const sqlPeak = `
-        SELECT id, name, altitude, latitude, longitude, description,
-                created_at, updated_at
+        SELECT id, name, altitude, latitude, longitude, description
         FROM peaks
         WHERE id = ?
         LIMIT 1
