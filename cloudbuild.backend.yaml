@@ -35,3 +35,6 @@ steps:
 
 images:
   - 'europe-southwest1-docker.pkg.dev/$PROJECT_ID/cims/cims-backend:$COMMIT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
