@@ -60,8 +60,7 @@ const PeakModel = {
     // Es fa servir a la pantalla de detall del cim.
     async findById(id) {
         const sqlPeak = `
-        SELECT id, name, altitude, latitude, longitude, description,
-                created_at, updated_at
+        SELECT id, name, altitude, latitude, longitude, description
         FROM peaks
         WHERE id = ?
         LIMIT 1
