@@ -18,7 +18,7 @@ const PeakModel = {
 
         let sql = `
         SELECT DISTINCT p.id, p.name, p.altitude, p.latitude, p.longitude,
-                p.description, p.created_at, p.updated_at
+                p.description
         FROM peaks p
         `;
 
