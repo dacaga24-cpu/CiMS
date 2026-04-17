@@ -1,10 +1,13 @@
+-- Aquest script crea la base de dades principal de CiMS i defineix tota l’estructura inicial.
+-- És rellevant perquè estableix on es guardaran les dades bàsiques de l’aplicació:
+-- usuaris, cims, comarques, ascensions, estats personals i recuperació de contrasenya.
 CREATE DATABASE IF NOT EXISTS cims_db
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
 USE cims_db;
 
--- 1. regions
+-- 1. Taula de regions (comarques)
 CREATE TABLE IF NOT EXISTS regions (
   id         INT          NOT NULL AUTO_INCREMENT,
   name       VARCHAR(100) NOT NULL,
@@ -14,7 +17,7 @@ CREATE TABLE IF NOT EXISTS regions (
   UNIQUE KEY uq_regions_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 2. users
+-- 2. Taula d'usuaris
 CREATE TABLE IF NOT EXISTS users (
   id         INT          NOT NULL AUTO_INCREMENT,
   first_name VARCHAR(100) NOT NULL,
@@ -28,7 +31,7 @@ CREATE TABLE IF NOT EXISTS users (
   UNIQUE KEY uq_users_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 3. peaks
+-- 3. Taula de cims
 CREATE TABLE IF NOT EXISTS peaks (
   id         INT          NOT NULL AUTO_INCREMENT,
   name       VARCHAR(150) NOT NULL,
@@ -42,7 +45,7 @@ CREATE TABLE IF NOT EXISTS peaks (
   INDEX idx_peaks_altitude (altitude)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 4. peak_regions (relació N:M entre peaks i regions)
+-- 4. Taula que relaciona cims amb comarques
 CREATE TABLE IF NOT EXISTS peak_regions (
   id         INT        NOT NULL AUTO_INCREMENT,
   peak_id    INT        NOT NULL,
@@ -62,7 +65,7 @@ CREATE TABLE IF NOT EXISTS peak_regions (
 CREATE INDEX idx_peak_regions_peak_id   ON peak_regions(peak_id);
 CREATE INDEX idx_peak_regions_region_id ON peak_regions(region_id);
 
--- 5. ascents
+-- 5. Taula d'ascencions dels usuaris als cims
 CREATE TABLE IF NOT EXISTS ascents (
   id          INT      NOT NULL AUTO_INCREMENT,
   user_id     INT      NOT NULL,
@@ -83,7 +86,7 @@ CREATE TABLE IF NOT EXISTS ascents (
     ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 6. peak_status
+-- 6. Taula per gestionar l'estat dels cims de cada usuari (completat, objectiu, preferit)
 CREATE TABLE IF NOT EXISTS peak_status (
   id           INT        NOT NULL AUTO_INCREMENT,
   user_id      INT        NOT NULL,
@@ -103,4 +106,21 @@ CREATE TABLE IF NOT EXISTS peak_status (
   CONSTRAINT fk_peak_status_peak
     FOREIGN KEY (peak_id) REFERENCES peaks(id)
     ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 7. Taula per gestionar tokens de recuperació de contrassenya
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id          INT          NOT NULL AUTO_INCREMENT,
+  user_id     INT          NOT NULL,
+  token       VARCHAR(255) NOT NULL,
+  expires_at  DATETIME     NOT NULL,
+  is_used     TINYINT      NOT NULL DEFAULT 0,
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_password_reset_tokens_token (token),
+  INDEX idx_password_reset_tokens_user_id (user_id),
+  INDEX idx_password_reset_tokens_expires_at (expires_at),
+  CONSTRAINT fk_password_reset_tokens_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4; 

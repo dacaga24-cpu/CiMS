@@ -1,6 +1,9 @@
--- bootstrap_cims_db.sql
--- Script mestre per inicialitzar la base de dades CiMS des de zero.
--- Executa'l des del client MySQL obert dins de la carpeta `database/`:
+-- Aquest script principal prepara la base de dades de CiMS des de zero.
+-- La seva funció és recrear l’estructura bàsica, carregar les dades inicials
+-- i comprovar al final que la càrrega s’ha fet correctament.
+
+-- Aquestes indicacions expliquen com executar l’script des del client de MySQL.
+-- És important fer-ho des de la carpeta correcta perquè les rutes dels fitxers auxiliars funcionin bé.
 --   mysql -u root -p
 --   SOURCE bootstrap.sql;
 --
@@ -8,9 +11,6 @@
 -- 1) Aquest script elimina i recrea la base de dades `cims_db`.
 -- 2) Les rutes SOURCE són relatives al directori actual del client MySQL.
 -- 3) Per això has d'obrir mysql des de la carpeta `database/`.
---
--- Un cop executat aquest script, carrega els cims amb:
---   node seeds/seed-peaks.js
 
 SET NAMES utf8mb4;
 SET @OLD_FOREIGN_KEY_CHECKS = @@FOREIGN_KEY_CHECKS;
