@@ -3,6 +3,7 @@ import 'package:cims/app/screens/app_start/app_start_screen.dart';
 import 'package:cims/app/screens/login/login_screen.dart';
 import 'package:cims/app/screens/dashboard/dashboard_screen.dart';
 import 'package:cims/app/screens/register/register_screen.dart';
+import 'package:cims/app/screens/reset_password/reset_password_screen.dart';
 
 part 'app_router.gr.dart';
 
@@ -17,6 +18,10 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: AppStartRoute.page, initial: true),
         AutoRoute(page: LoginRoute.page),
         AutoRoute(page: RegisterRoute.page),
+        AutoRoute(
+          page: ResetPasswordRoute.page,
+          path: '/reset-password', 
+          ),
         AutoRoute(page: DashboardRoute.page),
       ];
 }
