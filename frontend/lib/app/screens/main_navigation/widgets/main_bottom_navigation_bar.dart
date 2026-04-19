@@ -14,6 +14,10 @@ class MainBottomNavigationBar extends StatelessWidget {
   final MainBottomNavigationTab selectedTab;
   final ValueChanged<MainBottomNavigationTab> onTabSelected;
 
+
+  // Aquest mètode construeix el menú inferior fix de l’aplicació.
+  // Des d’aquí l’usuari pot moure’s entre les seccions principals
+  // accessibles des de la navegació base.
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -33,6 +37,10 @@ class MainBottomNavigationBar extends StatelessWidget {
               ),
             ],
           ),
+
+          // Aquest bloc defineix les quatre opcions principals del menú inferior.
+          // Cada element actualitza la secció activa i reflecteix visualment
+          // quina pantalla està seleccionada en cada moment.
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -83,6 +91,9 @@ class _NavigationItem extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
+  // Aquest mètode construeix una sola opció del menú inferior.
+  // Mostra la icona, el text i l’estat visual actiu o inactiu
+  // segons la secció seleccionada.
   @override
   Widget build(BuildContext context) {
     final activeColor =
