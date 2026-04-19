@@ -48,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (controller.destination == LoginNavigationDestination.dashboard) {
       controller.consumeNavigation();
-      context.router.replace(const DashboardRoute());
+      context.router.replace(const MainNavigationRoute());
     }
   }
 

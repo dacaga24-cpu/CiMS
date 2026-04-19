@@ -59,6 +59,70 @@ class LoginRoute extends PageRouteInfo<void> {
 }
 
 /// generated route for
+/// [MainNavigationScreen]
+class MainNavigationRoute extends PageRouteInfo<void> {
+  const MainNavigationRoute({List<PageRouteInfo>? children})
+      : super(MainNavigationRoute.name, initialChildren: children);
+
+  static const String name = 'MainNavigationRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const MainNavigationScreen();
+    },
+  );
+}
+
+/// generated route for
+/// [PeaksCatalogScreen]
+class PeaksCatalogRoute extends PageRouteInfo<void> {
+  const PeaksCatalogRoute({List<PageRouteInfo>? children})
+      : super(PeaksCatalogRoute.name, initialChildren: children);
+
+  static const String name = 'PeaksCatalogRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const PeaksCatalogScreen();
+    },
+  );
+}
+
+/// generated route for
+/// [PeaksMapScreen]
+class PeaksMapRoute extends PageRouteInfo<void> {
+  const PeaksMapRoute({List<PageRouteInfo>? children})
+      : super(PeaksMapRoute.name, initialChildren: children);
+
+  static const String name = 'PeaksMapRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const PeaksMapScreen();
+    },
+  );
+}
+
+/// generated route for
+/// [ProfileSettingsScreen]
+class ProfileSettingsRoute extends PageRouteInfo<void> {
+  const ProfileSettingsRoute({List<PageRouteInfo>? children})
+      : super(ProfileSettingsRoute.name, initialChildren: children);
+
+  static const String name = 'ProfileSettingsRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const ProfileSettingsScreen();
+    },
+  );
+}
+
+/// generated route for
 /// [RegisterScreen]
 class RegisterRoute extends PageRouteInfo<void> {
   const RegisterRoute({List<PageRouteInfo>? children})
@@ -86,6 +150,22 @@ class ResetPasswordRoute extends PageRouteInfo<void> {
     name,
     builder: (data) {
       return const ResetPasswordScreen();
+    },
+  );
+}
+
+/// generated route for
+/// [UserStatsScreen]
+class UserStatsRoute extends PageRouteInfo<void> {
+  const UserStatsRoute({List<PageRouteInfo>? children})
+      : super(UserStatsRoute.name, initialChildren: children);
+
+  static const String name = 'UserStatsRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const UserStatsScreen();
     },
   );
 }
