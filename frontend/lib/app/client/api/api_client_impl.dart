@@ -1,42 +1,29 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
+import 'package:cims/app/client/api/api_config.dart';
+import 'package:cims/app/client/api/api_endpoints.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../core/client/api_client.dart';
+
 
 // Aquesta classe s’encarrega de comunicar el frontend amb el backend.
 // Implementa les operacions principals d’autenticació
 // i transforma les respostes del servidor en resultats útils o errors entenedors per a l’aplicació.
 class ApiClientImpl implements ApiClient {
   // El constructor permet reutilitzar un client HTTP o definir una URL base concreta.
-  // Si no es proporciona res, es crea una configuració per defecte segons l’entorn d’execució.
+  // Si no es proporciona res, es fa servir la configuració centralitzada del projecte.
   ApiClientImpl({
     http.Client? client,
     String? baseUrl,
   })  : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? _resolveBaseUrl();
+        _baseUrl = baseUrl ?? ApiConfig.baseUrl;
 
   // Aquest bloc guarda els elements bàsics necessaris per fer peticions:
   // el client HTTP i l’adreça base del backend.
   final http.Client _client;
   final String _baseUrl;
-
-  // Aquest mètode decideix automàticament quina adreça del backend s’ha d’utilitzar.
-  // És rellevant perquè la manera d’accedir al servidor pot canviar segons la plataforma on s’executa l’app.
-  static String _resolveBaseUrl() {
-    if (kIsWeb) {
-      return 'http://localhost:3000';
-    }
-
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return 'http://10.0.2.2:3000';
-      default:
-        return 'http://localhost:3000';
-    }
-  }
 
   // Aquest mètode envia al backend les dades necessàries per crear un compte nou.
   // Si el servidor confirma el registre, el procés es considera correcte.
@@ -51,7 +38,7 @@ class ApiClientImpl implements ApiClient {
     try {
       final response = await _client
           .post(
-            Uri.parse('$_baseUrl/api/auth/register'),
+            Uri.parse('$_baseUrl${ApiEndpoints.register}'),
             headers: const {
               'Content-Type': 'application/json',
             },
@@ -105,7 +92,7 @@ class ApiClientImpl implements ApiClient {
     try {
       final response = await _client
           .post(
-            Uri.parse('$_baseUrl/api/auth/login'),
+            Uri.parse('$_baseUrl${ApiEndpoints.login}'),
             headers: const {
               'Content-Type': 'application/json',
             },
