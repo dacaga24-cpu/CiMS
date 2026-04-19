@@ -3,52 +3,51 @@ import 'package:flutter/material.dart';
 
 import '../../router/app_router.dart';
 import '../../widgets/branding/cims_logo.dart';
-import 'login_controller.dart';
-import 'widgets/login_form_card.dart';
-import 'widgets/login_register_text.dart';
+import 'reset_password_controller.dart';
+import 'widgets/reset_password_form_card.dart';
 
-// Aquesta pantalla mostra la interfície d’inici de sessió de l’aplicació.
-// La seva funció és presentar el formulari, recollir la interacció de l’usuari
+// Aquesta pantalla mostra el formulari per definir una nova contrasenya.
+// La seva funció és permetre a l’usuari escriure i confirmar la nova contrasenya
 // i connectar la vista amb la lògica del controlador.
 @RoutePage()
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class ResetPasswordScreen extends StatefulWidget {
+  const ResetPasswordScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
 }
 
 // Aquesta classe gestiona el comportament intern de la pantalla.
 // Aquí es crea el controlador, s’escolten els seus canvis
 // i es construeix tota la interfície que veu l’usuari.
-class _LoginScreenState extends State<LoginScreen> {
-  // Aquest controlador concentra l’estat i les accions del formulari de login.
-  late final LoginController controller;
+class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
+  // Aquest controlador concentra l’estat i les accions del formulari
+  // de canvi de contrasenya.
+  late final ResetPasswordController controller;
 
-  // Aquest mètode prepara el controlador quan la pantalla es carrega per primera vegada.
-  // També connecta la pantalla amb els canvis del controlador per poder reaccionar
-  // quan cal navegar a una altra part de l’aplicació.
+  // Aquest mètode prepara el controlador quan la pantalla es carrega.
+  // També connecta la vista amb els canvis que poden requerir navegació.
   @override
   void initState() {
     super.initState();
-    controller = LoginController()..addListener(_handleControllerChanges);
+    controller = ResetPasswordController()
+      ..addListener(_handleControllerChanges);
   }
 
-  // Aquest mètode escolta els canvis del controlador i actua quan cal canviar de pantalla.
-  // En aquest cas, gestiona la navegació cap al registre o cap al dashboard
-  // després d’un inici de sessió correcte.
+  // Aquest mètode reacciona als canvis del controlador.
+  // Serveix per tornar a l’inici de sessió quan el flux s’ha completat
+  // o quan l’usuari decideix sortir d’aquesta pantalla.
   void _handleControllerChanges() {
     if (!mounted) return;
 
-    if (controller.destination == LoginNavigationDestination.register) {
+    if (controller.destination == ResetPasswordNavigationDestination.login) {
       controller.consumeNavigation();
-      context.router.push(const RegisterRoute());
-      return;
-    }
 
-    if (controller.destination == LoginNavigationDestination.dashboard) {
-      controller.consumeNavigation();
-      context.router.replace(const DashboardRoute());
+      if (context.router.canPop()) {
+        context.router.pop();
+      } else {
+        context.router.replace(const LoginRoute());
+      }
     }
   }
 
@@ -60,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // Aquest mètode construeix la part visual de la pantalla de login.
+  // Aquest mètode construeix la part visual de la pantalla.
   // També ajusta la posició del formulari quan apareix el teclat
   // perquè els camps continuïn sent còmodes d’utilitzar.
   @override
@@ -80,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Stack(
                 children: [
                   // Aquest bloc mostra el logotip a la part superior de la pantalla.
-                  // Serveix per reforçar la identitat visual de l’aplicació en el punt d’accés.
+                  // Serveix per mantenir la coherència visual amb la resta del flux d’accés.
                   const Align(
                     alignment: Alignment(0, -0.72),
                     child: CimsLogo(
@@ -88,7 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 120,
                     ),
                   ),
-                  // Aquest bloc conté tot el formulari d’inici de sessió
+                  // Aquest bloc conté el formulari principal
                   // i el desplaça suaument quan apareix el teclat.
                   AnimatedPadding(
                     duration: const Duration(milliseconds: 250),
@@ -102,13 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const SizedBox(height: 12),
-                            LoginFormCard(controller: controller),
-                            const SizedBox(height: 20),
-                            // Aquest bloc ofereix l’accés al registre
-                            // per als usuaris que encara no tenen un compte creat.
-                            LoginRegisterPrompt(
-                              onTap: controller.onRegisterTap,
-                            ),
+                            ResetPasswordFormCard(controller: controller),
                           ],
                         ),
                       ),
