@@ -2,9 +2,42 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Flutter",
+      "name": "Android local",
       "request": "launch",
-      "type": "dart"
+      "type": "dart",
+      "program": "frontend/lib/main.dart",
+      "args": [
+        "--dart-define=API_BASE_URL=http://10.0.2.2:3000"
+      ]
+    },
+    {
+      "name": "Android backend prod",
+      "request": "launch",
+      "type": "dart",
+      "program": "frontend/lib/main.dart",
+      "args": [
+        "--dart-define=API_BASE_URL=https://cims-backend-639822259289.europe-southwest1.run.app"
+      ]
+    },
+    {
+      "name": "Web local",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "chrome",
+      "program": "frontend/lib/main.dart",
+      "args": [
+        "--dart-define=API_BASE_URL=http://localhost:3000"
+      ]
+    },
+    {
+      "name": "Web backend prod",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "chrome",
+      "program": "frontend/lib/main.dart",
+      "args": [
+        "--dart-define=API_BASE_URL=https://cims-backend-639822259289.europe-southwest1.run.app"
+      ]
     }
   ]
 }
