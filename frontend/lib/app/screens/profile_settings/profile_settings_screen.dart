@@ -168,7 +168,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     return const Padding(
       padding: EdgeInsets.only(left: 4),
       child: Text(
-        'CONFIGURACIÓ DEL COMPTE',
+        'CONFIGURACIÓ',
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
