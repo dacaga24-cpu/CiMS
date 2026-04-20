@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const UserModel = require('../models/userModel');
 const PasswordResetModel = require('../models/passwordResetModel');
+const EmailService = require('./emailService');
 
 // Aquestes constants defineixen valors bàsics del sistema d’autenticació.
 // Serveixen per fixar el nivell de protecció de les contrasenyes
@@ -11,10 +12,10 @@ const SALT_ROUNDS = 10;
 const RESET_TOKEN_EXPIRY_HOURS = 1;
 
 // Aquest mètode transforma el token de recuperació en una versió segura per guardar-la.
-// És rellevant perquè permet validar després el token sense haver de conservar-lo en text visible.                                                                                                                        
-function hashResetToken(token) {                                                                                                                                                            
-  return crypto.createHash('sha256').update(token).digest('hex');                                                                                                                           
-}     
+// És rellevant perquè permet validar després el token sense haver de conservar-lo en text visible.
+function hashResetToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
 
 // Aquest servei centralitza tota la lògica d’autenticació i recuperació de contrasenya.
 // Aquí es resolen processos com el registre, el login, la generació de tokens
@@ -118,7 +119,7 @@ const AuthService = {
 
     // A la base de dades només se’n guarda una versió protegida,
     // de manera que el valor original no queda exposat.
-    const tokenHash = hashResetToken(token); 
+    const tokenHash = hashResetToken(token);
 
     // Aquest bloc calcula fins quan serà vàlid el token de recuperació.
     const expiresAt = new Date();
@@ -131,8 +132,11 @@ const AuthService = {
       expiresAt,
     });
 
-    // En entorn local es retorna el token per facilitar les proves manuals.
-    // En un entorn real, aquest valor s’hauria d’enviar per un canal extern com el correu.
+    // S'envia el correu amb l'enllaç de recuperació a l'usuari.
+    // En entorn de desenvolupament també es retorna el token a la resposta
+    // per facilitar les proves sense necessitat d'obrir el correu.
+    await EmailService.sendPasswordReset({ to: user.email, token });
+
     if (process.env.NODE_ENV !== 'production') {
       return { ...genericResponse, token };
     }
@@ -143,8 +147,8 @@ const AuthService = {
   // amb un token de recuperació i una nova contrasenya.
   async resetPassword({ token, newPassword }) {
     // El token rebut es transforma per poder-lo comparar
-    // amb la versió segura que hi ha guardada al sistema.                                                                                                                                              
-    const tokenHash = hashResetToken(token);   
+    // amb la versió segura que hi ha guardada al sistema.
+    const tokenHash = hashResetToken(token);
     const resetToken = await PasswordResetModel.findByToken(tokenHash);
 
     if (!resetToken) {
