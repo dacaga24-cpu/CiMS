@@ -1,7 +1,6 @@
 import 'package:cims/core/entity/peak.dart';
 import 'package:flutter/material.dart';
 
-
 // Aquest widget representa la targeta reutilitzable de cada cim del catàleg.
 // Mostra només la informació essencial d’aquesta iteració: nom, altitud i regions.
 class PeakDetailCard extends StatelessWidget {
@@ -11,6 +10,8 @@ class PeakDetailCard extends StatelessWidget {
     this.onTap,
   });
 
+  // Aquest bloc rep les dades del cim que s’han de mostrar
+  // i l’acció opcional que s’executarà quan l’usuari seleccioni la targeta.
   final Peak peak;
   final VoidCallback? onTap;
 
@@ -36,7 +37,6 @@ class PeakDetailCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
                     // Aquest bloc destaca el nom del cim i la seva altitud
                     // com a informació principal de cada element del llistat.
                     RichText(

@@ -108,18 +108,51 @@ class PeaksMapRoute extends PageRouteInfo<void> {
 
 /// generated route for
 /// [ProfileSettingsScreen]
-class ProfileSettingsRoute extends PageRouteInfo<void> {
-  const ProfileSettingsRoute({List<PageRouteInfo>? children})
-      : super(ProfileSettingsRoute.name, initialChildren: children);
+class ProfileSettingsRoute extends PageRouteInfo<ProfileSettingsRouteArgs> {
+  ProfileSettingsRoute({
+    Key? key,
+    Future<void> Function()? onLogout,
+    List<PageRouteInfo>? children,
+  }) : super(
+          ProfileSettingsRoute.name,
+          args: ProfileSettingsRouteArgs(key: key, onLogout: onLogout),
+          initialChildren: children,
+        );
 
   static const String name = 'ProfileSettingsRoute';
 
   static PageInfo page = PageInfo(
     name,
     builder: (data) {
-      return const ProfileSettingsScreen();
+      final args = data.argsAs<ProfileSettingsRouteArgs>(
+        orElse: () => const ProfileSettingsRouteArgs(),
+      );
+      return ProfileSettingsScreen(key: args.key, onLogout: args.onLogout);
     },
   );
+}
+
+class ProfileSettingsRouteArgs {
+  const ProfileSettingsRouteArgs({this.key, this.onLogout});
+
+  final Key? key;
+
+  final Future<void> Function()? onLogout;
+
+  @override
+  String toString() {
+    return 'ProfileSettingsRouteArgs{key: $key, onLogout: $onLogout}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! ProfileSettingsRouteArgs) return false;
+    return key == other.key;
+  }
+
+  @override
+  int get hashCode => key.hashCode;
 }
 
 /// generated route for

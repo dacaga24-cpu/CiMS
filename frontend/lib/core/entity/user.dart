@@ -26,16 +26,34 @@ class User {
   // És rellevant perquè permet convertir la resposta rebuda del backend
   // en un objecte que l’aplicació pugui utilitzar fàcilment.
   factory User.fromJson(Map<String, dynamic> json) {
-    return User(
-      id: json['id'] as int,
-      firstName: json['firstName'] as String,
-      lastName: json['lastName'] as String,
-      email: json['email'] as String,
-      isActive: _parseIsActive(json['isActive']),
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
-    );
-  }
+  return User(
+    id: _parseInt(json['id']),
+    firstName: _readString(
+      json,
+      camelKey: 'firstName',
+      snakeKey: 'first_name',
+    ),
+    lastName: _readString(
+      json,
+      camelKey: 'lastName',
+      snakeKey: 'last_name',
+    ),
+    email: _readString(
+      json,
+      camelKey: 'email',
+      snakeKey: 'email',
+    ),
+    isActive: _parseIsActive(
+      json['isActive'] ?? json['is_active'],
+    ),
+    createdAt: _parseDateTime(
+      json['createdAt'] ?? json['created_at'],
+    ),
+    updatedAt: _parseDateTime(
+      json['updatedAt'] ?? json['updated_at'],
+    ),
+  );
+}
 
   // Aquest mètode transforma l’usuari en un format JSON.
   // Això és útil quan les dades s’han d’enviar, guardar o reutilitzar
@@ -82,4 +100,45 @@ class User {
     if (value is int) return value == 1;
     return false;
   }
+
+  // Aquest mètode llegeix un camp de text acceptant tant el nom en camelCase
+  // com en snake_case, per adaptar-se millor a diferents respostes del backend.
+  static String _readString(
+  Map<String, dynamic> json, {
+  required String camelKey,
+  required String snakeKey,
+}) {
+  final value = json[camelKey] ?? json[snakeKey];
+
+  if (value is String && value.isNotEmpty) {
+    return value;
+  }
+
+  throw FormatException(
+    'El camp "$camelKey/$snakeKey" no és vàlid',
+  );
+}
+
+  // Aquest mètode intenta convertir un valor rebut a enter
+  // per assegurar que l’identificador de l’usuari tingui un format vàlid.
+  static int _parseInt(dynamic value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) {
+    final parsed = int.tryParse(value);
+    if (parsed != null) return parsed;
+  }
+
+  throw const FormatException('L\'identificador d\'usuari no és vàlid');
+}
+
+  // Aquest mètode transforma el valor rebut en una data usable per l’aplicació.
+  // És important perquè les dades temporals del backend acostumen a arribar en format text.
+  static DateTime _parseDateTime(dynamic value) {
+  if (value is String) {
+    return DateTime.parse(value);
+  }
+
+  throw const FormatException('La data rebuda no és vàlida');
+}
 }

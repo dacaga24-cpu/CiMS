@@ -1,4 +1,4 @@
-import 'package:cims/app/screens/main_navigation/main_navigation_controller.dart';
+import 'package:cims/app/screens/main_navigation/main_bottom_navigation_tab.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget encapsula el menú inferior principal de l’aplicació.
@@ -11,9 +11,10 @@ class MainBottomNavigationBar extends StatelessWidget {
     required this.onTabSelected,
   });
 
+  // Aquestes propietats permeten saber quina secció està activa
+  // i notificar a la pantalla principal quan l’usuari canvia de pestanya.
   final MainBottomNavigationTab selectedTab;
   final ValueChanged<MainBottomNavigationTab> onTabSelected;
-
 
   // Aquest mètode construeix el menú inferior fix de l’aplicació.
   // Des d’aquí l’usuari pot moure’s entre les seccions principals
@@ -86,6 +87,8 @@ class _NavigationItem extends StatelessWidget {
     required this.onTap,
   });
 
+  // Aquest bloc reuneix la informació visual i l’acció associada
+  // a una única opció del menú inferior.
   final IconData icon;
   final String label;
   final bool isSelected;
@@ -96,6 +99,8 @@ class _NavigationItem extends StatelessWidget {
   // segons la secció seleccionada.
   @override
   Widget build(BuildContext context) {
+    // Aquest color permet diferenciar de manera clara
+    // si l’opció està seleccionada o no.
     final activeColor =
         isSelected ? const Color(0xFF0B57D0) : const Color(0xFF9AA3B2);
 

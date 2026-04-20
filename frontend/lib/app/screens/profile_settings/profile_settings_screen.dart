@@ -1,22 +1,18 @@
 import 'package:auto_route/auto_route.dart';
+import 'package:cims/app/router/app_router.dart';
+import 'package:cims/app/widgets/branding/cims_logo.dart';
 import 'package:flutter/material.dart';
-
-import '../../router/app_router.dart';
-import '../../widgets/branding/cims_logo.dart';
 import 'profile_settings_controller.dart';
 import 'widgets/profile_settings_option_tile.dart';
 
-@RoutePage()
 // Aquesta pantalla mostra la configuració bàsica del compte.
 // En aquest sprint es prioritza el disseny visual i el logout funcional.
+@RoutePage()
 class ProfileSettingsScreen extends StatefulWidget {
   const ProfileSettingsScreen({
     super.key,
-    this.displayName = 'Nom Cognom', //TODO: rebre el nom real de l’usuari quan hi hagi sessió implementada
     this.onLogout,
   });
-
-  final String displayName;
 
   // Aquesta funció permet connectar la pantalla amb la lògica real de logout.
   final Future<void> Function()? onLogout;
@@ -25,16 +21,24 @@ class ProfileSettingsScreen extends StatefulWidget {
   State<ProfileSettingsScreen> createState() => _ProfileSettingsScreenState();
 }
 
+// Aquesta classe gestiona el comportament intern de la pantalla de configuració.
+// S’encarrega de crear el controller, reaccionar als seus canvis
+// i construir la interfície segons l’estat actual del perfil.
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
+  // Aquest controlador concentra la càrrega del perfil,
+  // la gestió d’errors i l’acció de tancar sessió.
   late final ProfileSettingsController controller;
 
+  // Aquest mètode prepara el controller quan la pantalla es crea
+  // i inicia la càrrega inicial de les dades del perfil.
   @override
   void initState() {
     super.initState();
     controller = ProfileSettingsController(
-      displayName: widget.displayName,
       logoutAction: widget.onLogout,
     )..addListener(_handleControllerChanges);
+
+    controller.loadProfile();
   }
 
   // Aquest mètode escolta els canvis del controller i resol la navegació real
@@ -50,12 +54,14 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
     if (controller.destination == ProfileSettingsDestination.login) {
       controller.consumeNavigation();
-      context.router.replaceAll([
+      context.router.root.replaceAll([
         const LoginRoute(),
       ]);
       return;
     }
 
+    // Aquest bloc mostra els errors puntuals a l’usuari
+    // sense deixar-los persistint més temps del necessari a l’estat.
     if (controller.errorMessage != null) {
       final errorMessage = controller.errorMessage!;
       controller.consumeErrorMessage();
@@ -68,6 +74,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     }
   }
 
+  // Aquest mètode allibera el controller quan la pantalla deixa d’utilitzar-se.
   @override
   void dispose() {
     controller.removeListener(_handleControllerChanges);
@@ -127,6 +134,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   Widget _buildHeader() {
     return Column(
       children: [
+        // Aquest contenidor dona protagonisme visual a la part superior
+        // i fa de suport per al logotip o futura imatge de perfil.
         Container(
           width: 112,
           height: 112,
@@ -225,6 +234,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           ),
           backgroundColor: Colors.transparent,
         ),
+        // Aquest bloc adapta el contingut del botó segons l’estat actual,
+        // mostrant càrrega mentre s’està tancant la sessió.
         icon: controller.isLoggingOut
             ? const SizedBox(
                 width: 18,

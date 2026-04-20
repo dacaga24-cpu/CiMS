@@ -8,7 +8,9 @@ class ApiEndpoints {
   // Aquest prefix agrupa les operacions relacionades amb autenticació.
   static const String auth = '$api/auth';
 
-  // Rutes concretes d’autenticació.
+  // Aquest bloc defineix les rutes concretes que fa servir el frontend
+  // per comunicar-se amb les funcionalitats d’autenticació i perfil.
   static const String register = '$auth/register';
   static const String login = '$auth/login';
+  static const String profile = '$auth/profile';
 }

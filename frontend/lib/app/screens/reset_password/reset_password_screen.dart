@@ -1,8 +1,7 @@
 import 'package:auto_route/auto_route.dart';
+import 'package:cims/app/router/app_router.dart';
+import 'package:cims/app/widgets/branding/cims_logo.dart';
 import 'package:flutter/material.dart';
-
-import '../../router/app_router.dart';
-import '../../widgets/branding/cims_logo.dart';
 import 'reset_password_controller.dart';
 import 'widgets/reset_password_form_card.dart';
 
@@ -43,6 +42,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     if (controller.destination == ResetPasswordNavigationDestination.login) {
       controller.consumeNavigation();
 
+      // Aquest bloc reutilitza la navegació existent si és possible
+      // i, si no, força el retorn directe a la pantalla de login.
       if (context.router.canPop()) {
         context.router.pop();
       } else {
@@ -64,6 +65,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   // perquè els camps continuïn sent còmodes d’utilitzar.
   @override
   Widget build(BuildContext context) {
+    // Aquest càlcul adapta el desplaçament inferior del formulari
+    // per mantenir-lo visible mentre l’usuari està escrivint.
     final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
     final formBottomOffset = keyboardInset > 0 ? keyboardInset : 72.0;
 
@@ -75,6 +78,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           resizeToAvoidBottomInset: false,
           body: SafeArea(
             child: GestureDetector(
+              // Aquesta acció permet tancar el teclat quan l’usuari toca fora dels camps,
+              // millorant la comoditat d’ús de la pantalla.
               onTap: () => FocusScope.of(context).unfocus(),
               child: Stack(
                 children: [

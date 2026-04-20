@@ -1,33 +1,29 @@
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:cims/app/client/api/api_config.dart';
 import 'package:cims/app/client/api/api_endpoints.dart';
+import 'package:cims/core/client/api_client.dart';
+import 'package:cims/core/session/app_session.dart';
+import 'package:cims/core/entity/user.dart';
 import 'package:http/http.dart' as http;
-
-import '../../../core/client/api_client.dart';
-
 
 // Aquesta classe s’encarrega de comunicar el frontend amb el backend.
 // Implementa les operacions principals d’autenticació
 // i transforma les respostes del servidor en resultats útils o errors entenedors per a l’aplicació.
 class ApiClientImpl implements ApiClient {
-  // El constructor permet reutilitzar un client HTTP o definir una URL base concreta.
-  // Si no es proporciona res, es fa servir la configuració centralitzada del projecte.
   ApiClientImpl({
     http.Client? client,
     String? baseUrl,
   })  : _client = client ?? http.Client(),
         _baseUrl = baseUrl ?? ApiConfig.baseUrl;
 
-  // Aquest bloc guarda els elements bàsics necessaris per fer peticions:
-  // el client HTTP i l’adreça base del backend.
+  // Aquest client HTTP és el responsable real d’enviar les peticions al backend.
   final http.Client _client;
+
+  // Aquesta variable guarda l’adreça base del servidor per construir
+  // totes les URLs de l’API de manera centralitzada.
   final String _baseUrl;
 
-  // Aquest mètode envia al backend les dades necessàries per crear un compte nou.
-  // Si el servidor confirma el registre, el procés es considera correcte.
-  // Si hi ha algun problema, transforma la resposta en un error que la resta de l’aplicació pugui gestionar.
   @override
   Future<void> register({
     required String firstName,
@@ -36,28 +32,22 @@ class ApiClientImpl implements ApiClient {
     required String password,
   }) async {
     try {
-      final response = await _client
-          .post(
-            Uri.parse('$_baseUrl${ApiEndpoints.register}'),
-            headers: const {
-              'Content-Type': 'application/json',
-            },
-            body: jsonEncode({
-              'firstName': firstName,
-              'lastName': lastName,
-              'email': email,
-              'password': password,
-            }),
-          )
-          .timeout(const Duration(seconds: 10));
+      final response = await _postJson(
+        ApiEndpoints.register,
+        body: {
+          'firstName': firstName,
+          'lastName': lastName,
+          'email': email,
+          'password': password,
+        },
+      );
 
-      // Aquest bloc comprova si el servidor ha acceptat correctament la creació del compte.
+      // Si el backend confirma el registre amb el codi esperat,
+      // el procés es considera completat correctament.
       if (response.statusCode == 201) {
         return;
       }
 
-      // Si el registre falla, aquí s’intenta recuperar un missatge clar de la resposta
-      // per poder mostrar-lo a l’usuari de manera més útil.
       final Map<String, dynamic>? data = _tryParseJson(response.body);
 
       final message = data?['error']?.toString() ??
@@ -66,13 +56,10 @@ class ApiClientImpl implements ApiClient {
 
       throw ApiException(message, statusCode: response.statusCode);
     } on TimeoutException {
-      // Aquest error es retorna quan el servidor triga massa a respondre.
       throw const ApiException(
         'El servidor no respon. Torna-ho a provar',
       );
     } catch (error) {
-      // Aquest bloc diferencia els errors ja controlats dels errors de connexió
-      // o problemes inesperats durant la comunicació amb el servidor.
       if (error is ApiException) rethrow;
 
       throw const ApiException(
@@ -81,30 +68,22 @@ class ApiClientImpl implements ApiClient {
     }
   }
 
-  // Aquest mètode envia les credencials de l’usuari per iniciar sessió.
-  // Si la resposta és correcta, retorna la informació necessària per continuar
-  // amb la sessió oberta dins de l’aplicació.
   @override
   Future<LoginResponse> login({
     required String email,
     required String password,
   }) async {
     try {
-      final response = await _client
-          .post(
-            Uri.parse('$_baseUrl${ApiEndpoints.login}'),
-            headers: const {
-              'Content-Type': 'application/json',
-            },
-            body: jsonEncode({
-              'email': email,
-              'password': password,
-            }),
-          )
-          .timeout(const Duration(seconds: 10));
+      final response = await _postJson(
+        ApiEndpoints.login,
+        body: {
+          'email': email,
+          'password': password,
+        },
+      );
 
-      // Aquest bloc valida que la resposta correcta del servidor
-      // contingui informació usable per l’aplicació.
+      // Quan el login és correcte, la resposta del servidor es transforma
+      // en un objecte útil per a la resta de l’aplicació.
       if (response.statusCode == 200) {
         final Map<String, dynamic>? data = _tryParseJson(response.body);
 
@@ -118,8 +97,6 @@ class ApiClientImpl implements ApiClient {
         return LoginResponse.fromJson(data);
       }
 
-      // Si el login falla, es prova d’obtenir un missatge d’error clar
-      // per mostrar-lo a l’usuari.
       final Map<String, dynamic>? data = _tryParseJson(response.body);
 
       final message = data?['error']?.toString() ??
@@ -128,13 +105,10 @@ class ApiClientImpl implements ApiClient {
 
       throw ApiException(message, statusCode: response.statusCode);
     } on TimeoutException {
-      // Aquest error es retorna quan el servidor no respon dins del temps previst.
       throw const ApiException(
         'El servidor no respon. Torna-ho a provar',
       );
     } catch (error) {
-      // Aquest bloc conserva els errors ja controlats i converteix la resta
-      // en un missatge general de connexió.
       if (error is ApiException) rethrow;
 
       throw const ApiException(
@@ -143,9 +117,70 @@ class ApiClientImpl implements ApiClient {
     }
   }
 
-  // Aquest mètode intenta interpretar el text rebut del servidor com a JSON.
-  // És útil per llegir missatges d’èxit o d’error sense provocar fallades
-  // si la resposta arriba buida o amb un format inesperat.
+  // Aquest mètode permet fer peticions POST JSON tant públiques com autenticades.
+  // Si l’endpoint és protegit, afegeix automàticament el token guardat a la sessió.
+  Future<http.Response> _postJson(
+    String endpoint, {
+    required Map<String, dynamic> body,
+    bool requiresAuth = false,
+  }) async {
+    final response = await _client
+        .post(
+          Uri.parse('$_baseUrl$endpoint'),
+          headers: await _buildHeaders(requiresAuth: requiresAuth),
+          body: jsonEncode(body),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    await _handleUnauthorizedIfNeeded(
+      response,
+      requiresAuth: requiresAuth,
+    );
+
+    return response;
+  }
+
+  // Aquest mètode construeix els headers comuns de les peticions.
+  // Quan la petició necessita autenticació, afegeix el token Bearer.
+  Future<Map<String, String>> _buildHeaders({
+    bool requiresAuth = false,
+  }) async {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+    };
+
+    if (!requiresAuth) {
+      return headers;
+    }
+
+    final token = await AppSession.storage.readToken();
+
+    // Si no hi ha token disponible, l’aplicació tracta aquesta situació
+    // com una sessió no vàlida i força la sortida de l’usuari.
+    if (token == null || token.isEmpty) {
+      await AppSession.handleUnauthorized();
+      throw const ApiUnauthorizedException();
+    }
+
+    headers['Authorization'] = 'Bearer $token';
+    return headers;
+  }
+
+  // Aquest bloc centralitza el comportament davant d’un 401 en endpoints protegits.
+  // A curt termini, és suficient: es neteja la sessió local i es redirigeix l’usuari a login.
+  Future<void> _handleUnauthorizedIfNeeded(
+    http.Response response, {
+    required bool requiresAuth,
+  }) async {
+    if (!requiresAuth) return;
+    if (response.statusCode != 401) return;
+
+    await AppSession.handleUnauthorized();
+    throw const ApiUnauthorizedException();
+  }
+
+  // Aquest mètode intenta convertir el cos de la resposta en un mapa JSON.
+  // Si el servidor no retorna un format vàlid, es retorna null per poder gestionar-ho sense trencar l’app.
   Map<String, dynamic>? _tryParseJson(String body) {
     if (body.isEmpty) return null;
 
@@ -158,5 +193,69 @@ class ApiClientImpl implements ApiClient {
     } catch (_) {
       return null;
     }
+  }
+
+  @override
+  Future<User> getUserProfile() async {
+    try {
+      final response = await _getJson(
+        ApiEndpoints.profile,
+        requiresAuth: true,
+      );
+
+      // Si la resposta és correcta, es transforma el JSON rebut
+      // en l’objecte User que farà servir el frontend.
+      if (response.statusCode == 200) {
+        final Map<String, dynamic>? data = _tryParseJson(response.body);
+
+        if (data == null) {
+          throw const ApiException(
+            'La resposta del servidor no és vàlida',
+            statusCode: 200,
+          );
+        }
+
+        return User.fromJson(data);
+      }
+
+      final Map<String, dynamic>? data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'ha pogut recuperar el perfil';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
+
+  // Aquest mètode encapsula les peticions GET de l’aplicació
+  // per reutilitzar la mateixa construcció d’headers i el mateix control d’errors d’autenticació.
+  Future<http.Response> _getJson(
+    String endpoint, {
+    bool requiresAuth = false,
+  }) async {
+    final response = await _client
+        .get(
+          Uri.parse('$_baseUrl$endpoint'),
+          headers: await _buildHeaders(requiresAuth: requiresAuth),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    await _handleUnauthorizedIfNeeded(
+      response,
+      requiresAuth: requiresAuth,
+    );
+
+    return response;
   }
 }

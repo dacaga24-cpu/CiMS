@@ -1,30 +1,34 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+import 'package:cims/app/router/app_router.dart';
+import 'package:cims/app/router/guards/auth_guard.dart';
+import 'package:cims/core/session/app_session.dart';
+import 'package:cims/main.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:cims/main.dart';
-
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  // Aquesta prova comprova que l’aplicació es pot crear correctament
+  // amb la configuració mínima de sessió i navegació necessària.
+  testWidgets('App renders correctly', (WidgetTester tester) async {
+    // Aquest bloc inicialitza la infraestructura de sessió
+    // perquè l’aplicació pugui arrencar en un entorn de prova.
+    AppSession.initialize();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Aquest router simula la configuració principal de navegació
+    // utilitzada per l’aplicació durant l’execució real.
+    final appRouter = AppRouter(
+      authGuard: AuthGuard(
+        hasSavedSessionUseCase: AppSession.hasSavedSessionUseCase,
+        redirectToLogin: (_) {},
+      ),
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // Aquest bloc munta el widget principal dins de l’entorn de prova
+    // per poder verificar que es renderitza sense errors.
+    await tester.pumpWidget(
+      MyApp(appRouter: appRouter),
+    );
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Aquesta comprovació valida que el widget principal de l’aplicació
+    // s’ha construït correctament.
+    expect(find.byType(MyApp), findsOneWidget);
   });
 }

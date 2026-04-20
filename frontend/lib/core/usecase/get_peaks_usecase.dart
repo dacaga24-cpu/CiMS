@@ -1,4 +1,4 @@
-import '../entity/peak.dart';
+import 'package:cims/core/entity/peak.dart';
 
 // Aquest cas d’ús encapsula l’obtenció del catàleg de cims.
 // De moment retorna dades locals de mostra perquè la pantalla es pugui
@@ -9,6 +9,8 @@ class GetPeaksUseCase {
   // Aquest mètode retorna la col·lecció base de cims que la pantalla utilitza
   // durant aquesta primera iteració de disseny.
   Future<List<Peak>> execute() async {
+    // Aquest conjunt de dades simula el catàleg inicial de cims
+    // mentre encara no s’ha connectat la recuperació real des del backend.
     return const [
       Peak(
         id: 1,
