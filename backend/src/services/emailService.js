@@ -9,14 +9,18 @@ const EmailService = {
 
   // Aquest mètode envia el correu de recuperació de contrasenya.
   // Construeix l'enllaç amb el token i l'envia a l'adreça de l'usuari.
-  async sendPasswordReset({ to, token }) {
+  // Rep el temps de caducitat com a paràmetre perquè el missatge sempre coincideixi
+  // amb la durada real definida a la capa de servei, evitant que el correu
+  // mostri una informació diferent de la que aplica el backend.
+  async sendPasswordReset({ to, token, expiryHours }) {
     const resetUrl = `${process.env.APP_URL}/reset-password?token=${token}`;
+    const expiryLabel = `${expiryHours} ${expiryHours === 1 ? 'hora' : 'hores'}`;
 
     const msg = {
       to,
       from: process.env.MAIL_FROM,
       subject: 'Recuperació de contrasenya — CiMS',
-      text: `Has sol·licitat recuperar la teva contrasenya. Accedeix a aquest enllaç per restablir-la: ${resetUrl}. L'enllaç caduca en 1 hora. Si no has fet aquesta sol·licitud, ignora aquest missatge.`,
+      text: `Has sol·licitat recuperar la teva contrasenya. Accedeix a aquest enllaç per restablir-la: ${resetUrl}. L'enllaç caduca en ${expiryLabel}. Si no has fet aquesta sol·licitud, ignora aquest missatge.`,
       html: `
         <!DOCTYPE html>
         <html lang="ca">
@@ -65,7 +69,7 @@ const EmailService = {
                         <tr>
                           <td style="border-top:1px solid #eeeeee;padding-top:24px;">
                             <p style="margin:0;color:#888888;font-size:13px;line-height:1.6;">
-                              L'enllaç caduca en <strong>1 hora</strong>.<br>
+                              L'enllaç caduca en <strong>${expiryLabel}</strong>.<br>
                               Si no has fet aquesta sol·licitud, pots ignorar aquest missatge.
                             </p>
                           </td>
