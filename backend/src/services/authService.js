@@ -17,6 +17,14 @@ function hashResetToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+// Aquest mètode normalitza el correu electrònic abans d'utilitzar-lo en qualsevol
+// consulta o inserció. D'aquesta manera dos correus que només es diferencien per
+// majúscules o per espais inicials i finals (Marco@Gmail.com, marco@gmail.com, etc.)
+// identifiquen sempre el mateix usuari i s'eviten registres duplicats a la base de dades.
+function normalizeEmail(email) {
+  return email.trim().toLowerCase();
+}
+
 // Aquest servei centralitza tota la lògica d’autenticació i recuperació de contrasenya.
 // Aquí es resolen processos com el registre, el login, la generació de tokens
 // i el restabliment segur de la contrasenya.
@@ -52,7 +60,10 @@ const AuthService = {
   // Primer comprova si el correu ja existeix, després prepara la contrasenya
   // i finalment crea el compte a la base de dades.
   async register({ firstName, lastName, email, password }) {
-    const existing = await UserModel.findByEmail(email);
+    // El correu es normalitza abans de qualsevol consulta per garantir que
+    // la comprovació d'existència i la inserció treballen amb el mateix format.
+    const normalizedEmail = normalizeEmail(email);
+    const existing = await UserModel.findByEmail(normalizedEmail);
 
     if (existing) {
       const error = new Error('Email is already registered');
@@ -61,7 +72,12 @@ const AuthService = {
     }
 
     const hashedPassword = await this.hashPassword(password);
-    const user = await UserModel.create({ firstName, lastName, email, password: hashedPassword });
+    const user = await UserModel.create({
+      firstName,
+      lastName,
+      email: normalizedEmail,
+      password: hashedPassword,
+    });
 
     return { id: user.id };
   },
@@ -70,7 +86,9 @@ const AuthService = {
   // Comprova que l’usuari existeixi, valida la contrasenya
   // i, si tot és correcte, retorna el token d’accés.
   async login({ email, password }) {
-    const user = await UserModel.findByEmail(email);
+    // El correu es normalitza perquè l'inici de sessió funcioni igual
+    // si l'usuari l'escriu amb majúscules o amb espais per accident.
+    const user = await UserModel.findByEmail(normalizeEmail(email));
 
     if (!user) {
       const error = new Error('Invalid credentials');
@@ -105,7 +123,9 @@ const AuthService = {
       message: 'If the email exists, a reset token has been generated',
     };
 
-    const user = await UserModel.findByEmail(email);
+    // El correu es normalitza perquè la recuperació de contrasenya coincideixi
+    // amb l'usuari guardat, independentment de com l'escrigui qui fa la sol·licitud.
+    const user = await UserModel.findByEmail(normalizeEmail(email));
     if (!user) {
       return genericResponse;
     }
