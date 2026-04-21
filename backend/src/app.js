@@ -4,12 +4,19 @@
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 
 const authRoutes = require('./routes/authRoutes');
 const peakRoutes = require('./routes/peakRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
+
+// Aquest middleware afegeix capçaleres HTTP defensives per defecte,
+// com ara X-Content-Type-Options, X-Frame-Options i Strict-Transport-Security.
+// Són especialment rellevants per la pàgina HTML del restabliment de contrasenya,
+// que el mateix backend serveix al navegador.
+app.use(helmet());
 
 // Aquest bloc activa els comportaments bàsics que necessita el servidor
 // per rebre peticions externes i interpretar correctament les dades en format JSON.
