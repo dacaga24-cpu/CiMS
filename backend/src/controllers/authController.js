@@ -5,6 +5,17 @@ const UserModel = require('../models/userModel');
 // abans d’intentar registrar o validar un usuari.
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Aquestes constants defineixen els límits de longitud acceptats als camps del registre.
+// Coincideixen amb els tipus definits a la base de dades per evitar errors d'inserció
+// i protegeixen l'aplicació davant de valors desmesuradament llargs.
+// El màxim de contrasenya és especialment rellevant perquè bcrypt és lent per disseny
+// i hashear contrasenyes molt grans pot convertir-se en un vector d'atac de CPU.
+const MAX_FIRST_NAME_LENGTH = 100;
+const MAX_LAST_NAME_LENGTH = 150;
+const MAX_EMAIL_LENGTH = 255;
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 128;
+
 // Aquest mètode crea un error de validació amb codi 400.
 // S’utilitza quan falten dades o quan el format rebut no és correcte.
 function badRequest(message) {
@@ -27,11 +38,30 @@ const AuthController = {
       if (!firstName || !lastName || !email || !password) {
         throw badRequest('Missing required fields: firstName, lastName, email, password');
       }
+
+      // Aquestes comprovacions de longitud eviten que es puguin enviar valors
+      // més grans del que la base de dades accepta i protegeixen el servidor
+      // davant de peticions amb camps desmesuradament llargs.
+      if (firstName.length > MAX_FIRST_NAME_LENGTH) {
+        throw badRequest(`First name must be at most ${MAX_FIRST_NAME_LENGTH} characters long`);
+      }
+      if (lastName.length > MAX_LAST_NAME_LENGTH) {
+        throw badRequest(`Last name must be at most ${MAX_LAST_NAME_LENGTH} characters long`);
+      }
+      if (email.length > MAX_EMAIL_LENGTH) {
+        throw badRequest(`Email must be at most ${MAX_EMAIL_LENGTH} characters long`);
+      }
       if (!EMAIL_REGEX.test(email)) {
         throw badRequest('Invalid email format');
       }
-      if (password.length < 8) {
-        throw badRequest('Password must be at least 8 characters long');
+      if (password.length < MIN_PASSWORD_LENGTH) {
+        throw badRequest(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
+      }
+
+      // El límit superior de la contrasenya protegeix contra peticions que intenten
+      // saturar el servidor enviant contrasenyes molt llargues per fer patir bcrypt.
+      if (password.length > MAX_PASSWORD_LENGTH) {
+        throw badRequest(`Password must be at most ${MAX_PASSWORD_LENGTH} characters long`);
       }
 
       const { id } = await AuthService.register({ firstName, lastName, email, password });
@@ -84,8 +114,14 @@ const AuthController = {
       if (!token || !newPassword) {
         throw badRequest('Missing required fields: token, newPassword');
       }
-      if (newPassword.length < 8) {
-        throw badRequest('Password must be at least 8 characters long');
+      if (newPassword.length < MIN_PASSWORD_LENGTH) {
+        throw badRequest(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
+      }
+
+      // Es reutilitza el mateix límit superior que al registre per evitar que
+      // una recuperació de contrasenya es pugui fer servir per saturar bcrypt.
+      if (newPassword.length > MAX_PASSWORD_LENGTH) {
+        throw badRequest(`Password must be at most ${MAX_PASSWORD_LENGTH} characters long`);
       }
 
       const result = await AuthService.resetPassword({ token, newPassword });

@@ -1,13 +1,24 @@
 const express = require('express');
 const router = express.Router();
 
+// Aquesta expressió valida el format del token de recuperació.
+// El token es genera amb crypto.randomBytes(32).toString('hex'),
+// de manera que sempre ha de ser una cadena de 64 caràcters hexadecimals.
+// Comprovar-ho abans d'incrustar-lo a l'HTML és una defensa en profunditat
+// contra possibles atacs XSS si mai canviés la generació del token o si
+// algú intentés manipular el valor per query string.
+const TOKEN_FORMAT_REGEX = /^[a-f0-9]{64}$/;
+
 // Aquesta ruta serveix la pàgina HTML de restabliment de contrasenya.
 // Rep el token per query string i el passa al formulari perquè l'usuari
 // pugui introduir la nova contrasenya.
 router.get('/', (req, res) => {
   const { token } = req.query;
 
-  if (!token) {
+  // Es rebutja qualsevol petició sense token o amb un format que no coincideixi
+  // amb el patró esperat. Si el token arriba amb caràcters inesperats, es
+  // tracta com un enllaç no vàlid i ni tan sols s'interpola a la resposta.
+  if (!token || typeof token !== 'string' || !TOKEN_FORMAT_REGEX.test(token)) {
     return res.status(400).send(`
       <!DOCTYPE html>
       <html lang="ca">
