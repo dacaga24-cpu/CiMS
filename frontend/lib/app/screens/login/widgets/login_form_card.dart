@@ -66,6 +66,8 @@ class LoginFormCard extends StatelessWidget {
                   ),
                 ),
               ),
+              // Aquest accés permet iniciar el flux de recuperació de contrasenya
+              // utilitzant el correu que l’usuari ja hagi escrit al formulari.
               GestureDetector(
                 onTap: controller.isLoading
                     ? null

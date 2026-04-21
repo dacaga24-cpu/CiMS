@@ -93,10 +93,17 @@ abstract class ApiClient {
   // És una crida protegida i serveix per validar que la sessió realment funciona
   // més enllà del login i del guardat local del token.
   Future<User> getUserProfile();
+
+  // Aquest mètode defineix la petició inicial de recuperació de contrasenya.
+  // Rep el correu de l’usuari i permet iniciar el procés sense exposar
+  // des de la pantalla els detalls de comunicació amb el backend.
   Future<String> requestPasswordReset({
     required String email,
   });
 
+  // Aquest mètode defineix l’enviament de la nova contrasenya.
+  // Rep el token del procés de recuperació i la nova contrasenya
+  // perquè el backend pugui validar l’acció i aplicar el canvi.
   Future<void> resetPassword({
     required String token,
     required String newPassword,

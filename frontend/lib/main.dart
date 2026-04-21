@@ -8,7 +8,11 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 // i configura la redirecció global quan una sessió caduqui.
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Aquest ajust elimina el símbol # de les URLs a web
+  // per fer la navegació més neta i més propera a una web convencional.
   usePathUrlStrategy();
+
   // Inicialitza els recursos compartits relacionats amb la sessió
   // abans d’arrencar l’aplicació.
   AppSession.initialize();

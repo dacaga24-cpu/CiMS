@@ -58,6 +58,8 @@ class LoginController extends ChangeNotifier {
   // ja ha estat tancat i la pantalla no està activa.
   bool _disposed = false;
 
+  // Aquest valor intern representa la navegació pendent
+  // que la vista haurà de consumir quan toqui.
   LoginNavigationDestination _destination = LoginNavigationDestination.none;
   LoginNavigationDestination get destination => _destination;
 
@@ -162,8 +164,10 @@ class LoginController extends ChangeNotifier {
 
     final email = emailController.text.trim();
 
+    // Aquest bloc obliga a tenir un correu amb format correcte
+    // abans d’enviar la sol·licitud de recuperació al backend.
     if (email.isEmpty || !_isValidEmail(email)) {
-      errorMessage = 'Has d’introduir un correu vàlid';
+      errorMessage = 'Has d\'introduir un correu vàlid';
       notifyListeners();
       return;
     }
@@ -176,8 +180,10 @@ class LoginController extends ChangeNotifier {
         email: email,
       );
 
+      // Aquest missatge manté una resposta neutra cap a l’usuari,
+      // tant si el correu existeix com si no.
       infoMessage =
-          'Si el correu existeix, t’hem enviat un enllaç per restablir la contrasenya';
+          'Si el correu existeix, t\'hem enviat un enllaç per restablir la contrasenya';
     } on ApiException catch (error) {
       errorMessage = error.message;
     } catch (_) {

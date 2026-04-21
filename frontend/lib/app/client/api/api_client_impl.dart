@@ -17,7 +17,8 @@ class ApiClientImpl implements ApiClient {
   })  : _client = client ?? http.Client(),
         _baseUrl = baseUrl ?? ApiConfig.baseUrl;
 
-  // Aquest client HTTP és el responsable real d’enviar les peticions al backend.
+  // Aquest bloc guarda els elements bàsics necessaris per fer peticions:
+  // el client HTTP real i l’adreça base del backend.
   final http.Client _client;
 
   // Aquesta variable guarda l’adreça base del servidor per construir
@@ -133,6 +134,8 @@ class ApiClientImpl implements ApiClient {
 
       final Map<String, dynamic>? data = _tryParseJson(response.body);
 
+      // Si el backend accepta la petició, es retorna un missatge neutre
+      // per mantenir el flux segur i coherent de recuperació de contrasenya.
       if (response.statusCode == 200) {
         return data?['message']?.toString() ??
             'Si el correu existeix, t\'hem enviat un enllaç per restablir la contrasenya';

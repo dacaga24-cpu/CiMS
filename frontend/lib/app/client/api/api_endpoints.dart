@@ -14,6 +14,8 @@ class ApiEndpoints {
   static const String login = '$auth/login';
   static const String profile = '$auth/profile';
 
+  // Aquestes rutes corresponen al flux de recuperació de contrasenya.
+  // Permeten iniciar la sol·licitud de canvi i enviar la nova contrasenya al backend.
   static const String forgotPassword = '$auth/forgot-password';
   static const String resetPassword = '$auth/reset-password';
 }
