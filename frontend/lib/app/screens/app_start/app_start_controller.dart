@@ -1,6 +1,5 @@
+import 'package:cims/core/usecase/session/has_saved_session_usecase.dart';
 import 'package:flutter/foundation.dart';
-
-import '../../../core/usecase/session/has_saved_session_usecase.dart';
 
 // Aquest bloc defineix els possibles destins de navegació de la pantalla inicial.
 // Serveix per indicar cap a on s’ha d’enviar l’usuari un cop s’ha comprovat si té una sessió guardada.
@@ -26,9 +25,13 @@ class AppStartController extends ChangeNotifier {
   final HasSavedSessionUseCase _hasSavedSessionUseCase;
   final Duration minimumDisplayTime;
 
+  // Aquest valor intern representa la decisió de navegació pendent
+  // que la pantalla inicial haurà de consumir quan arribi el moment.
   AppStartDestination _destination = AppStartDestination.none;
   AppStartDestination get destination => _destination;
 
+  // Aquest indicador serveix per evitar canvis d’estat quan el controlador
+  // ja no està actiu i la pantalla ha estat tancada.
   bool _disposed = false;
 
   // Aquest mètode inicia el procés de decisió.
@@ -43,6 +46,8 @@ class AppStartController extends ChangeNotifier {
 
     if (_disposed) return;
 
+    // Aquest bloc decideix el destí final segons si l’usuari
+    // conserva una sessió prèvia o ha de tornar al login.
     _destination = hasSession
         ? AppStartDestination.dashboard
         : AppStartDestination.login;

@@ -1,5 +1,3 @@
-// lib/app/config/api_config.dart
-
 import 'package:flutter/foundation.dart';
 
 // Aquesta classe centralitza la configuració de la connexió amb el backend.
@@ -17,17 +15,24 @@ class ApiConfig {
   // Primer prioritza la configuració passada per entorn i, si no existeix,
   // utilitza una configuració local útil per desenvolupament.
   static String get baseUrl {
+    // Si l’aplicació rep una URL configurada des de fora,
+    // aquesta té prioritat i es fa servir directament.
     if (_envBaseUrl.isNotEmpty) {
       return _envBaseUrl;
     }
 
+    // En entorn web, el backend local s’apunta a localhost
+    // perquè frontend i servidor s’executen habitualment a la mateixa màquina.
     if (kIsWeb) {
       return 'http://localhost:3000';
     }
 
+    // En dispositius o emuladors, la URL pot variar segons la plataforma.
+    // Aquest bloc adapta la connexió perquè el frontend pugui arribar
+    // correctament al servidor durant el desenvolupament local.
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        return 'http://10.0.2.2:3000';
+        return 'http://10.0.2.2:3000'; // ruta especial per Android emulador
       default:
         return 'http://localhost:3000';
     }

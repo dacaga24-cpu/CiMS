@@ -1,8 +1,7 @@
+import 'package:cims/app/client/api/api_client_impl.dart';
+import 'package:cims/core/client/api_client.dart';
+import 'package:cims/core/usecase/auth/register_usecase.dart';
 import 'package:flutter/material.dart';
-
-import '../../../app/client/api/api_client_impl.dart';
-import '../../../core/client/api_client.dart';
-import '../../../core/usecase/auth/register_usecase.dart';
 
 // Aquest bloc defineix els possibles destins de navegació de la pantalla de registre.
 // Serveix per indicar si l’usuari ha de tornar al login o obrir la pantalla de termes.
@@ -151,6 +150,8 @@ class RegisterController extends ChangeNotifier {
 
     if (!canSubmit) return;
 
+    // Aquest bloc marca que el procés de registre està en curs
+    // perquè la vista pugui bloquejar noves interaccions mentre espera la resposta.
     isLoading = true;
     notifyListeners();
 
@@ -164,6 +165,8 @@ class RegisterController extends ChangeNotifier {
 
       _destination = RegisterNavigationDestination.login;
     } on ApiException catch (error) {
+      // Aquest bloc transforma els errors més rellevants del backend
+      // en missatges més clars per a l’usuari final.
       if (error.statusCode == 409) {
         errorMessage = 'Aquest correu ja està registrat';
       } else {

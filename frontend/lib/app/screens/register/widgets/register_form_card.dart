@@ -1,11 +1,10 @@
+import 'package:cims/app/screens/register/register_controller.dart';
+import 'package:cims/app/widgets/buttons/primary_gradient_button.dart';
+import 'package:cims/app/widgets/buttons/secondary_pill_button.dart';
+import 'package:cims/app/widgets/forms/app_form_card.dart';
+import 'package:cims/app/widgets/forms/app_input_field.dart';
+import 'package:cims/app/widgets/forms/form_error_text.dart';
 import 'package:flutter/material.dart';
-
-import '../../../widgets/buttons/primary_gradient_button.dart';
-import '../../../widgets/buttons/secondary_pill_button.dart';
-import '../../../widgets/forms/app_form_card.dart';
-import '../../../widgets/forms/app_input_field.dart';
-import '../../../widgets/forms/form_error_text.dart';
-import '../register_controller.dart';
 
 // Aquest widget agrupa la part principal del formulari de registre.
 // Serveix per reduir la mida de la pantalla i concentrar dins d’un sol component
@@ -28,6 +27,8 @@ class RegisterFormCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Aquest bloc mostra el camp del nom, que forma part
+          // de la informació bàsica necessària per crear el compte.
           const Text(
             'Nom',
             style: TextStyle(
@@ -51,6 +52,9 @@ class RegisterFormCard extends StatelessWidget {
             const FormErrorText('El nom és obligatori'),
           ],
           const SizedBox(height: 24),
+
+          // Aquest bloc mostra el camp del cognom, necessari
+          // per completar les dades personals mínimes del registre.
           const Text(
             'Cognom',
             style: TextStyle(
@@ -74,6 +78,9 @@ class RegisterFormCard extends StatelessWidget {
             const FormErrorText('El cognom és obligatori'),
           ],
           const SizedBox(height: 24),
+
+          // Aquest bloc mostra el camp del correu electrònic,
+          // que servirà com a dada d’accés i identificació de l’usuari.
           const Text(
             'Correu',
             style: TextStyle(
@@ -102,6 +109,9 @@ class RegisterFormCard extends StatelessWidget {
             const FormErrorText('Introdueix un correu electrònic vàlid'),
           ],
           const SizedBox(height: 24),
+
+          // Aquest bloc mostra el camp de contrasenya
+          // i permet a l’usuari decidir si la vol veure o ocultar mentre escriu.
           const Text(
             'Contrasenya',
             style: TextStyle(
@@ -143,6 +153,9 @@ class RegisterFormCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 24),
+
+          // Aquest bloc mostra el camp de confirmació perquè l’usuari
+          // pugui verificar que ha escrit correctament la contrasenya desitjada.
           const Text(
             'Confirmar Contrasenya',
             style: TextStyle(
@@ -190,6 +203,7 @@ class RegisterFormCard extends StatelessWidget {
             FormErrorText(controller.errorMessage!),
           ],
           const SizedBox(height: 28),
+
           // Aquest botó inicia el procés de creació del compte amb les dades del formulari.
           // Quan hi ha una operació en curs, es desactiva i mostra un indicador de càrrega.
           PrimaryGradientButton(
@@ -199,6 +213,7 @@ class RegisterFormCard extends StatelessWidget {
             onPressed: () => controller.onCreateAccountTap(),
           ),
           const SizedBox(height: 16),
+
           // Aquest botó permet tornar a la pantalla d’accés
           // si l’usuari ja disposa d’un compte.
           SecondaryPillButton(

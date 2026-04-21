@@ -1,11 +1,10 @@
+import 'package:cims/app/screens/reset_password/reset_password_controller.dart';
+import 'package:cims/app/widgets/buttons/primary_gradient_button.dart';
+import 'package:cims/app/widgets/buttons/secondary_pill_button.dart';
+import 'package:cims/app/widgets/forms/app_form_card.dart';
+import 'package:cims/app/widgets/forms/app_input_field.dart';
+import 'package:cims/app/widgets/forms/form_error_text.dart';
 import 'package:flutter/material.dart';
-
-import '../../../widgets/buttons/primary_gradient_button.dart';
-import '../../../widgets/buttons/secondary_pill_button.dart';
-import '../../../widgets/forms/app_form_card.dart';
-import '../../../widgets/forms/app_input_field.dart';
-import '../../../widgets/forms/form_error_text.dart';
-import '../reset_password_controller.dart';
 
 // Aquest widget agrupa la part principal del formulari de canvi de contrasenya.
 // Serveix per reduir la mida de la pantalla i concentrar dins d’un sol component
@@ -28,6 +27,8 @@ class ResetPasswordFormCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Aquest bloc mostra el camp de la nova contrasenya
+          // i permet a l’usuari veure-la o ocultar-la mentre l’escriu.
           const Text(
             'Contrasenya',
             style: TextStyle(
@@ -69,6 +70,9 @@ class ResetPasswordFormCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 24),
+
+          // Aquest bloc mostra el camp de confirmació per assegurar
+          // que l’usuari ha escrit correctament la nova contrasenya.
           const Text(
             'Confirmar Contrasenya',
             style: TextStyle(
@@ -116,6 +120,7 @@ class ResetPasswordFormCard extends StatelessWidget {
             FormErrorText(controller.errorMessage!),
           ],
           const SizedBox(height: 28),
+
           // Aquest botó inicia el procés de canvi de contrasenya.
           // Quan hi ha una operació en curs, es desactiva i mostra un indicador de càrrega.
           PrimaryGradientButton(
@@ -125,6 +130,7 @@ class ResetPasswordFormCard extends StatelessWidget {
             onPressed: () => controller.onChangePasswordTap(),
           ),
           const SizedBox(height: 16),
+
           // Aquest botó permet tornar al flux d’inici de sessió
           // si l’usuari decideix sortir d’aquesta pantalla.
           SecondaryPillButton(

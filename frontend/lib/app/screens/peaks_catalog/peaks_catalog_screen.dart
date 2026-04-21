@@ -1,3 +1,4 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'peaks_catalog_controller.dart';
 import 'widgets/peak_detail_card.dart';
@@ -6,6 +7,7 @@ import 'widgets/peaks_search_bar.dart';
 // Aquesta pantalla mostra el catàleg de cims de l’aplicació.
 // La seva funció és construir la vista general del llistat i connectar-la
 // amb el controller, que és qui gestiona l’estat i les dades.
+@RoutePage()
 class PeaksCatalogScreen extends StatefulWidget {
   const PeaksCatalogScreen({super.key});
 
@@ -13,7 +15,12 @@ class PeaksCatalogScreen extends StatefulWidget {
   State<PeaksCatalogScreen> createState() => _PeaksCatalogScreenState();
 }
 
+// Aquesta classe gestiona el comportament intern de la pantalla del catàleg.
+// S’encarrega de preparar el controller, escoltar-ne els canvis
+// i construir la interfície segons l’estat actual de les dades.
 class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
+  // Aquest controlador concentra les dades i l’estat del catàleg,
+  // incloent la càrrega inicial i la cerca de cims.
   late final PeaksCatalogController controller;
 
   // Aquest mètode prepara el controller quan la pantalla es crea
@@ -69,6 +76,8 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
                           itemCount: controller.peaks.length,
                           separatorBuilder: (_, __) => const SizedBox(height: 14),
                           itemBuilder: (context, index) {
+                            // Aquest bloc recupera el cim corresponent a cada posició
+                            // i el converteix en una targeta visual del llistat.
                             final peak = controller.peaks[index];
 
                             return PeakDetailCard(

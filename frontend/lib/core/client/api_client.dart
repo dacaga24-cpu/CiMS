@@ -1,3 +1,5 @@
+import 'package:cims/core/entity/user.dart';
+
 // Aquesta classe representa un error relacionat amb la comunicació amb l’API.
 // Serveix per traslladar a l’aplicació un missatge clar sobre què ha fallat
 // i, si es disposa d’aquesta informació, el codi d’estat retornat pel servidor.
@@ -37,6 +39,8 @@ class LoginResponse {
     final userIdRaw = json['userId'];
     int? parsedUserId;
 
+    // Aquest bloc intenta adaptar el valor de userId al format enter
+    // encara que el backend l’enviï amb un tipus lleugerament diferent.
     if (userIdRaw is int) {
       parsedUserId = userIdRaw;
     } else if (userIdRaw is num) {
@@ -84,4 +88,17 @@ abstract class ApiClient {
     required String email,
     required String password,
   });
+
+  // Aquest mètode defineix la recuperació del perfil de l’usuari autenticat.
+  // És una crida protegida i serveix per validar que la sessió realment funciona
+  // més enllà del login i del guardat local del token.
+  Future<User> getUserProfile();
+}
+
+// Aquest error indica que la sessió ja no és vàlida per accedir a un endpoint protegit.
+// Permet diferenciar un 401 de sessió caducada d’altres errors d’API.
+class ApiUnauthorizedException extends ApiException {
+  const ApiUnauthorizedException([
+    super.message = 'La sessió ha caducat',
+  ]) : super(statusCode: 401);
 }
