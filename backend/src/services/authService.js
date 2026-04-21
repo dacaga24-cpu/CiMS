@@ -60,6 +60,13 @@ const AuthService = {
   // Primer comprova si el correu ja existeix, després prepara la contrasenya
   // i finalment crea el compte a la base de dades.
   async register({ firstName, lastName, email, password }) {
+    // Els noms s'emmagatzemen sense espais inicials ni finals per evitar
+    // registres amb variants idèntiques visualment però diferents a la base de dades.
+    // La validació de longitud que fa el controlador aplica al valor original,
+    // de manera que un usuari no pot utilitzar espais per saltar-se el límit.
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
+
     // El correu es normalitza abans de qualsevol consulta per garantir que
     // la comprovació d'existència i la inserció treballen amb el mateix format.
     const normalizedEmail = normalizeEmail(email);
@@ -73,8 +80,8 @@ const AuthService = {
 
     const hashedPassword = await this.hashPassword(password);
     const user = await UserModel.create({
-      firstName,
-      lastName,
+      firstName: trimmedFirstName,
+      lastName: trimmedLastName,
       email: normalizedEmail,
       password: hashedPassword,
     });

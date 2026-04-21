@@ -12,6 +12,13 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
+// En entorns com Cloud Run el servidor rep les peticions a través d'un proxy,
+// de manera que per defecte req.ip seria sempre la IP interna del proxy.
+// Habilitant la confiança en un nivell de proxy, Express llegeix l'IP real
+// del client des de la capçalera X-Forwarded-For, cosa imprescindible perquè
+// els limitadors de peticions puguin aplicar límits per usuari i no de manera global.
+app.set('trust proxy', 1);
+
 // Aquest middleware afegeix capçaleres HTTP defensives per defecte,
 // com ara X-Content-Type-Options, X-Frame-Options i Strict-Transport-Security.
 // Són especialment rellevants per la pàgina HTML del restabliment de contrasenya,
