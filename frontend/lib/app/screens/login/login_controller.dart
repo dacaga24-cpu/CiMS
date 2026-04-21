@@ -2,6 +2,7 @@ import 'package:cims/app/client/api/api_client_impl.dart';
 import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:cims/core/usecase/auth/login_usecase.dart';
+import 'package:cims/core/usecase/auth/request_password_reset_usecase.dart';
 import 'package:cims/core/usecase/session/save_session_usecase.dart';
 import 'package:flutter/material.dart';
 
@@ -20,18 +21,23 @@ enum LoginNavigationDestination {
 class LoginController extends ChangeNotifier {
   LoginController({
     LoginUseCase? loginUseCase,
+    RequestPasswordResetUseCase? requestPasswordResetUseCase,
     SaveSessionUseCase? saveSessionUseCase,
   })  : _loginUseCase = loginUseCase ??
             LoginUseCase(
               apiClient: ApiClientImpl(),
             ),
+        _requestPasswordResetUseCase = requestPasswordResetUseCase ??
+            RequestPasswordResetUseCase(
+              apiClient: ApiClientImpl(),
+            ),
         _saveSessionUseCase =
             saveSessionUseCase ?? AppSession.saveSessionUseCase;
 
-  // Aquest bloc agrupa el cas d’ús principal del login i els controladors de text del formulari.
-  // Gràcies a això, el controlador pot llegir les dades de la vista
-  // i delegar l’acció de negoci fora de la pantalla.
+  // Aquest bloc agrupa els casos d’ús principals del login i de recuperació de contrasenya,
+  // juntament amb els controladors de text del formulari.
   final LoginUseCase _loginUseCase;
+  final RequestPasswordResetUseCase _requestPasswordResetUseCase;
   final SaveSessionUseCase _saveSessionUseCase;
 
   // Aquests controladors conserven el text que escriu l’usuari
@@ -46,11 +52,14 @@ class LoginController extends ChangeNotifier {
   bool showValidation = false;
   bool isLoading = false;
   String? errorMessage;
+  String? infoMessage;
 
   // Aquest indicador evita actualitzacions d’estat quan el controlador
   // ja ha estat tancat i la pantalla no està activa.
   bool _disposed = false;
 
+  // Aquest valor intern representa la navegació pendent
+  // que la vista haurà de consumir quan toqui.
   LoginNavigationDestination _destination = LoginNavigationDestination.none;
   LoginNavigationDestination get destination => _destination;
 
@@ -71,9 +80,10 @@ class LoginController extends ChangeNotifier {
       _isValidEmail(emailController.text.trim());
 
   // Aquests mètodes responen als canvis que l’usuari fa als camps del formulari.
-  // La seva funció és netejar errors previs i avisar la interfície perquè es refresqui.
+  // La seva funció és netejar missatges previs i avisar la interfície perquè es refresqui.
   void onEmailChanged(String value) {
     errorMessage = null;
+    infoMessage = null;
     notifyListeners();
   }
 
@@ -98,6 +108,7 @@ class LoginController extends ChangeNotifier {
 
     showValidation = true;
     errorMessage = null;
+    infoMessage = null;
     notifyListeners();
 
     if (!canSubmit) return;
@@ -141,8 +152,49 @@ class LoginController extends ChangeNotifier {
     }
   }
 
-  // Aquest mètode queda reservat per al futur flux de recuperació de contrasenya.
-  void onForgotPasswordTap() {}
+  // Aquest mètode aprofita el correu ja escrit al formulari per iniciar
+  // el procés de recuperació de contrasenya sense sortir de la pantalla de login.
+  Future<void> onForgotPasswordTap() async {
+    if (isLoading) return;
+
+    showValidation = true;
+    errorMessage = null;
+    infoMessage = null;
+    notifyListeners();
+
+    final email = emailController.text.trim();
+
+    // Aquest bloc obliga a tenir un correu amb format correcte
+    // abans d’enviar la sol·licitud de recuperació al backend.
+    if (email.isEmpty || !_isValidEmail(email)) {
+      errorMessage = 'Has d\'introduir un correu vàlid';
+      notifyListeners();
+      return;
+    }
+
+    isLoading = true;
+    notifyListeners();
+
+    try {
+      await _requestPasswordResetUseCase.execute(
+        email: email,
+      );
+
+      // Aquest missatge manté una resposta neutra cap a l’usuari,
+      // tant si el correu existeix com si no.
+      infoMessage =
+          'Si el correu existeix, t\'hem enviat un enllaç per restablir la contrasenya';
+    } on ApiException catch (error) {
+      errorMessage = error.message;
+    } catch (_) {
+      errorMessage = 'No s\'ha pogut processar la recuperació de contrasenya';
+    } finally {
+      isLoading = false;
+      if (!_disposed) {
+        notifyListeners();
+      }
+    }
+  }
 
   // Aquest mètode prepara la navegació cap a la pantalla de registre.
   void onRegisterTap() {
