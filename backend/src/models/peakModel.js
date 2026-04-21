@@ -11,19 +11,24 @@ const PeakModel = {
     async findAll({ regionId, minAltitude, maxAltitude, search } = {}) {
 
         // Aquest bloc construeix la consulta de forma dinàmica.
-        // Es parteix d'una base amb JOIN a peak_regions només quan cal filtrar per regió,
-        // per evitar duplicar files quan un cim pertany a més d'una comarca.
+        // Es parteix d'una base amb LEFT JOIN a peak_regions i regions
+        // per poder agrupar les comarques de cada cim en un sol camp.
+        // D'aquesta manera s'evita haver de fer una consulta per cada cim
+        // a l'hora de mostrar el catàleg.
         const conditions = [];
         const params = [];
 
         let sql = `
-        SELECT DISTINCT p.id, p.name, p.altitude, p.latitude, p.longitude,
-                p.description
+        SELECT p.id, p.name, p.altitude, p.latitude, p.longitude, p.description,
+               GROUP_CONCAT(r.name ORDER BY r.name ASC SEPARATOR ', ') AS regions
         FROM peaks p
+        LEFT JOIN peak_regions pr ON pr.peak_id = p.id
+        LEFT JOIN regions r ON r.id = pr.region_id
         `;
 
+        // El filtre per regió es resol reutilitzant el mateix JOIN ja definit,
+        // així no cal afegir una taula addicional només per filtrar.
         if (regionId !== undefined && regionId !== null) {
-        sql += ` INNER JOIN peak_regions pr ON pr.peak_id = p.id `;
         conditions.push('pr.region_id = ?');
         params.push(regionId);
         }
@@ -49,7 +54,9 @@ const PeakModel = {
         sql += ' WHERE ' + conditions.join(' AND ');
         }
 
-        sql += ' ORDER BY p.name ASC';
+        // L'agrupació per p.id és necessària perquè cada cim torni en una sola fila
+        // tot i tenir múltiples comarques associades.
+        sql += ' GROUP BY p.id ORDER BY p.name ASC';
 
         const [rows] = await pool.execute(sql, params);
         return rows;
