@@ -14,7 +14,12 @@ const app = express();
 // Aquest bloc activa els comportaments bàsics que necessita el servidor
 // per rebre peticions externes i interpretar correctament les dades en format JSON.
 app.use(cors()); // Permet que l’aplicació client es pugui comunicar amb el backend des d’un altre origen.
-app.use(express.json()); // Converteix el contingut JSON de les peticions en objectes que el servidor pot utilitzar.
+
+// Es limita la mida màxima del cos JSON a 10kb perquè cap endpoint de l'API
+// necessita rebre més dades que això (credencials, filtres i tokens són petits).
+// D'aquesta manera s'evita que una petició amb un cos molt gran pugui consumir
+// memòria o CPU del servidor i convertir-se en un vector d'atac senzill.
+app.use(express.json({ limit: '10kb' })); // Converteix el contingut JSON de les peticions en objectes que el servidor pot utilitzar.
 
 // Aquest endpoint senzill serveix per comprovar si el servidor està en funcionament.
 // És útil per validar ràpidament que l’aplicació ha arrencat correctament.
