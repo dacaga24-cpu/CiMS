@@ -2,12 +2,13 @@ import 'package:cims/app/router/app_router.dart';
 import 'package:cims/app/router/guards/auth_guard.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 
 // Aquest mètode prepara la sessió compartida, crea el router principal
 // i configura la redirecció global quan una sessió caduqui.
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
+  usePathUrlStrategy();
   // Inicialitza els recursos compartits relacionats amb la sessió
   // abans d’arrencar l’aplicació.
   AppSession.initialize();

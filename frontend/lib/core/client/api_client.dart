@@ -93,6 +93,14 @@ abstract class ApiClient {
   // És una crida protegida i serveix per validar que la sessió realment funciona
   // més enllà del login i del guardat local del token.
   Future<User> getUserProfile();
+  Future<String> requestPasswordReset({
+    required String email,
+  });
+
+  Future<void> resetPassword({
+    required String token,
+    required String newPassword,
+  });
 }
 
 // Aquest error indica que la sessió ja no és vàlida per accedir a un endpoint protegit.

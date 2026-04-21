@@ -51,8 +51,9 @@ class LoginFormCard extends StatelessWidget {
             const FormErrorText('Introdueix un correu electrònic vàlid'),
           ],
           const SizedBox(height: 26),
+
           // Aquest bloc mostra el camp de contrasenya
-          // i l’accés a la futura recuperació de contrasenya.
+          // i l’accés a la recuperació de contrasenya.
           Row(
             children: [
               const Expanded(
@@ -66,13 +67,17 @@ class LoginFormCard extends StatelessWidget {
                 ),
               ),
               GestureDetector(
-                onTap: controller.onForgotPasswordTap,
-                child: const Text(
+                onTap: controller.isLoading
+                    ? null
+                    : controller.onForgotPasswordTap,
+                child: Text(
                   'Has oblidat la contrasenya?',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF0B57D0),
+                    color: controller.isLoading
+                        ? const Color(0xFF9AA0A6)
+                        : const Color(0xFF0B57D0),
                   ),
                 ),
               ),
@@ -101,18 +106,36 @@ class LoginFormCard extends StatelessWidget {
               ),
             ),
           ),
+
           // Aquest missatge informa que la contrasenya és obligatòria.
           if (controller.hasEmptyPassword) ...[
             const SizedBox(height: 8),
             const FormErrorText('La contrasenya és obligatòria'),
           ],
-          // Aquest bloc mostra un error general del procés de login,
-          // com ara credencials incorrectes o problemes de connexió.
+
+          // Aquest bloc mostra un error general del procés de login
+          // o de la recuperació de contrasenya.
           if (controller.errorMessage != null) ...[
             const SizedBox(height: 12),
             FormErrorText(controller.errorMessage!),
           ],
+
+          // Aquest missatge confirma de manera neutra que s’ha iniciat
+          // el procés de recuperació de contrasenya.
+          if (controller.infoMessage != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              controller.infoMessage!,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF0B57D0),
+              ),
+            ),
+          ],
+
           const SizedBox(height: 34),
+
           // Aquest botó inicia el procés d’autenticació.
           // Quan hi ha una petició en curs, es desactiva i mostra un indicador de càrrega.
           PrimaryGradientButton(
