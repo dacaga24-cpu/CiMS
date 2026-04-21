@@ -9,7 +9,7 @@ const EmailService = require('./emailService');
 // Serveixen per fixar el nivell de protecció de les contrasenyes
 // i el temps màxim de validesa dels tokens de recuperació.
 const SALT_ROUNDS = 10;
-const RESET_TOKEN_EXPIRY_HOURS = 1;
+const RESET_TOKEN_EXPIRY_HOURS = 3;
 
 // Aquest mètode transforma el token de recuperació en una versió segura per guardar-la.
 // És rellevant perquè permet validar després el token sense haver de conservar-lo en text visible.
