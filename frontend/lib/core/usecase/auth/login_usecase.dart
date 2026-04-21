@@ -1,4 +1,4 @@
-import '../../client/api_client.dart';
+import 'package:cims/core/client/api_client.dart';
 
 // Aquest cas d’ús encapsula l’operació d’iniciar sessió.
 // La seva funció és separar la lògica de negoci de la capa de presentació

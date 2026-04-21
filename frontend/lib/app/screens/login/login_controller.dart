@@ -1,8 +1,9 @@
+import 'package:cims/app/client/api/api_client_impl.dart';
+import 'package:cims/core/client/api_client.dart';
+import 'package:cims/core/session/app_session.dart';
+import 'package:cims/core/usecase/auth/login_usecase.dart';
+import 'package:cims/core/usecase/session/save_session_usecase.dart';
 import 'package:flutter/material.dart';
-
-import '../../../app/client/api/api_client_impl.dart';
-import '../../../core/client/api_client.dart';
-import '../../../core/usecase/auth/login_usecase.dart';
 
 // Aquest bloc defineix els possibles destins de navegació després d’interactuar
 // amb la pantalla de login. Serveix per indicar si l’usuari ha d’anar
@@ -17,21 +18,24 @@ enum LoginNavigationDestination {
 // S’encarrega de controlar els camps del formulari, validar les dades,
 // comunicar-se amb el backend i indicar a la vista què ha de mostrar o cap on ha de navegar.
 class LoginController extends ChangeNotifier {
-  // El controlador pot rebre el cas d’ús del login des de fora o crear-ne un per defecte.
-  // Això permet desacoblar la pantalla de la implementació concreta de l’API
-  // i facilita l’evolució de l’arquitectura.
   LoginController({
     LoginUseCase? loginUseCase,
-  }) : _loginUseCase = loginUseCase ??
+    SaveSessionUseCase? saveSessionUseCase,
+  })  : _loginUseCase = loginUseCase ??
             LoginUseCase(
               apiClient: ApiClientImpl(),
-            );
+            ),
+        _saveSessionUseCase =
+            saveSessionUseCase ?? AppSession.saveSessionUseCase;
 
   // Aquest bloc agrupa el cas d’ús principal del login i els controladors de text del formulari.
   // Gràcies a això, el controlador pot llegir les dades de la vista
   // i delegar l’acció de negoci fora de la pantalla.
   final LoginUseCase _loginUseCase;
+  final SaveSessionUseCase _saveSessionUseCase;
 
+  // Aquests controladors conserven el text que escriu l’usuari
+  // als dos camps principals del formulari.
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
@@ -43,6 +47,8 @@ class LoginController extends ChangeNotifier {
   bool isLoading = false;
   String? errorMessage;
 
+  // Aquest indicador evita actualitzacions d’estat quan el controlador
+  // ja ha estat tancat i la pantalla no està activa.
   bool _disposed = false;
 
   LoginNavigationDestination _destination = LoginNavigationDestination.none;
@@ -96,17 +102,28 @@ class LoginController extends ChangeNotifier {
 
     if (!canSubmit) return;
 
+    // Aquest bloc marca que hi ha una operació en curs
+    // perquè la vista pugui bloquejar noves interaccions mentre espera resposta.
     isLoading = true;
     notifyListeners();
 
     try {
-      await _loginUseCase.execute(
+      final loginResponse = await _loginUseCase.execute(
         email: emailController.text.trim(),
         password: passwordController.text,
       );
 
+      // Si el login és correcte, es desa la sessió local
+      // perquè l’usuari pugui continuar autenticat dins de l’aplicació.
+      await _saveSessionUseCase.execute(
+        token: loginResponse.token,
+        userId: loginResponse.userId,
+      );
+
       _destination = LoginNavigationDestination.dashboard;
     } on ApiException catch (error) {
+      // Aquest bloc transforma els errors tècnics més habituals
+      // en missatges més clars i útils per a l’usuari.
       if (error.statusCode == 401) {
         errorMessage = 'Credencials incorrectes';
       } else if (error.statusCode == 400) {

@@ -1,11 +1,10 @@
 import 'package:auto_route/auto_route.dart';
+import 'package:cims/app/router/app_router.dart';
+import 'package:cims/app/widgets/branding/cims_logo.dart';
 import 'package:flutter/material.dart';
-
-import '../../router/app_router.dart';
-import '../../widgets/branding/cims_logo.dart';
 import 'login_controller.dart';
 import 'widgets/login_form_card.dart';
-import 'widgets/login_register_prompt.dart';
+import 'widgets/login_register_text.dart';
 
 // Aquesta pantalla mostra la interfície d’inici de sessió de l’aplicació.
 // La seva funció és presentar el formulari, recollir la interacció de l’usuari
@@ -48,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (controller.destination == LoginNavigationDestination.dashboard) {
       controller.consumeNavigation();
-      context.router.replace(const DashboardRoute());
+      context.router.replace(const MainNavigationRoute());
     }
   }
 
@@ -65,6 +64,8 @@ class _LoginScreenState extends State<LoginScreen> {
   // perquè els camps continuïn sent còmodes d’utilitzar.
   @override
   Widget build(BuildContext context) {
+    // Aquest càlcul adapta la posició inferior del formulari
+    // per mantenir-lo visible i accessible quan el teclat està obert.
     final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
     final formBottomOffset = keyboardInset > 0 ? keyboardInset : 72.0;
 
@@ -76,6 +77,8 @@ class _LoginScreenState extends State<LoginScreen> {
           resizeToAvoidBottomInset: false,
           body: SafeArea(
             child: GestureDetector(
+              // Aquesta acció permet tancar el teclat quan l’usuari toca fora dels camps,
+              // millorant la comoditat d’ús de la pantalla.
               onTap: () => FocusScope.of(context).unfocus(),
               child: Stack(
                 children: [

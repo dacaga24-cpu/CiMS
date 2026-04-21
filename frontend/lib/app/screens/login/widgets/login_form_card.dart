@@ -1,10 +1,9 @@
+import 'package:cims/app/screens/login/login_controller.dart';
+import 'package:cims/app/widgets/buttons/primary_gradient_button.dart';
+import 'package:cims/app/widgets/forms/app_form_card.dart';
+import 'package:cims/app/widgets/forms/app_input_field.dart';
+import 'package:cims/app/widgets/forms/form_error_text.dart';
 import 'package:flutter/material.dart';
-
-import '../../../widgets/buttons/primary_gradient_button.dart';
-import '../../../widgets/forms/app_form_card.dart';
-import '../../../widgets/forms/app_input_field.dart';
-import '../../../widgets/forms/form_error_text.dart';
-import '../login_controller.dart';
 
 // Aquest widget agrupa la part principal del formulari de login.
 // Serveix per treure pes visual de la pantalla i deixar clar
@@ -27,6 +26,8 @@ class LoginFormCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Aquest bloc mostra l’etiqueta i el camp del correu electrònic,
+          // que és una de les dades necessàries per autenticar l’usuari.
           const Text(
             'Correu',
             style: TextStyle(
@@ -86,6 +87,8 @@ class LoginFormCard extends StatelessWidget {
             enabled: !controller.isLoading,
             onChanged: controller.onPasswordChanged,
             onSubmitted: (_) => controller.onLoginTap(),
+            // Aquesta icona permet a l’usuari comprovar la contrasenya escrita
+            // sense sortir del camp ni alterar la resta del formulari.
             suffixIcon: IconButton(
               onPressed: controller.isLoading
                   ? null

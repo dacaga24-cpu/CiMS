@@ -17,6 +17,7 @@ De manera resumida, aquest backend permet:
 - consultar el perfil d’un usuari autenticat
 - iniciar el procés de recuperació de contrasenya
 - restablir la contrasenya amb token
+- enviar correus de recuperació de contrasenya via SendGrid
 - connectar amb la base de dades MySQL
 
 ## Tecnologies utilitzades
@@ -26,6 +27,7 @@ De manera resumida, aquest backend permet:
 - MySQL
 - JWT
 - bcrypt
+- Nodemailer + SendGrid
 
 ## Abans de començar
 
@@ -62,6 +64,13 @@ NODE_ENV=development
 # JWT
 JWT_SECRET=your_jwt_secret
 JWT_EXPIRES_IN=7d
+
+# Email - SendGrid
+SENDGRID_API_KEY=your_sendgrid_api_key
+MAIL_FROM=your_verified_sender@gmail.com
+
+# URL base per als enllaços del correu
+APP_URL=http://localhost:3000
 
 ## Com iniciar el servidor
 

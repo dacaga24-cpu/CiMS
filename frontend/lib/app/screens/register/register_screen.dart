@@ -1,7 +1,6 @@
 import 'package:auto_route/auto_route.dart';
+import 'package:cims/app/router/app_router.dart';
 import 'package:flutter/material.dart';
-
-import '../../router/app_router.dart';
 import 'register_controller.dart';
 import 'widgets/register_form_card.dart';
 import 'widgets/register_terms_text.dart';
@@ -41,6 +40,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (controller.destination == RegisterNavigationDestination.login) {
       controller.consumeNavigation();
 
+      // Aquest bloc torna l’usuari al login després del registre,
+      // aprofitant la navegació existent si n’hi ha una de prèvia.
       if (context.router.canPop()) {
         context.router.pop();
       } else {
@@ -87,6 +88,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // perquè els camps continuïn sent accessibles mentre l’usuari escriu.
   @override
   Widget build(BuildContext context) {
+    // Aquest càlcul adapta el desplaçament inferior del formulari
+    // perquè continuï sent visible quan el teclat està obert.
     final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
     final formBottomOffset = keyboardInset > 0 ? keyboardInset : 56.0;
 
@@ -98,6 +101,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           resizeToAvoidBottomInset: false,
           body: SafeArea(
             child: GestureDetector(
+              // Aquesta acció permet tancar el teclat quan l’usuari toca fora dels camps,
+              // millorant la comoditat d’ús de la pantalla.
               onTap: () => FocusScope.of(context).unfocus(),
               child: Stack(
                 children: [

@@ -1,9 +1,8 @@
 import 'package:auto_route/auto_route.dart';
+import 'package:cims/app/router/app_router.dart';
+import 'package:cims/app/widgets/branding/cims_logo.dart';
+import 'package:cims/core/session/app_session.dart';
 import 'package:flutter/material.dart';
-
-import '../../../core/usecase/session/has_saved_session_usecase.dart';
-import '../../router/app_router.dart';
-import '../../widgets/branding/cims_logo.dart';
 import 'app_start_controller.dart';
 
 // Aquesta pantalla actua com a punt d’entrada visual de l’aplicació.
@@ -37,20 +36,27 @@ class _AppStartScreenState extends State<AppStartScreen>
   void initState() {
     super.initState();
 
+    // Es crea el controlador encarregat de decidir el primer destí
+    // i s’hi associa un listener per reaccionar quan aquesta decisió canviï.
     controller = AppStartController(
-      hasSavedSessionUseCase: const HasSavedSessionUseCase(),
+      hasSavedSessionUseCase: AppSession.hasSavedSessionUseCase,
     )..addListener(_handleControllerChanges);
 
+    // Aquest controlador anima l’entrada del logotip per fer
+    // que la pantalla inicial tingui una transició més agradable.
     animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 650),
     );
 
+    // Aquesta animació controla l’aparició progressiva del logotip.
     fadeAnimation = CurvedAnimation(
       parent: animationController,
       curve: Curves.easeOut,
     );
 
+    // Aquesta animació afegeix una lleugera sensació d’escala
+    // perquè la presentació inicial sigui més suau i visual.
     scaleAnimation = Tween<double>(
       begin: 0.92,
       end: 1.0,
@@ -79,7 +85,7 @@ class _AppStartScreenState extends State<AppStartScreen>
 
     if (controller.destination == AppStartDestination.dashboard) {
       controller.consumeNavigation();
-      context.router.replace(const DashboardRoute());
+      context.router.replace(const MainNavigationRoute());
     }
   }
 
@@ -107,6 +113,8 @@ class _AppStartScreenState extends State<AppStartScreen>
             child: ScaleTransition(
               scale: scaleAnimation,
               child: Transform.translate(
+                // Aquest desplaçament ajusta lleugerament la posició del logotip
+                // per equilibrar millor la composició visual de la pantalla.
                 offset: const Offset(0, -70),
                 child: const CimsLogo(
                   width: 110,
