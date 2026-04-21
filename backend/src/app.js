@@ -8,6 +8,8 @@ const helmet = require('helmet');
 
 const authRoutes = require('./routes/authRoutes');
 const peakRoutes = require('./routes/peakRoutes');
+const regionRoutes = require('./routes/regionRoutes');
+const resetPasswordRoutes = require('./routes/resetPasswordRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -49,9 +51,13 @@ app.use('/api/auth', authRoutes);
 // Es manté el mateix patró de prefix /api per agrupar tota l'API.
 app.use('/api/peaks', peakRoutes);
 
+// Aquest bloc registra les rutes de les comarques.
+// Serveix per alimentar els filtres territorials del catàleg al frontend.
+app.use('/api/regions', regionRoutes);
+
 // Aquest bloc registra les rutes relacionades amb la recuperació de contrasenya.
 // Es manté el prefix /reset-password per diferenciar clarament aquesta funcionalitat de les altres rutes d’API.
-app.use('/reset-password', require('./routes/resetPasswordRoutes'));
+app.use('/reset-password', resetPasswordRoutes);
 
 // Aquest gestor s’aplica al final perquè pugui recollir qualsevol error
 // produït durant el recorregut d’una petició.

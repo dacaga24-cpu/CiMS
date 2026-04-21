@@ -88,7 +88,12 @@ router.get('/', (req, res) => {
 
       <script>
         const TOKEN = '${token}';
-        const API_URL = 'https://cims-backend-639822259289.europe-southwest1.run.app/api/auth/reset-password';
+
+        // Aquest formulari el serveix el mateix backend, per això la crida
+        // al endpoint de restabliment es fa amb una ruta relativa.
+        // Així s'evita dependre d'una URL fixa i el formulari funciona
+        // en qualsevol entorn on s'hagi desplegat l'aplicació.
+        const API_URL = '/api/auth/reset-password';
 
         async function handleSubmit() {
           const newPassword = document.getElementById('newPassword').value;

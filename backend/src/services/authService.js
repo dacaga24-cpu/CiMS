@@ -9,7 +9,7 @@ const EmailService = require('./emailService');
 // Serveixen per fixar el nivell de protecció de les contrasenyes
 // i el temps màxim de validesa dels tokens de recuperació.
 const SALT_ROUNDS = 10;
-const RESET_TOKEN_EXPIRY_HOURS = 1;
+const RESET_TOKEN_EXPIRY_HOURS = 3;
 
 // Aquest mètode transforma el token de recuperació en una versió segura per guardar-la.
 // És rellevant perquè permet validar després el token sense haver de conservar-lo en text visible.
@@ -160,12 +160,22 @@ const AuthService = {
     });
 
     // S'envia el correu amb l'enllaç de recuperació a l'usuari.
-    // En entorn de desenvolupament també es retorna el token a la resposta
-    // per facilitar les proves sense necessitat d'obrir el correu.
-    await EmailService.sendPasswordReset({ to: user.email, token });
+    // Si l'enviament falla, es registra l'error al servidor però no es propaga,
+    // perquè la resposta al client ha de ser sempre la mateixa tant si el correu
+    // existeix com si no. Així s'evita que un error d'enviament permeti deduir
+    // si un correu està registrat al sistema.
+    try {
+      await EmailService.sendPasswordReset({ to: user.email, token });
+    } catch (error) {
+      console.error('Error sending password reset email:', error);
+    }
 
+    // En entorn de desenvolupament el token es registra als logs del servidor
+    // per facilitar les proves sense necessitat d'obrir el correu.
+    // Mai s'inclou el token a la resposta HTTP: si la variable NODE_ENV no està
+    // ben configurada a producció, no es filtra el token per l'API.
     if (process.env.NODE_ENV !== 'production') {
-      return { ...genericResponse, token };
+      console.log(`[DEV] Password reset token for ${user.email}: ${token}`);
     }
     return genericResponse;
     },

@@ -18,10 +18,10 @@ const MAX_PASSWORD_LENGTH = 128;
 
 // Aquest mètode crea un error de validació amb codi 400.
 // S’utilitza quan falten dades o quan el format rebut no és correcte.
-function badRequest(message) {                                                                                                                                                              
+function badRequest(message) {
   const error = new Error(message);
-  error.statusCode = 400;                                                                                                                                                                   
-  return error;                                                 
+  error.statusCode = 400;
+  return error;
 }
 
 // Aquest controlador gestiona les peticions relacionades amb l’autenticació i el perfil d’usuari.
@@ -77,9 +77,9 @@ const AuthController = {
   async login(req, res, next) {
     try {
       const { email, password } = req.body || {};
-        if (!email || !password) {
-          throw badRequest('Missing required fields: email, password');
-        }
+      if (!email || !password) {
+        throw badRequest('Missing required fields: email, password');
+      }
 
       const result = await AuthService.login({ email, password });
       res.status(200).json(result);
@@ -151,7 +151,7 @@ const AuthController = {
     } catch (error) {
       next(error);
     }
-  }
+  },
 };
 
 module.exports = AuthController;
