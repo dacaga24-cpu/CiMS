@@ -133,10 +133,18 @@ const AuthService = {
     });
 
     // S'envia el correu amb l'enllaç de recuperació a l'usuari.
+    // Si l'enviament falla, es registra l'error al servidor però no es propaga,
+    // perquè la resposta al client ha de ser sempre la mateixa tant si el correu
+    // existeix com si no. Així s'evita que un error d'enviament permeti deduir
+    // si un correu està registrat al sistema.
+    try {
+      await EmailService.sendPasswordReset({ to: user.email, token });
+    } catch (error) {
+      console.error('Error sending password reset email:', error);
+    }
+
     // En entorn de desenvolupament també es retorna el token a la resposta
     // per facilitar les proves sense necessitat d'obrir el correu.
-    await EmailService.sendPasswordReset({ to: user.email, token });
-
     if (process.env.NODE_ENV !== 'production') {
       return { ...genericResponse, token };
     }
