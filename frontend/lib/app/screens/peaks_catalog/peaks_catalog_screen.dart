@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'peaks_catalog_controller.dart';
 import 'widgets/peak_detail_card.dart';
+import 'widgets/peaks_filters_sheet.dart';
 import 'widgets/peaks_search_bar.dart';
 
 // Aquesta pantalla mostra el catàleg de cims de l’aplicació.
@@ -22,7 +23,8 @@ class PeaksCatalogScreen extends StatefulWidget {
 // i construir la interfície segons l’estat actual de les dades.
 class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
   // Aquest controlador concentra les dades i l’estat del catàleg,
-  // incloent la càrrega inicial, la cerca i la navegació cap al detall.
+  // incloent la càrrega inicial, la cerca, els filtres
+  // i la navegació cap al detall.
   late final PeaksCatalogController controller;
 
   // Aquest mètode prepara el controller quan la pantalla es crea
@@ -52,6 +54,37 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
     }
   }
 
+  // Aquest mètode obre el panell flotant de filtres.
+  // Es mostra sobre la pantalla actual per mantenir visible el llistat del darrere.
+  Future<void> _openFiltersSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      builder: (_) {
+        return PeaksFiltersSheet(
+          availableRegions: controller.availableRegions,
+          initialRegionId: controller.selectedRegionId,
+          initialMinAltitude: controller.minAltitude,
+          initialMaxAltitude: controller.maxAltitude,
+          onApply: ({
+            int? regionId,
+            int? minAltitude,
+            int? maxAltitude,
+          }) {
+            controller.applyFilters(
+              regionId: regionId,
+              minAltitude: minAltitude,
+              maxAltitude: maxAltitude,
+            );
+          },
+          onClear: controller.clearFilters,
+        );
+      },
+    );
+  }
+
   // Aquest mètode allibera els recursos associats al controller
   // quan la pantalla deixa d’existir.
   @override
@@ -75,13 +108,20 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
               children: [
                 const SizedBox(height: 20),
 
-                // Aquest bloc mostra la barra de cerca del catàleg.
-                // El botó de filtres queda visible però reservat per a una futura tasca.
+                // Aquest bloc mostra la barra de cerca del catàleg
+                // i el botó que obre el panell de filtres.
                 PeaksSearchBar(
                   controller: controller.searchController,
                   onChanged: controller.onSearchChanged,
-                  onFilterTap: () {},
+                  onFilterTap: _openFiltersSheet,
+                  hasActiveFilters: controller.hasActiveFilters,
                 ),
+
+                if (controller.hasActiveFilters) ...[
+                  const SizedBox(height: 12),
+                  _buildActiveFiltersSummary(),
+                ],
+
                 const SizedBox(height: 18),
 
                 // Aquest espai principal mostra un indicador de càrrega,
@@ -101,6 +141,48 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
           ),
         );
       },
+    );
+  }
+
+  // Aquest mètode mostra un resum curt dels filtres actius.
+  // Això ajuda a entendre ràpidament per què el catàleg està limitat.
+  Widget _buildActiveFiltersSummary() {
+    final theme = Theme.of(context);
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.filter_alt_outlined,
+              size: 18,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                controller.activeFiltersSummary,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: controller.clearFilters,
+              child: const Text('Neteja'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -145,9 +227,21 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
     );
   }
 
-  // Aquest bloc mostra un missatge senzill quan la cerca no retorna resultats.
+  // Aquest bloc mostra un missatge senzill quan la cerca o els filtres
+  // no retornen cap resultat al catàleg.
   Widget _buildEmptyState() {
     final hasSearch = controller.currentSearch.isNotEmpty;
+    final hasFilters = controller.hasActiveFilters;
+
+    String message = 'Encara no hi ha cims disponibles';
+
+    if (hasSearch && hasFilters) {
+      message = 'No s\'han trobat cims amb aquesta cerca i aquests filtres';
+    } else if (hasSearch) {
+      message = 'No s\'han trobat cims per a aquesta cerca';
+    } else if (hasFilters) {
+      message = 'No s\'han trobat cims amb els filtres aplicats';
+    }
 
     return Center(
       child: Padding(
@@ -161,9 +255,7 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
             ),
             const SizedBox(height: 14),
             Text(
-              hasSearch
-                  ? 'No s\'han trobat cims per a aquesta cerca'
-                  : 'Encara no hi ha cims disponibles',
+              message,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 18,
