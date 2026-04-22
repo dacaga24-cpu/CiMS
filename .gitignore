@@ -28,7 +28,8 @@ node_modules/
 .claude/
 
 # IDEs
-.vscode/
+.vscode/*
+!.vscode/launch.json
 .idea/
 *.iml
 

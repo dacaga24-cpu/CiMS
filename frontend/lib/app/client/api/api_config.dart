@@ -1,40 +1,34 @@
-import 'package:flutter/foundation.dart';
-
 // Aquesta classe centralitza la configuració de la connexió amb el backend.
-// La seva funció és decidir quina URL base s’ha d’utilitzar segons l’entorn
+// La seva funció és decidir quina URL base s'ha d'utilitzar segons l'entorn
 // sense repartir aquesta lògica per diferents fitxers del projecte.
 class ApiConfig {
-  // Aquesta constant permet definir l’URL del backend des de fora del codi
-  // quan es compila o s’executa l’aplicació.
+  // Aquesta constant permet definir l'URL del backend des de fora del codi
+  // quan es compila o s'executa l'aplicació (via --dart-define=API_BASE_URL=...).
+  // És el mecanisme previst per apuntar a un backend local durant el
+  // desenvolupament o a qualsevol entorn alternatiu (staging, preview...).
   static const String _envBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: '',
   );
 
-  // Aquesta propietat exposa l’adreça base final que farà servir l’aplicació.
-  // Primer prioritza la configuració passada per entorn i, si no existeix,
-  // utilitza una configuració local útil per desenvolupament.
+  // Aquesta constant defineix la URL del backend de producció desplegat a
+  // Google Cloud Run. S'utilitza com a valor per defecte perquè el build
+  // publicat a Firebase Hosting funcioni sense dependre d'un flag que un
+  // humà hagi de recordar en cada desplegament. Si en el futur s'afegís un
+  // domini propi, aquest és l'únic lloc on caldria actualitzar-lo.
+  static const String _productionBaseUrl =
+      'https://cims-backend-639822259289.europe-southwest1.run.app';
+
+  // Aquesta propietat exposa l'adreça base final que farà servir l'aplicació.
+  // Si s'ha passat una URL explícita via variable d'entorn, té prioritat;
+  // en cas contrari, s'apunta directament al backend de producció tant si
+  // l'aplicació corre en web, com en Android o en iOS. D'aquesta manera
+  // un build sense configuració queda sempre en un estat operatiu i no es
+  // filtra cap petició a la xarxa local del client.
   static String get baseUrl {
-    // Si l’aplicació rep una URL configurada des de fora,
-    // aquesta té prioritat i es fa servir directament.
     if (_envBaseUrl.isNotEmpty) {
       return _envBaseUrl;
     }
-
-    // En entorn web, el backend local s’apunta a localhost
-    // perquè frontend i servidor s’executen habitualment a la mateixa màquina.
-    if (kIsWeb) {
-      return 'http://localhost:3000';
-    }
-
-    // En dispositius o emuladors, la URL pot variar segons la plataforma.
-    // Aquest bloc adapta la connexió perquè el frontend pugui arribar
-    // correctament al servidor durant el desenvolupament local.
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return 'http://10.0.2.2:3000'; // ruta especial per l'emulador d'Android
-      default:
-        return 'http://localhost:3000';
-    }
+    return _productionBaseUrl;
   }
 }
