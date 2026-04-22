@@ -10,49 +10,89 @@ const PeakModel = {
     // de manera que si no s'especifica cap filtre es retornen tots els cims.
     async findAll({ regionId, minAltitude, maxAltitude, search } = {}) {
 
-        // Aquest bloc construeix la consulta de forma dinàmica.
-        // Es parteix d'una base amb JOIN a peak_regions només quan cal filtrar per regió,
-        // per evitar duplicar files quan un cim pertany a més d'una comarca.
-        const conditions = [];
-        const params = [];
+        // La consulta dels cims i la de les comarques es fan per separat
+        // per poder retornar les comarques com una llista d'objectes {id, name},
+        // mantenint exactament el mateix format que findById i evitant que
+        // el frontend hagi de tractar dos tipus de resposta diferents.
+        const peakConditions = [];
+        const peakParams = [];
+        let peakJoin = '';
 
-        let sql = `
-        SELECT DISTINCT p.id, p.name, p.altitude, p.latitude, p.longitude,
-                p.description
-        FROM peaks p
-        `;
-
+        // El filtre per regió obliga a restringir els cims a aquells que
+        // tenen alguna entrada a peak_regions per la comarca demanada.
+        // S'aplica aquí perquè filtri la llista de cims, no les comarques
+        // retornades per cada cim.
         if (regionId !== undefined && regionId !== null) {
-        sql += ` INNER JOIN peak_regions pr ON pr.peak_id = p.id `;
-        conditions.push('pr.region_id = ?');
-        params.push(regionId);
+            peakJoin = ' INNER JOIN peak_regions pr ON pr.peak_id = p.id ';
+            peakConditions.push('pr.region_id = ?');
+            peakParams.push(regionId);
         }
 
         if (minAltitude !== undefined && minAltitude !== null) {
-        conditions.push('p.altitude >= ?');
-        params.push(minAltitude);
+            peakConditions.push('p.altitude >= ?');
+            peakParams.push(minAltitude);
         }
 
         if (maxAltitude !== undefined && maxAltitude !== null) {
-        conditions.push('p.altitude <= ?');
-        params.push(maxAltitude);
+            peakConditions.push('p.altitude <= ?');
+            peakParams.push(maxAltitude);
         }
 
         // La cerca per nom és insensible a majúscules gràcies al collation utf8mb4_unicode_ci
         // definit a l'schema, de manera que no cal forçar LOWER() a la consulta.
         if (search) {
-        conditions.push('p.name LIKE ?');
-        params.push(`%${search}%`);
+            peakConditions.push('p.name LIKE ?');
+            peakParams.push(`%${search}%`);
         }
 
-        if (conditions.length > 0) {
-        sql += ' WHERE ' + conditions.join(' AND ');
+        let peakSql = `
+            SELECT DISTINCT p.id, p.name, p.altitude, p.latitude, p.longitude, p.description
+            FROM peaks p
+            ${peakJoin}
+        `;
+
+        if (peakConditions.length > 0) {
+            peakSql += ' WHERE ' + peakConditions.join(' AND ');
         }
 
-        sql += ' ORDER BY p.name ASC';
+        peakSql += ' ORDER BY p.name ASC';
 
-        const [rows] = await pool.execute(sql, params);
-        return rows;
+        const [peakRows] = await pool.execute(peakSql, peakParams);
+
+        if (peakRows.length === 0) {
+            return [];
+        }
+
+        // Amb els cims ja filtrats, es recuperen totes les comarques associades
+        // en una sola consulta agrupada per peak_id. Això evita fer una consulta
+        // per cada cim (N+1) i manté l'eficiència del catàleg.
+        const peakIds = peakRows.map((peak) => peak.id);
+        const placeholders = peakIds.map(() => '?').join(', ');
+        const regionsSql = `
+            SELECT pr.peak_id, r.id, r.name
+            FROM peak_regions pr
+            INNER JOIN regions r ON r.id = pr.region_id
+            WHERE pr.peak_id IN (${placeholders})
+            ORDER BY r.name ASC
+        `;
+
+        const [regionRows] = await pool.execute(regionsSql, peakIds);
+
+        // Es construeix un mapa de peak_id a llista de comarques per poder
+        // assignar de manera eficient les comarques a cada cim.
+        const regionsByPeakId = new Map();
+        for (const row of regionRows) {
+            if (!regionsByPeakId.has(row.peak_id)) {
+                regionsByPeakId.set(row.peak_id, []);
+            }
+            regionsByPeakId.get(row.peak_id).push({ id: row.id, name: row.name });
+        }
+
+        for (const peak of peakRows) {
+            peak.regions = regionsByPeakId.get(peak.id) || [];
+        }
+
+        return peakRows;
     },
 
     // Aquest mètode busca un cim pel seu identificador i hi afegeix

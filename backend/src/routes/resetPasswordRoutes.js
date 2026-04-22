@@ -1,13 +1,39 @@
 const express = require('express');
 const router = express.Router();
 
+// Aquesta expressió valida el format del token de recuperació.
+// El token es genera amb crypto.randomBytes(32).toString('hex'),
+// de manera que sempre ha de ser una cadena de 64 caràcters hexadecimals.
+// Comprovar-ho abans d'incrustar-lo a l'HTML és una defensa en profunditat
+// contra possibles atacs XSS si mai canviés la generació del token o si
+// algú intentés manipular el valor per query string.
+const TOKEN_FORMAT_REGEX = /^[a-f0-9]{64}$/;
+
+// Aquest middleware ajusta la Content-Security-Policy només per a aquesta ruta.
+// La CSP que aplica Helmet per defecte bloqueja els scripts i els gestors
+// d'esdeveniments inline, i aquest formulari els necessita perquè tot l'HTML
+// es serveix en una sola resposta sense fitxers externs. Com que la pàgina
+// només fa una crida al mateix origen i no carrega recursos de tercers,
+// permetre inline aquí és un compromís raonable i manté la CSP estricta
+// per a la resta d'endpoints de l'API.
+function allowInlineScriptsForResetPage(req, res, next) {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; base-uri 'self'; form-action 'self'",
+  );
+  next();
+}
+
 // Aquesta ruta serveix la pàgina HTML de restabliment de contrasenya.
 // Rep el token per query string i el passa al formulari perquè l'usuari
 // pugui introduir la nova contrasenya.
-router.get('/', (req, res) => {
+router.get('/', allowInlineScriptsForResetPage, (req, res) => {
   const { token } = req.query;
 
-  if (!token) {
+  // Es rebutja qualsevol petició sense token o amb un format que no coincideixi
+  // amb el patró esperat. Si el token arriba amb caràcters inesperats, es
+  // tracta com un enllaç no vàlid i ni tan sols s'interpola a la resposta.
+  if (!token || typeof token !== 'string' || !TOKEN_FORMAT_REGEX.test(token)) {
     return res.status(400).send(`
       <!DOCTYPE html>
       <html lang="ca">
@@ -77,7 +103,12 @@ router.get('/', (req, res) => {
 
       <script>
         const TOKEN = '${token}';
-        const API_URL = 'https://cims-backend-639822259289.europe-southwest1.run.app/api/auth/reset-password';
+
+        // Aquest formulari el serveix el mateix backend, per això la crida
+        // al endpoint de restabliment es fa amb una ruta relativa.
+        // Així s'evita dependre d'una URL fixa i el formulari funciona
+        // en qualsevol entorn on s'hagi desplegat l'aplicació.
+        const API_URL = '/api/auth/reset-password';
 
         async function handleSubmit() {
           const newPassword = document.getElementById('newPassword').value;

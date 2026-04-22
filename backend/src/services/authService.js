@@ -17,6 +17,14 @@ function hashResetToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+// Aquest mètode normalitza el correu electrònic abans d'utilitzar-lo en qualsevol
+// consulta o inserció. D'aquesta manera dos correus que només es diferencien per
+// majúscules o per espais inicials i finals (Marco@Gmail.com, marco@gmail.com, etc.)
+// identifiquen sempre el mateix usuari i s'eviten registres duplicats a la base de dades.
+function normalizeEmail(email) {
+  return email.trim().toLowerCase();
+}
+
 // Aquest servei centralitza tota la lògica d’autenticació i recuperació de contrasenya.
 // Aquí es resolen processos com el registre, el login, la generació de tokens
 // i el restabliment segur de la contrasenya.
@@ -52,7 +60,17 @@ const AuthService = {
   // Primer comprova si el correu ja existeix, després prepara la contrasenya
   // i finalment crea el compte a la base de dades.
   async register({ firstName, lastName, email, password }) {
-    const existing = await UserModel.findByEmail(email);
+    // Els noms s'emmagatzemen sense espais inicials ni finals per evitar
+    // registres amb variants idèntiques visualment però diferents a la base de dades.
+    // La validació de longitud que fa el controlador aplica al valor original,
+    // de manera que un usuari no pot utilitzar espais per saltar-se el límit.
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
+
+    // El correu es normalitza abans de qualsevol consulta per garantir que
+    // la comprovació d'existència i la inserció treballen amb el mateix format.
+    const normalizedEmail = normalizeEmail(email);
+    const existing = await UserModel.findByEmail(normalizedEmail);
 
     if (existing) {
       const error = new Error('Email is already registered');
@@ -61,7 +79,12 @@ const AuthService = {
     }
 
     const hashedPassword = await this.hashPassword(password);
-    const user = await UserModel.create({ firstName, lastName, email, password: hashedPassword });
+    const user = await UserModel.create({
+      firstName: trimmedFirstName,
+      lastName: trimmedLastName,
+      email: normalizedEmail,
+      password: hashedPassword,
+    });
 
     return { id: user.id };
   },
@@ -70,7 +93,9 @@ const AuthService = {
   // Comprova que l’usuari existeixi, valida la contrasenya
   // i, si tot és correcte, retorna el token d’accés.
   async login({ email, password }) {
-    const user = await UserModel.findByEmail(email);
+    // El correu es normalitza perquè l'inici de sessió funcioni igual
+    // si l'usuari l'escriu amb majúscules o amb espais per accident.
+    const user = await UserModel.findByEmail(normalizeEmail(email));
 
     if (!user) {
       const error = new Error('Invalid credentials');
@@ -105,7 +130,9 @@ const AuthService = {
       message: 'If the email exists, a reset token has been generated',
     };
 
-    const user = await UserModel.findByEmail(email);
+    // El correu es normalitza perquè la recuperació de contrasenya coincideixi
+    // amb l'usuari guardat, independentment de com l'escrigui qui fa la sol·licitud.
+    const user = await UserModel.findByEmail(normalizeEmail(email));
     if (!user) {
       return genericResponse;
     }
@@ -133,12 +160,26 @@ const AuthService = {
     });
 
     // S'envia el correu amb l'enllaç de recuperació a l'usuari.
-    // En entorn de desenvolupament també es retorna el token a la resposta
-    // per facilitar les proves sense necessitat d'obrir el correu.
-    await EmailService.sendPasswordReset({ to: user.email, token });
+    // Si l'enviament falla, es registra l'error al servidor però no es propaga,
+    // perquè la resposta al client ha de ser sempre la mateixa tant si el correu
+    // existeix com si no. Així s'evita que un error d'enviament permeti deduir
+    // si un correu està registrat al sistema.
+    try {
+      await EmailService.sendPasswordReset({
+        to: user.email,
+        token,
+        expiryHours: RESET_TOKEN_EXPIRY_HOURS,
+      });
+    } catch (error) {
+      console.error('Error sending password reset email:', error);
+    }
 
+    // En entorn de desenvolupament el token es registra als logs del servidor
+    // per facilitar les proves sense necessitat d'obrir el correu.
+    // Mai s'inclou el token a la resposta HTTP: si la variable NODE_ENV no està
+    // ben configurada a producció, no es filtra el token per l'API.
     if (process.env.NODE_ENV !== 'production') {
-      return { ...genericResponse, token };
+      console.log(`[DEV] Password reset token for ${user.email}: ${token}`);
     }
     return genericResponse;
     },

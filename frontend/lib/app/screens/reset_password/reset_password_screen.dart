@@ -29,7 +29,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   void initState() {
     super.initState();
-    controller = ResetPasswordController()
+
+    final token = Uri.base.queryParameters['token'] ?? '';
+
+    controller = ResetPasswordController(token: token)
       ..addListener(_handleControllerChanges);
   }
 

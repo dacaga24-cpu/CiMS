@@ -32,7 +32,7 @@ class ApiConfig {
     // correctament al servidor durant el desenvolupament local.
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        return 'http://10.0.2.2:3000'; // ruta especial per Android emulador
+        return 'http://10.0.2.2:3000'; // ruta especial per l'emulador d'Android
       default:
         return 'http://localhost:3000';
     }
