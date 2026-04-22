@@ -1,16 +1,17 @@
-import 'package:flutter/widgets.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:cims/app/router/guards/auth_guard.dart';
 import 'package:cims/app/screens/app_start/app_start_screen.dart';
+import 'package:cims/app/screens/dashboard/dashboard_screen.dart';
 import 'package:cims/app/screens/login/login_screen.dart';
 import 'package:cims/app/screens/main_navigation/main_navigation_screen.dart';
-import 'package:cims/app/screens/dashboard/dashboard_screen.dart';
+import 'package:cims/app/screens/peak_detail/peak_detail_screen.dart';
 import 'package:cims/app/screens/peaks_catalog/peaks_catalog_screen.dart';
 import 'package:cims/app/screens/peaks_map/peaks_map_screen.dart';
+import 'package:cims/app/screens/profile_settings/profile_settings_screen.dart';
 import 'package:cims/app/screens/register/register_screen.dart';
 import 'package:cims/app/screens/reset_password/reset_password_screen.dart';
-import 'package:cims/app/screens/profile_settings/profile_settings_screen.dart';
 import 'package:cims/app/screens/user_stats/user_stats_screen.dart';
+import 'package:flutter/widgets.dart';
 
 part 'app_router.gr.dart';
 
@@ -41,6 +42,11 @@ class AppRouter extends RootStackRouter {
           path: '/reset-password',
         ),
         AutoRoute(
+          page: PeakDetailRoute.page,
+          path: '/peaks/:peakId',
+          guards: [authGuard],
+        ),
+        AutoRoute(
           page: MainNavigationRoute.page,
           path: '/main',
           guards: [authGuard],
@@ -49,7 +55,7 @@ class AppRouter extends RootStackRouter {
             // accessibles des de la navegació interna de l’usuari autenticat.
             AutoRoute(page: PeaksMapRoute.page, path: 'map'),
             AutoRoute(page: PeaksCatalogRoute.page, path: 'catalog'),
-            AutoRoute(page: DashboardRoute.page, path: '', initial: true),
+            AutoRoute(page: DashboardRoute.page, path: 'dashboard'),
             AutoRoute(page: UserStatsRoute.page, path: 'stats'),
           ],
         ),

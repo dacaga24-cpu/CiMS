@@ -75,6 +75,53 @@ class MainNavigationRoute extends PageRouteInfo<void> {
 }
 
 /// generated route for
+/// [PeakDetailScreen]
+class PeakDetailRoute extends PageRouteInfo<PeakDetailRouteArgs> {
+  PeakDetailRoute({
+    Key? key,
+    required int peakId,
+    List<PageRouteInfo>? children,
+  }) : super(
+          PeakDetailRoute.name,
+          args: PeakDetailRouteArgs(key: key, peakId: peakId),
+          initialChildren: children,
+        );
+
+  static const String name = 'PeakDetailRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      final args = data.argsAs<PeakDetailRouteArgs>();
+      return PeakDetailScreen(key: args.key, peakId: args.peakId);
+    },
+  );
+}
+
+class PeakDetailRouteArgs {
+  const PeakDetailRouteArgs({this.key, required this.peakId});
+
+  final Key? key;
+
+  final int peakId;
+
+  @override
+  String toString() {
+    return 'PeakDetailRouteArgs{key: $key, peakId: $peakId}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! PeakDetailRouteArgs) return false;
+    return key == other.key && peakId == other.peakId;
+  }
+
+  @override
+  int get hashCode => key.hashCode ^ peakId.hashCode;
+}
+
+/// generated route for
 /// [PeaksCatalogScreen]
 class PeaksCatalogRoute extends PageRouteInfo<void> {
   const PeaksCatalogRoute({List<PageRouteInfo>? children})

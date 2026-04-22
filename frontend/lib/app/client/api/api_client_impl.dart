@@ -3,8 +3,9 @@ import 'dart:convert';
 import 'package:cims/app/client/api/api_config.dart';
 import 'package:cims/app/client/api/api_endpoints.dart';
 import 'package:cims/core/client/api_client.dart';
-import 'package:cims/core/session/app_session.dart';
+import 'package:cims/core/entity/peak.dart';
 import 'package:cims/core/entity/user.dart';
+import 'package:cims/core/session/app_session.dart';
 import 'package:http/http.dart' as http;
 
 // Aquesta classe s’encarrega de comunicar el frontend amb el backend.
@@ -199,6 +200,61 @@ class ApiClientImpl implements ApiClient {
     }
   }
 
+    @override
+  Future<List<Peak>> getPeaks({
+    String? search,
+    int? regionId,
+    int? minAltitude,
+    int? maxAltitude,
+  }) async {
+    try {
+      final response = await _getJson(
+        ApiEndpoints.peaks,
+        queryParameters: {
+          if (search != null && search.trim().isNotEmpty)
+            'search': search.trim(),
+          if (regionId != null) 'regionId': regionId.toString(),
+          if (minAltitude != null) 'minAltitude': minAltitude.toString(),
+          if (maxAltitude != null) 'maxAltitude': maxAltitude.toString(),
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = _tryParseJsonList(response.body);
+
+        if (data == null) {
+          throw const ApiException(
+            'La resposta del catàleg no és vàlida',
+            statusCode: 200,
+          );
+        }
+
+        return data
+            .whereType<Map<String, dynamic>>()
+            .map(Peak.fromJson)
+            .toList();
+      }
+
+      final Map<String, dynamic>? data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'ha pogut carregar el catàleg de cims';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
+
   // Aquest mètode permet fer peticions POST JSON tant públiques com autenticades.
   // Si l’endpoint és protegit, afegeix automàticament el token guardat a la sessió.
   Future<http.Response> _postJson(
@@ -277,6 +333,22 @@ class ApiClientImpl implements ApiClient {
     }
   }
 
+  // Aquest mètode intenta convertir el cos de la resposta en una llista JSON.
+  // És útil per processar col·leccions com el catàleg de cims sense barrejar aquesta lògica amb la UI.
+  List<dynamic>? _tryParseJsonList(String body) {
+    if (body.isEmpty) return null;
+
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is List<dynamic>) {
+        return decoded;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Future<User> getUserProfile() async {
     try {
@@ -324,11 +396,17 @@ class ApiClientImpl implements ApiClient {
   // per reutilitzar la mateixa construcció d’headers i el mateix control d’errors d’autenticació.
   Future<http.Response> _getJson(
     String endpoint, {
+    Map<String, String>? queryParameters,
     bool requiresAuth = false,
   }) async {
+    final uri = Uri.parse('$_baseUrl$endpoint').replace(
+      queryParameters:
+          queryParameters == null || queryParameters.isEmpty ? null : queryParameters,
+    );
+
     final response = await _client
         .get(
-          Uri.parse('$_baseUrl$endpoint'),
+          uri,
           headers: await _buildHeaders(requiresAuth: requiresAuth),
         )
         .timeout(const Duration(seconds: 10));

@@ -1,3 +1,4 @@
+import 'package:cims/core/entity/peak.dart';
 import 'package:cims/core/entity/user.dart';
 
 // Aquesta classe representa un error relacionat amb la comunicació amb l’API.
@@ -107,6 +108,16 @@ abstract class ApiClient {
   Future<void> resetPassword({
     required String token,
     required String newPassword,
+  });
+
+  // Aquest mètode defineix la recuperació del catàleg de cims.
+  // Admet filtres opcionals perquè la mateixa operació serveixi tant
+  // per carregar el llistat inicial com per aplicar la cerca.
+  Future<List<Peak>> getPeaks({
+    String? search,
+    int? regionId,
+    int? minAltitude,
+    int? maxAltitude,
   });
 }
 

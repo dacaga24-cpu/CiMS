@@ -35,7 +35,7 @@ class PeaksSearchBar extends StatelessWidget {
               onChanged: onChanged,
               decoration: const InputDecoration(
                 border: InputBorder.none,
-                hintText: 'Cerca cims, serralades...',
+                hintText: 'Cerca cims...',
                 hintStyle: TextStyle(
                   color: Color(0xFFB0B3B8),
                   fontSize: 15,
