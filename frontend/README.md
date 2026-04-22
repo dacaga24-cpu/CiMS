@@ -29,11 +29,31 @@ Això permet separar la interfície, la lògica d'aplicació i l'accés a dades.
 La versió web del frontend es publica de manera independent del backend.  
 En el nostre cas, el backend està desplegat a Google Cloud Run i el frontend web es pot publicar a **Firebase Hosting**.
 
-Abans de desplegar, cal assegurar que la configuració del frontend apunta a la URL pública del backend.
+La URL del backend de producció està cablejada com a valor per defecte dins de `lib/app/client/api/api_config.dart`. D'aquesta manera, un build sense cap configuració addicional (`flutter build web`) ja apunta a la URL pública del Cloud Run i el desplegament a Firebase Hosting funciona sense dependre d'un flag que algú hagi de recordar en cada publicació.
 
-Exemple de backend desplegat:
+Backend de producció actual:
 
 `https://cims-backend-639822259289.europe-southwest1.run.app/`
+
+## Apuntar a un altre backend durant el desenvolupament
+
+Per apuntar a un backend diferent (típicament el que corre en local mentre es desenvolupa), es pot sobreescriure la URL per defecte passant la variable `API_BASE_URL` mitjançant `--dart-define`. Aquesta variable té prioritat per sobre del valor per defecte, de manera que només s'ha d'indicar quan es vol canviar d'entorn.
+
+Exemples habituals:
+
+```bash
+# Web contra un backend corrent a localhost
+flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:3000
+
+# Android emulador contra un backend local (la IP especial 10.0.2.2 és
+# la que utilitza l'emulador per arribar al host de desenvolupament)
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000
+
+# Build web apuntant a un entorn alternatiu (per exemple staging)
+flutter build web --dart-define=API_BASE_URL=https://cims-backend-staging.example.run.app
+```
+
+Si no es passa la variable, s'utilitza el backend de producció.
 
 ## Preparació prèvia
 
@@ -68,6 +88,8 @@ Aquesta comanda genera els fitxers estàtics dins de:
 ```bash
 build/web
 ```
+
+El build resultant apunta per defecte al backend de producció. Si cal apuntar a un altre entorn, consulta la secció "Apuntar a un altre backend durant el desenvolupament" i afegeix `--dart-define=API_BASE_URL=...` a la comanda.
 
 ## Primer desplegament a Firebase Hosting
 
