@@ -165,7 +165,11 @@ const AuthService = {
     // existeix com si no. Així s'evita que un error d'enviament permeti deduir
     // si un correu està registrat al sistema.
     try {
-      await EmailService.sendPasswordReset({ to: user.email, token });
+      await EmailService.sendPasswordReset({
+        to: user.email,
+        token,
+        expiryHours: RESET_TOKEN_EXPIRY_HOURS,
+      });
     } catch (error) {
       console.error('Error sending password reset email:', error);
     }
