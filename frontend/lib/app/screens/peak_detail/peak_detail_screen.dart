@@ -1,4 +1,5 @@
 import 'package:auto_route/auto_route.dart';
+import 'package:cims/app/router/app_router.dart';
 import 'package:cims/app/screens/peak_detail/peak_detail_controller.dart';
 import 'package:cims/app/screens/peak_detail/widgets/peak_detail_header.dart';
 import 'package:cims/app/screens/peak_detail/widgets/peak_detail_map_card.dart';
@@ -77,9 +78,18 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
         );
         return;
       case PeakDetailDestination.registerAscent:
+        final peak = controller.peak;
         controller.consumeNavigation();
-        _showInfoMessage(
-          'La pantalla de registre d\'ascensió encara està pendent d\'integrar.',
+
+        if (peak == null) {
+          _showInfoMessage(
+            'No s\'ha pogut preparar el registre d\'ascensió.',
+          );
+          return;
+        }
+
+        context.router.push(
+          AscentRegisterRoute(peak: peak),
         );
         return;
     }
