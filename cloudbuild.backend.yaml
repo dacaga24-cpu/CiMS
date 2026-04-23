@@ -31,7 +31,7 @@ steps:
       - '--set-env-vars'
       - 'NODE_ENV=production,INSTANCE_CONNECTION_NAME=project-b3d3b0b0-7c7e-40b5-9a1:europe-southwest1:cims-26'
       - '--set-secrets'
-      - 'DB_NAME=DB_NAME:latest,DB_USER=DB_USER:latest,DB_PASSWORD=DB_PASSWORD:latest,JWT_SECRET=JWT_SECRET:latest,FRONTEND_URL=FRONTEND_URL:latest'
+      - 'DB_NAME=DB_NAME:latest,DB_USER=DB_USER:latest,DB_PASSWORD=DB_PASSWORD:latest,JWT_SECRET=JWT_SECRET:latest,FRONTEND_URL=FRONTEND_URL:latest,MAIL_FROM=MAIL_FROM:latest,APP_URL=APP_URL:latest,SENDGRID_API_KEY=SENDGRID_API_KEY:latest'
 
 images:
   - 'europe-southwest1-docker.pkg.dev/$PROJECT_ID/cims/cims-backend:$COMMIT_SHA'
