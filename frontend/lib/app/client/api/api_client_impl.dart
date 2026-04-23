@@ -489,4 +489,51 @@ class ApiClientImpl implements ApiClient {
 
     return response;
   }
+
+  // Aquest mètode recupera el detall d’un cim concret a partir del seu identificador.
+  // És útil per carregar la pantalla de detall i admet tant una resposta directa
+  // com una resposta on el cim arribi dins del camp "peak".
+  @override
+  Future<Peak> getPeakById(int peakId) async {
+    try {
+      final response = await _getJson(
+        ApiEndpoints.peakById(peakId),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic>? data = _tryParseJson(response.body);
+
+        if (data == null) {
+          throw const ApiException(
+            'La resposta del detall del cim no és vàlida',
+            statusCode: 200,
+          );
+        }
+
+        final dynamic peakRaw = data['peak'];
+        final Map<String, dynamic> peakJson =
+            peakRaw is Map<String, dynamic> ? peakRaw : data;
+
+        return Peak.fromJson(peakJson);
+      }
+
+      final Map<String, dynamic>? data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'ha pogut carregar el detall del cim';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
 }

@@ -121,6 +121,10 @@ abstract class ApiClient {
   // Aquest mètode obté la llista de comarques disponibles
   // per poder mostrar filtres i dades geogràfiques del catàleg.
   Future<List<Region>> getRegions();
+
+  // Aquest mètode recupera el detall d’un cim concret
+  // reutilitzant la mateixa entitat Peak del catàleg.
+  Future<Peak> getPeakById(int peakId);
 }
 
 // Aquest error indica que la sessió ja no és vàlida per accedir a un endpoint protegit.
