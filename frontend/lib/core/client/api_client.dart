@@ -1,3 +1,5 @@
+import 'package:cims/core/entity/peak.dart';
+import 'package:cims/core/entity/region.dart';
 import 'package:cims/core/entity/user.dart';
 
 // Aquesta classe representa un error relacionat amb la comunicació amb l’API.
@@ -49,12 +51,16 @@ class LoginResponse {
       parsedUserId = int.tryParse(userIdRaw);
     }
 
+    // Aquesta validació evita continuar la sessió amb dades incompletes
+    // o incorrectes retornades pel servidor.
     if (parsedUserId == null) {
       throw const ApiException('El userId retornat pel servidor no és vàlid');
     }
 
     final token = json['token']?.toString();
 
+    // Aquest control assegura que la resposta inclogui un token útil,
+    // ja que sense aquest valor no es pot mantenir la sessió autenticada.
     if (token == null || token.isEmpty) {
       throw const ApiException('El token retornat pel servidor no és vàlid');
     }
@@ -71,9 +77,7 @@ class LoginResponse {
 // És rellevant perquè estableix quines operacions ha de poder fer qualsevol
 // implementació encarregada de comunicar-se amb el backend.
 abstract class ApiClient {
-  // Aquest mètode defineix l’operació de registre d’un nou usuari.
-  // Rep les dades necessàries per crear el compte i deixa clar
-  // que qualsevol client d’API haurà d’implementar aquest comportament.
+  // Aquest mètode registra un nou usuari al sistema amb les dades bàsiques del compte.
   Future<void> register({
     required String firstName,
     required String lastName,
@@ -81,33 +85,42 @@ abstract class ApiClient {
     required String password,
   });
 
-  // Aquest mètode defineix l’operació d’inici de sessió.
-  // Rep les credencials de l’usuari i retorna la informació necessària
-  // per continuar amb la sessió oberta dins de l’aplicació.
+  // Aquest mètode autentica l’usuari i retorna la informació necessària
+  // per iniciar i mantenir la sessió dins de l’aplicació.
   Future<LoginResponse> login({
     required String email,
     required String password,
   });
 
-  // Aquest mètode defineix la recuperació del perfil de l’usuari autenticat.
-  // És una crida protegida i serveix per validar que la sessió realment funciona
-  // més enllà del login i del guardat local del token.
+  // Aquest mètode recupera el perfil de l’usuari autenticat
+  // per mostrar les seves dades dins de l’aplicació.
   Future<User> getUserProfile();
 
-  // Aquest mètode defineix la petició inicial de recuperació de contrasenya.
-  // Rep el correu de l’usuari i permet iniciar el procés sense exposar
-  // des de la pantalla els detalls de comunicació amb el backend.
+  // Aquest mètode inicia el procés de recuperació de contrasenya
+  // a partir del correu electrònic indicat per l’usuari.
   Future<String> requestPasswordReset({
     required String email,
   });
 
-  // Aquest mètode defineix l’enviament de la nova contrasenya.
-  // Rep el token del procés de recuperació i la nova contrasenya
-  // perquè el backend pugui validar l’acció i aplicar el canvi.
+  // Aquest mètode permet establir una nova contrasenya
+  // quan l’usuari ja disposa d’un token de recuperació vàlid.
   Future<void> resetPassword({
     required String token,
     required String newPassword,
   });
+
+  // Aquest mètode recupera el catàleg de cims i admet filtres opcionals
+  // per adaptar el resultat a la cerca o als criteris triats per l’usuari.
+  Future<List<Peak>> getPeaks({
+    String? search,
+    int? regionId,
+    int? minAltitude,
+    int? maxAltitude,
+  });
+
+  // Aquest mètode obté la llista de comarques disponibles
+  // per poder mostrar filtres i dades geogràfiques del catàleg.
+  Future<List<Region>> getRegions();
 }
 
 // Aquest error indica que la sessió ja no és vàlida per accedir a un endpoint protegit.

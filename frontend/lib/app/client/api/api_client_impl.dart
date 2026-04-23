@@ -3,14 +3,19 @@ import 'dart:convert';
 import 'package:cims/app/client/api/api_config.dart';
 import 'package:cims/app/client/api/api_endpoints.dart';
 import 'package:cims/core/client/api_client.dart';
-import 'package:cims/core/session/app_session.dart';
+import 'package:cims/core/entity/peak.dart';
+import 'package:cims/core/entity/region.dart';
 import 'package:cims/core/entity/user.dart';
+import 'package:cims/core/session/app_session.dart';
 import 'package:http/http.dart' as http;
 
 // Aquesta classe s’encarrega de comunicar el frontend amb el backend.
 // Implementa les operacions principals d’autenticació
 // i transforma les respostes del servidor en resultats útils o errors entenedors per a l’aplicació.
 class ApiClientImpl implements ApiClient {
+  // Aquest constructor permet crear el client d’API amb la configuració habitual
+  // de l’aplicació, però també deixa oberta la possibilitat d’injectar dependències
+  // concretes en proves o en altres entorns.
   ApiClientImpl({
     http.Client? client,
     String? baseUrl,
@@ -25,6 +30,9 @@ class ApiClientImpl implements ApiClient {
   // totes les URLs de l’API de manera centralitzada.
   final String _baseUrl;
 
+  // Aquest mètode envia al backend les dades del registre d’un nou usuari.
+  // Si el servidor accepta la petició, el procés es considera completat;
+  // en cas contrari, es transforma l’error en un missatge útil per a l’aplicació.
   @override
   Future<void> register({
     required String firstName,
@@ -69,6 +77,9 @@ class ApiClientImpl implements ApiClient {
     }
   }
 
+  // Aquest mètode valida les credencials de l’usuari contra el backend.
+  // Si el procés és correcte, retorna la informació necessària
+  // per iniciar la sessió dins de l’aplicació.
   @override
   Future<LoginResponse> login({
     required String email,
@@ -199,6 +210,118 @@ class ApiClientImpl implements ApiClient {
     }
   }
 
+  // Aquest mètode recupera el catàleg de cims i permet aplicar criteris
+  // de cerca o filtratge per retornar només els resultats que interessen a l’usuari.
+  @override
+  Future<List<Peak>> getPeaks({
+    String? search,
+    int? regionId,
+    int? minAltitude,
+    int? maxAltitude,
+  }) async {
+    try {
+      final response = await _getJson(
+        ApiEndpoints.peaks,
+        queryParameters: {
+          if (search != null && search.trim().isNotEmpty)
+            'search': search.trim(),
+          if (regionId != null) 'regionId': regionId.toString(),
+          if (minAltitude != null) 'minAltitude': minAltitude.toString(),
+          if (maxAltitude != null) 'maxAltitude': maxAltitude.toString(),
+        },
+      );
+
+      // Si la resposta és correcta, es valida que el cos sigui una llista
+      // i es transforma cada element en un objecte Peak del sistema.
+      if (response.statusCode == 200) {
+        final data = _tryParseJsonList(response.body);
+
+        if (data == null) {
+          throw const ApiException(
+            'La resposta del catàleg no és vàlida',
+            statusCode: 200,
+          );
+        }
+
+        return data
+            .whereType<Map<String, dynamic>>()
+            .map(Peak.fromJson)
+            .toList();
+      }
+
+      final Map<String, dynamic>? data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'ha pogut carregar el catàleg de cims';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
+
+  // Aquest mètode recupera la llista de comarques des del backend.
+  // Si la resposta és correcta, transforma les dades rebudes en objectes Region
+  // perquè la resta de l’aplicació les pugui utilitzar.
+  @override
+  Future<List<Region>> getRegions() async {
+    try {
+      final response = await _getJson(ApiEndpoints.regions);
+
+      // Si el servidor respon correctament, es valida que el cos sigui una llista
+      // i es converteix cada element en una comarca del sistema.
+      if (response.statusCode == 200) {
+        final data = _tryParseJsonList(response.body);
+
+        // Aquest control evita continuar amb dades mal formades encara que el servidor
+        // hagi respost amb èxit.
+        if (data == null) {
+          throw const ApiException(
+            'La resposta de les comarques no és vàlida',
+            statusCode: 200,
+          );
+        }
+
+        return data
+            .whereType<Map<String, dynamic>>()
+            .map(Region.fromJson)
+            .toList();
+      }
+
+      // Si la petició no ha anat bé, s’intenta recuperar un missatge d’error útil
+      // per mostrar una resposta més clara a l’usuari.
+      final Map<String, dynamic>? data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'han pogut carregar les comarques';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      // Aquest cas controla quan el servidor tarda massa a respondre.
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
+    } catch (error) {
+      // Si l’error ja estava controlat com a ApiException, es conserva tal com està.
+      // En qualsevol altre cas, es retorna un missatge genèric de connexió.
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
+
   // Aquest mètode permet fer peticions POST JSON tant públiques com autenticades.
   // Si l’endpoint és protegit, afegeix automàticament el token guardat a la sessió.
   Future<http.Response> _postJson(
@@ -277,6 +400,25 @@ class ApiClientImpl implements ApiClient {
     }
   }
 
+  // Aquest mètode intenta convertir el cos de la resposta en una llista JSON.
+  // És útil per processar col·leccions com el catàleg de cims sense barrejar aquesta lògica amb la UI.
+  List<dynamic>? _tryParseJsonList(String body) {
+    if (body.isEmpty) return null;
+
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is List<dynamic>) {
+        return decoded;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Aquest mètode recupera el perfil de l’usuari autenticat.
+  // El seu objectiu és obtenir les dades necessàries per mostrar
+  // la informació personal i l’estat actual de la sessió dins de l’aplicació.
   @override
   Future<User> getUserProfile() async {
     try {
@@ -324,11 +466,18 @@ class ApiClientImpl implements ApiClient {
   // per reutilitzar la mateixa construcció d’headers i el mateix control d’errors d’autenticació.
   Future<http.Response> _getJson(
     String endpoint, {
+    Map<String, String>? queryParameters,
     bool requiresAuth = false,
   }) async {
+    final uri = Uri.parse('$_baseUrl$endpoint').replace(
+      queryParameters: queryParameters == null || queryParameters.isEmpty
+          ? null
+          : queryParameters,
+    );
+
     final response = await _client
         .get(
-          Uri.parse('$_baseUrl$endpoint'),
+          uri,
           headers: await _buildHeaders(requiresAuth: requiresAuth),
         )
         .timeout(const Duration(seconds: 10));

@@ -18,4 +18,13 @@ class ApiEndpoints {
   // Permeten iniciar la sol·licitud de canvi i enviar la nova contrasenya al backend.
   static const String forgotPassword = '$auth/forgot-password';
   static const String resetPassword = '$auth/reset-password';
+
+  // Aquestes rutes corresponen al catàleg públic de cims i comarques.
+  // Permeten carregar el llistat principal i deixar preparats futurs filtres.
+  static const String peaks = '$api/peaks';
+  static const String regions = '$api/regions';
+
+  // Aquesta ajuda construeix la ruta d’un cim concret.
+  // Encara que el detall complet arribi més endavant, el camí ja queda centralitzat.
+  static String peakById(int peakId) => '$peaks/$peakId';
 }
