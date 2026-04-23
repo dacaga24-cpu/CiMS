@@ -1,5 +1,6 @@
 import 'package:cims/app/router/app_router.dart';
 import 'package:cims/app/router/guards/auth_guard.dart';
+import 'package:cims/app/theme/app_theme.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
@@ -60,8 +61,9 @@ class MyApp extends StatelessWidget {
     // Construeix l’aplicació principal utilitzant navegació declarativa
     // basada en router.
     return MaterialApp.router(
-      debugShowCheckedModeBanner: true,
-      routerConfig: appRouter.config(),
-    );
+  debugShowCheckedModeBanner: true,
+  routerConfig: appRouter.config(),
+  theme: AppTheme.light,
+);
   }
 }

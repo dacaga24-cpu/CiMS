@@ -55,7 +55,9 @@ const PeakModel = {
             peakSql += ' WHERE ' + peakConditions.join(' AND ');
         }
 
-        peakSql += ' ORDER BY p.name ASC';
+        // Es fa un ORDER BY per garantir que els cims es mostren sempre en el mateix ordre,
+        // primer per altitud descendent i després per nom ascendent per facilitar la lectura.
+        peakSql += ' ORDER BY p.altitude DESC, p.name ASC';
 
         const [peakRows] = await pool.execute(peakSql, peakParams);
 
