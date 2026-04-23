@@ -38,32 +38,43 @@ const PeakStatusModel = {
     },
 
     // Aquest mètode crea un nou registre d'estat per a la parella usuari-cim.
-    // La unicitat està garantida a l'schema amb uq_peak_status_user_peak,
-    // de manera que si ja existeix un registre per la mateixa parella la
-    // inserció fallarà amb ER_DUP_ENTRY i el servei podrà decidir si
-    // actualitza el registre existent o retorna un error de conflicte.
+    // La unicitat està garantida a l'schema amb uq_peak_status_user_peak
+    // (user_id, peak_id), de manera que mai poden coexistir dos registres
+    // per al mateix usuari i cim. Si el driver llença ER_DUP_ENTRY perquè
+    // ja existeix la parella, es converteix en un error de domini amb
+    // statusCode 409 perquè la capa de servei no hagi de conèixer codis
+    // concrets del driver i pugui respondre amb un conflicte clar.
     async create({ userId, peakId, isCompleted = 0, isTarget = 0, isFavorite = 0 }) {
         const sql = `
         INSERT INTO peak_status (user_id, peak_id, is_completed, is_target, is_favorite)
         VALUES (?, ?, ?, ?, ?)
         `;
 
-        const [result] = await pool.execute(sql, [
-            userId,
-            peakId,
-            isCompleted ? 1 : 0,
-            isTarget ? 1 : 0,
-            isFavorite ? 1 : 0,
-        ]);
+        try {
+            const [result] = await pool.execute(sql, [
+                userId,
+                peakId,
+                isCompleted ? 1 : 0,
+                isTarget ? 1 : 0,
+                isFavorite ? 1 : 0,
+            ]);
 
-        return {
-            id: result.insertId,
-            user_id: userId,
-            peak_id: peakId,
-            is_completed: isCompleted ? 1 : 0,
-            is_target: isTarget ? 1 : 0,
-            is_favorite: isFavorite ? 1 : 0,
-        };
+            return {
+                id: result.insertId,
+                user_id: userId,
+                peak_id: peakId,
+                is_completed: isCompleted ? 1 : 0,
+                is_target: isTarget ? 1 : 0,
+                is_favorite: isFavorite ? 1 : 0,
+            };
+        } catch (err) {
+            if (err && err.code === 'ER_DUP_ENTRY') {
+                const error = new Error('Peak status already exists for this user and peak');
+                error.statusCode = 409;
+                throw error;
+            }
+            throw err;
+        }
     },
 
     // Aquest mètode actualitza els flags d'un registre ja existent per a la
