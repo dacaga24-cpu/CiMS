@@ -1,24 +1,30 @@
 import 'package:cims/core/entity/region.dart';
 
-// Aquesta entitat representa la informació mínima que necessita el catàleg
-// per mostrar un cim a la llista. Inclou l'identificador, el nom,
-// l'altitud i la col·lecció de regions associades.
+// Aquesta entitat representa la informació d’un cim dins de l’aplicació.
+// Es fa servir tant al catàleg com al detall, de manera que pot contenir
+// dades bàsiques i també camps opcionals si el backend els retorna.
 class Peak {
   const Peak({
     required this.id,
     required this.name,
     required this.altitude,
     required this.regions,
+    this.description,
+    this.latitude,
+    this.longitude,
   });
 
   final int id;
   final String name;
   final int altitude;
   final List<Region> regions;
+  final String? description;
+  final double? latitude;
+  final double? longitude;
 
   // Aquest constructor transforma la resposta del backend en un objecte Peak.
-  // Només llegeix els camps que el catàleg necessita en aquesta iteració,
-  // deixant marge perquè el detall del cim creixi més endavant.
+  // Pot llegir tant la versió resumida del catàleg com una versió més completa
+  // per al detall, sense obligar a crear una entitat diferent.
   factory Peak.fromJson(Map<String, dynamic> json) {
     final idRaw = json['id'];
     final altitudeRaw = json['altitude'];
@@ -46,8 +52,8 @@ class Peak {
       throw const FormatException('L\'identificador del cim no és vàlid');
     }
 
-    final name = json['name'];
-    if (name is! String || name.isEmpty) {
+    final rawName = json['name']?.toString().trim();
+    if (rawName == null || rawName.isEmpty) {
       throw const FormatException('El nom del cim no és vàlid');
     }
 
@@ -68,13 +74,38 @@ class Peak {
 
     return Peak(
       id: parsedId,
-      name: name,
+      name: rawName,
       altitude: parsedAltitude,
       regions: regions,
+      description: _parseNullableString(json['description']),
+      latitude: _parseDouble(json['latitude']),
+      longitude: _parseDouble(json['longitude']),
     );
   }
 
   // Aquest getter prepara el text de regions en un únic format llegible.
-  // És útil perquè la vista no hagi de decidir com unir la informació territorial.
   String get formattedRegions => regions.map((region) => region.name).join(', ');
+
+  // Aquest getter ajuda la vista a decidir si cal mostrar la descripció.
+  bool get hasDescription =>
+      description != null && description!.trim().isNotEmpty;
+
+  // Aquest getter indica si el cim disposa de coordenades útils
+  // per poder obrir la seva posició al mapa.
+  bool get hasMapPosition => latitude != null && longitude != null;
+
+  static String? _parseNullableString(dynamic value) {
+    final text = value?.toString().trim();
+    if (text == null || text.isEmpty) {
+      return null;
+    }
+    return text;
+  }
+
+  static double? _parseDouble(dynamic value) {
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
 }
