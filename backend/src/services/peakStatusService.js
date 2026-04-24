@@ -30,7 +30,7 @@ const PeakStatusService = {
   // Aquest mètode retorna l'estat d'un cim concret per a l'usuari autenticat.
   // Si encara no existeix cap registre per a la parella usuari-cim,
   // es retorna null perquè el controlador pugui respondre amb un 404 clar.
-  async getByPeak(userId, peakId) {
+  async getStatusByUserAndPeak(userId, peakId) {
     const parsedPeakId = parsePositiveInteger(peakId);
     if (!parsedPeakId) {
       throw badRequest('Invalid peakId: must be a positive integer');
@@ -50,7 +50,7 @@ const PeakStatusService = {
   // Aquest mètode retorna tots els estats que l'usuari autenticat té registrats.
   // Si no té cap estat creat, retorna una llista buida sense llançar cap error,
   // ja que és un resultat vàlid per a un usuari que encara no ha interaccionat amb cap cim.
-  async getAllByUser(userId) {
+  async getStatusByUser(userId) {
     return PeakStatusModel.findAllByUserId(userId);
   },
 
@@ -59,7 +59,7 @@ const PeakStatusService = {
   // Si no existeix, es crea un nou registre amb els flags indicats i els altres a zero.
   // Aquesta lògica d'upsert evita que el frontend hagi de gestionar dos endpoints
   // separats i garanteix que mai es creïn registres duplicats.
-  async upsert(userId, peakId, { isCompleted, isTarget, isFavorite } = {}) {
+  async upsertPeakStatus(userId, peakId, { isCompleted, isTarget, isFavorite } = {}) {
     const parsedPeakId = parsePositiveInteger(peakId);
     if (!parsedPeakId) {
       throw badRequest('Invalid peakId: must be a positive integer');
@@ -105,7 +105,7 @@ const PeakStatusService = {
   // Aquest mètode elimina l'estat d'un cim per a l'usuari autenticat.
   // Si no existia cap registre, es llança un error 404 perquè la resposta
   // reflecteixi que no hi havia res a eliminar.
-  async remove(userId, peakId) {
+  async removeByUserAndPeak(userId, peakId) {
     const parsedPeakId = parsePositiveInteger(peakId);
     if (!parsedPeakId) {
       throw badRequest('Invalid peakId: must be a positive integer');
