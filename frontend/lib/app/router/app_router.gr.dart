@@ -27,6 +27,53 @@ class AppStartRoute extends PageRouteInfo<void> {
 }
 
 /// generated route for
+/// [AscentRegisterScreen]
+class AscentRegisterRoute extends PageRouteInfo<AscentRegisterRouteArgs> {
+  AscentRegisterRoute({
+    Key? key,
+    required Peak peak,
+    List<PageRouteInfo>? children,
+  }) : super(
+          AscentRegisterRoute.name,
+          args: AscentRegisterRouteArgs(key: key, peak: peak),
+          initialChildren: children,
+        );
+
+  static const String name = 'AscentRegisterRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      final args = data.argsAs<AscentRegisterRouteArgs>();
+      return AscentRegisterScreen(key: args.key, peak: args.peak);
+    },
+  );
+}
+
+class AscentRegisterRouteArgs {
+  const AscentRegisterRouteArgs({this.key, required this.peak});
+
+  final Key? key;
+
+  final Peak peak;
+
+  @override
+  String toString() {
+    return 'AscentRegisterRouteArgs{key: $key, peak: $peak}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! AscentRegisterRouteArgs) return false;
+    return key == other.key && peak == other.peak;
+  }
+
+  @override
+  int get hashCode => key.hashCode ^ peak.hashCode;
+}
+
+/// generated route for
 /// [DashboardScreen]
 class DashboardRoute extends PageRouteInfo<void> {
   const DashboardRoute({List<PageRouteInfo>? children})

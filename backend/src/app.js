@@ -10,6 +10,7 @@ const authRoutes = require('./routes/authRoutes');
 const peakRoutes = require('./routes/peakRoutes');
 const regionRoutes = require('./routes/regionRoutes');
 const resetPasswordRoutes = require('./routes/resetPasswordRoutes');
+const peakStatusRoutes = require('./routes/peakStatusRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -50,6 +51,10 @@ app.use('/api/auth', authRoutes);
 // Aquest bloc registra les rutes del catàleg de cims.
 // Es manté el mateix patró de prefix /api per agrupar tota l'API.
 app.use('/api/peaks', peakRoutes);
+
+// Aquest bloc registra les rutes relacionades amb l'estat dels cims.
+// Es manté el prefix /api per coherència amb la resta de l'API.
+app.use('/api/peak-status', peakStatusRoutes);
 
 // Aquest bloc registra les rutes de les comarques.
 // Serveix per alimentar els filtres territorials del catàleg al frontend.
