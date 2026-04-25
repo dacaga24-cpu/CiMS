@@ -32,6 +32,8 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
   PeakDetailController? _controller;
   String? _initializationError;
 
+  // Aquest mètode prepara la pantalla en obrir-se.
+  // Inicialitza el controller perquè el detall del cim es pugui carregar automàticament.
   @override
   void initState() {
     super.initState();
@@ -103,6 +105,8 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
     );
   }
 
+  // Aquest mètode allibera el controller quan la pantalla es tanca.
+  // També elimina l’escolta activa per evitar notificacions innecessàries.
   @override
   void dispose() {
     final controller = _controller;
@@ -115,6 +119,8 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
     super.dispose();
   }
 
+  // Aquest mètode construeix l’estructura principal de la pantalla.
+  // També contempla el cas en què el controller no s’hagi pogut preparar correctament.
   @override
   Widget build(BuildContext context) {
     final controller = _controller;
@@ -238,12 +244,26 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
             peak: peak,
           ),
           const SizedBox(height: 18),
-          const PeakDetailStatusActions(
-            isTarget: false,
-            isCompleted: false,
-            isFavorite: false,
-            areActionsEnabled: false,
+          PeakDetailStatusActions(
+            isTarget: controller.peakStatus?.isTarget ?? false,
+            isCompleted: controller.peakStatus?.isCompleted ?? false,
+            isFavorite: controller.peakStatus?.isFavorite ?? false,
+            areActionsEnabled: !controller.isUpdatingStatus,
+            onTargetTap: controller.onTargetTap,
+            onCompletedTap: controller.onCompletedTap,
+            onFavoriteTap: controller.onFavoriteTap,
           ),
+          if (controller.statusErrorMessage != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              controller.statusErrorMessage!,
+              style: const TextStyle(
+                color: Color(0xFFE84A4A),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           if (peak.hasDescription) ...[
             const SizedBox(height: 18),
             _buildDescriptionCard(peak),

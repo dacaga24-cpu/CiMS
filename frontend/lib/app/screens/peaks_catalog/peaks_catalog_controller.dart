@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:cims/app/client/api/api_client_impl.dart';
 import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/peak.dart';
+import 'package:cims/core/entity/peak_status.dart';
 import 'package:cims/core/entity/region.dart';
 import 'package:cims/core/usecase/get_peaks_usecase.dart';
 import 'package:cims/core/usecase/get_regions_usecase.dart';
+import 'package:cims/core/usecase/get_user_peak_statuses_usecase.dart';
 import 'package:flutter/material.dart';
 
 // Aquest enum defineix les possibles navegacions de la pantalla del catàleg.
@@ -15,35 +17,68 @@ enum PeaksCatalogDestination {
   peakDetail,
 }
 
+// Aquest enum defineix els filtres disponibles segons l’estat personal del cim.
+// Aquests filtres s’apliquen localment sobre els cims ja carregats.
+enum PeakStatusFilter {
+  none,
+  pending,
+  completed,
+  target,
+  favorite,
+}
+
 // Aquest controlador gestiona l’estat local de la pantalla del catàleg.
-// Carrega els cims reals des del backend, gestiona la cerca, els filtres
-// i prepara la navegació cap al detall sense barrejar-la amb la UI.
+// Carrega els cims reals des del backend, gestiona la cerca, els filtres,
+// els estats personals dels cims i prepara la navegació cap al detall
+// sense barrejar-la amb la UI.
 class PeaksCatalogController extends ChangeNotifier {
+  // Aquest constructor prepara els casos d’ús necessaris per carregar
+  // el catàleg, les comarques i els estats personals de l’usuari.
   PeaksCatalogController({
     GetPeaksUseCase? getPeaksUseCase,
     GetRegionsUseCase? getRegionsUseCase,
-  })  : _getPeaksUseCase = getPeaksUseCase ??
-            GetPeaksUseCase(
-              apiClient: ApiClientImpl(),
-            ),
-        _getRegionsUseCase = getRegionsUseCase ??
-            GetRegionsUseCase(
-              apiClient: ApiClientImpl(),
-            );
+    GetUserPeakStatusesUseCase? getUserPeakStatusesUseCase,
+  }) {
+    final apiClient = ApiClientImpl();
 
-  final GetPeaksUseCase _getPeaksUseCase;
-  final GetRegionsUseCase _getRegionsUseCase;
+    _getPeaksUseCase = getPeaksUseCase ??
+        GetPeaksUseCase(
+          apiClient: apiClient,
+        );
+    _getRegionsUseCase = getRegionsUseCase ??
+        GetRegionsUseCase(
+          apiClient: apiClient,
+        );
+    _getUserPeakStatusesUseCase =
+        getUserPeakStatusesUseCase ?? GetUserPeakStatusesUseCase(apiClient);
+  }
+
+  // Aquest bloc guarda els casos d’ús que el controller necessita
+  // per obtenir dades del backend sense fer peticions directes des de la pantalla.
+  late final GetPeaksUseCase _getPeaksUseCase;
+  late final GetRegionsUseCase _getRegionsUseCase;
+  late final GetUserPeakStatusesUseCase _getUserPeakStatusesUseCase;
+
   final searchController = TextEditingController();
 
+  // Aquest bloc representa l’estat visible del catàleg.
+  // La pantalla l’utilitza per mostrar càrrega, errors, cims, comarques i estats personals.
   bool isLoading = false;
   String? errorMessage;
   List<Peak> peaks = const [];
+  List<Peak> _loadedPeaks = const [];
   List<Region> availableRegions = const [];
+  Map<int, PeakStatus> statusesByPeakId = {};
 
+  // Aquest bloc manté els filtres actius del catàleg.
+  // Es combinen amb la cerca per decidir quins cims s’han de mostrar.
   int? selectedRegionId;
   int? minAltitude;
   int? maxAltitude;
+  PeakStatusFilter selectedStatusFilter = PeakStatusFilter.none;
 
+  // Aquest bloc guarda informació interna del controller.
+  // Serveix per controlar cerques, evitar respostes antigues i preparar navegacions.
   bool _disposed = false;
   Timer? _searchDebounce;
   int _loadRequestId = 0;
@@ -59,7 +94,10 @@ class PeaksCatalogController extends ChangeNotifier {
 
   // Aquest getter indica si hi ha algun filtre aplicat.
   bool get hasActiveFilters =>
-      selectedRegionId != null || minAltitude != null || maxAltitude != null;
+      selectedRegionId != null ||
+      minAltitude != null ||
+      maxAltitude != null ||
+      selectedStatusFilter != PeakStatusFilter.none;
 
   // Aquest getter retorna el nom de la comarca seleccionada, si n’hi ha.
   String? get selectedRegionName {
@@ -74,6 +112,23 @@ class PeaksCatalogController extends ChangeNotifier {
     }
 
     return null;
+  }
+
+  // Aquest getter retorna el nom visible del filtre d’estat seleccionat.
+  // Si no hi ha filtre d’estat, no aporta cap text al resum.
+  String? get selectedStatusFilterName {
+    switch (selectedStatusFilter) {
+      case PeakStatusFilter.none:
+        return null;
+      case PeakStatusFilter.pending:
+        return 'Pendents';
+      case PeakStatusFilter.completed:
+        return 'Completats';
+      case PeakStatusFilter.target:
+        return 'Objectius';
+      case PeakStatusFilter.favorite:
+        return 'Preferits';
+    }
   }
 
   // Aquest getter construeix un resum curt dels filtres actius
@@ -94,14 +149,40 @@ class PeaksCatalogController extends ChangeNotifier {
       parts.add('Fins a $maxAltitude m');
     }
 
+    final statusFilterName = selectedStatusFilterName;
+    if (statusFilterName != null) {
+      parts.add(statusFilterName);
+    }
+
     return parts.join(' · ');
   }
 
+  // Aquest mètode retorna l’estat personal d’un cim concret.
+  // La pantalla del catàleg l’utilitzarà per mostrar indicadors visuals
+  // a cada targeta sense haver de buscar directament dins del mapa.
+  PeakStatus? statusForPeak(int peakId) {
+    return statusesByPeakId[peakId];
+  }
+
   // Aquest mètode carrega les dades inicials del catàleg.
-  // Primer recupera les comarques disponibles i després carrega els cims.
+  // Primer recupera les comarques i els estats personals, i després
+  // carrega els cims que es mostraran a la pantalla.
   Future<void> initialize() async {
     await _loadRegions();
+    await _loadUserPeakStatuses();
     await _loadPeaks();
+  }
+
+  // Aquest mètode permet refrescar només els estats personals dels cims.
+  // Serà útil quan l’usuari torni al catàleg després de modificar un estat
+  // des de la pantalla de detall.
+  Future<void> reloadStatuses() async {
+    await _loadUserPeakStatuses();
+    _applyStatusFilter();
+
+    if (!_disposed) {
+      notifyListeners();
+    }
   }
 
   // Aquest mètode carrega la llista de comarques disponibles
@@ -123,6 +204,29 @@ class PeaksCatalogController extends ChangeNotifier {
 
       availableRegions = const [];
       notifyListeners();
+    }
+  }
+
+  // Aquest mètode carrega tots els estats personals de l’usuari
+  // i els organitza per identificador de cim. Això permet consultar ràpidament
+  // si una targeta del catàleg està completada, marcada com a objectiu o preferida.
+  Future<void> _loadUserPeakStatuses() async {
+    try {
+      final statuses = await _getUserPeakStatusesUseCase.execute();
+
+      if (_disposed) {
+        return;
+      }
+
+      statusesByPeakId = {
+        for (final status in statuses) status.peakId: status,
+      };
+    } catch (_) {
+      if (_disposed) {
+        return;
+      }
+
+      statusesByPeakId = {};
     }
   }
 
@@ -151,10 +255,12 @@ class PeaksCatalogController extends ChangeNotifier {
     int? regionId,
     int? minAltitude,
     int? maxAltitude,
+    PeakStatusFilter statusFilter = PeakStatusFilter.none,
   }) async {
     selectedRegionId = regionId;
     this.minAltitude = minAltitude;
     this.maxAltitude = maxAltitude;
+    selectedStatusFilter = statusFilter;
 
     await _loadPeaks(
       search: currentSearch.isEmpty ? null : currentSearch,
@@ -166,6 +272,7 @@ class PeaksCatalogController extends ChangeNotifier {
     selectedRegionId = null;
     minAltitude = null;
     maxAltitude = null;
+    selectedStatusFilter = PeakStatusFilter.none;
 
     await _loadPeaks(
       search: currentSearch.isEmpty ? null : currentSearch,
@@ -219,12 +326,14 @@ class PeaksCatalogController extends ChangeNotifier {
         return;
       }
 
-      peaks = loadedPeaks;
+      _loadedPeaks = loadedPeaks;
+      _applyStatusFilter();
     } on ApiException catch (error) {
       if (_disposed || requestId != _loadRequestId) {
         return;
       }
 
+      _loadedPeaks = const [];
       peaks = const [];
       errorMessage = error.message;
     } catch (_) {
@@ -232,6 +341,7 @@ class PeaksCatalogController extends ChangeNotifier {
         return;
       }
 
+      _loadedPeaks = const [];
       peaks = const [];
       errorMessage = 'No s\'ha pogut carregar el catàleg de cims';
     } finally {
@@ -239,6 +349,35 @@ class PeaksCatalogController extends ChangeNotifier {
         isLoading = false;
         notifyListeners();
       }
+    }
+  }
+
+  // Aquest mètode aplica el filtre d’estat personal sobre els cims ja carregats.
+  // Els filtres de cerca, comarca i altitud venen del backend; l’estat es filtra localment.
+  void _applyStatusFilter() {
+    if (selectedStatusFilter == PeakStatusFilter.none) {
+      peaks = _loadedPeaks;
+      return;
+    }
+
+    peaks = _loadedPeaks.where(_matchesStatusFilter).toList();
+  }
+
+  // Aquest mètode comprova si un cim compleix el filtre d’estat seleccionat.
+  bool _matchesStatusFilter(Peak peak) {
+    final status = statusesByPeakId[peak.id];
+
+    switch (selectedStatusFilter) {
+      case PeakStatusFilter.none:
+        return true;
+      case PeakStatusFilter.pending:
+        return !(status?.isCompleted ?? false);
+      case PeakStatusFilter.completed:
+        return status?.isCompleted ?? false;
+      case PeakStatusFilter.target:
+        return status?.isTarget ?? false;
+      case PeakStatusFilter.favorite:
+        return status?.isFavorite ?? false;
     }
   }
 

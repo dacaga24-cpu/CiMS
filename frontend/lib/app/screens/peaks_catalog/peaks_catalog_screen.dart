@@ -23,8 +23,8 @@ class PeaksCatalogScreen extends StatefulWidget {
 // i construir la interfície segons l’estat actual de les dades.
 class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
   // Aquest controlador concentra les dades i l’estat del catàleg,
-  // incloent la càrrega inicial, la cerca, els filtres
-  // i la navegació cap al detall.
+  // incloent la càrrega inicial, la cerca, els filtres,
+  // els estats personals dels cims i la navegació cap al detall.
   late final PeaksCatalogController controller;
 
   // Aquest mètode prepara el controller quan la pantalla es crea
@@ -47,11 +47,21 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
       controller.consumeNavigation();
 
       if (peakId != null) {
-        context.router.root.push(
-          PeakDetailRoute(peakId: peakId),
-        );
+        _openPeakDetail(peakId);
       }
     }
+  }
+
+  // Aquest mètode obre el detall del cim i refresca els estats personals
+  // quan l’usuari torna al catàleg després d’haver-hi fet canvis.
+  Future<void> _openPeakDetail(int peakId) async {
+    await context.router.root.push(
+      PeakDetailRoute(peakId: peakId),
+    );
+
+    if (!mounted) return;
+
+    await controller.reloadStatuses();
   }
 
   // Aquest mètode obre el panell flotant de filtres.
@@ -68,15 +78,18 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
           initialRegionId: controller.selectedRegionId,
           initialMinAltitude: controller.minAltitude,
           initialMaxAltitude: controller.maxAltitude,
+          initialStatusFilter: controller.selectedStatusFilter,
           onApply: ({
             int? regionId,
             int? minAltitude,
             int? maxAltitude,
+            PeakStatusFilter statusFilter = PeakStatusFilter.none,
           }) {
             controller.applyFilters(
               regionId: regionId,
               minAltitude: minAltitude,
               maxAltitude: maxAltitude,
+              statusFilter: statusFilter,
             );
           },
           onClear: controller.clearFilters,
@@ -216,11 +229,12 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
       separatorBuilder: (_, __) => const SizedBox(height: 14),
       itemBuilder: (context, index) {
         // Aquest bloc recupera el cim corresponent a cada posició
-        // i el converteix en una targeta visual del llistat.
+        // i el converteix en una targeta visual del llistat amb el seu estat personal.
         final peak = controller.peaks[index];
 
         return PeakDetailCard(
           peak: peak,
+          status: controller.statusForPeak(peak.id),
           onTap: () => controller.onPeakTap(peak),
         );
       },

@@ -25,6 +25,14 @@ class ApiEndpoints {
   static const String regions = '$api/regions';
 
   // Aquesta ajuda construeix la ruta d’un cim concret.
-  // Encara que el detall complet arribi més endavant, el camí ja queda centralitzat.
+  // Permet consultar el detall d’un cim a partir del seu identificador.
   static String peakById(int peakId) => '$peaks/$peakId';
+
+  // Aquestes rutes permeten consultar i actualitzar l’estat personal
+  // que l’usuari té assignat als cims.
+  static const String peakStatus = '$api/peak-status';
+
+  // Aquesta ajuda construeix la ruta de l’estat personal d’un cim concret.
+  // Es farà servir des del detall per consultar o modificar els botons d’estat.
+  static String peakStatusByPeakId(int peakId) => '$peakStatus/$peakId';
 }
