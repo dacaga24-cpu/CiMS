@@ -11,6 +11,7 @@ const peakRoutes = require('./routes/peakRoutes');
 const regionRoutes = require('./routes/regionRoutes');
 const resetPasswordRoutes = require('./routes/resetPasswordRoutes');
 const peakStatusRoutes = require('./routes/peakStatusRoutes');
+const ascentRoutes = require('./routes/ascentRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -90,6 +91,10 @@ app.use('/api/peaks', peakRoutes);
 // Aquest bloc registra les rutes relacionades amb l'estat dels cims.
 // Es manté el prefix /api per coherència amb la resta de l'API.
 app.use('/api/peak-status', peakStatusRoutes);
+
+// Aquest bloc registra les rutes relacionades amb les ascensions registrades
+// pels usuaris. Totes les rutes estan protegides amb autenticació JWT.
+app.use('/api/ascents', ascentRoutes);
 
 // Aquest bloc registra les rutes de les comarques.
 // Serveix per alimentar els filtres territorials del catàleg al frontend.
