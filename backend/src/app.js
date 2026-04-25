@@ -30,7 +30,42 @@ app.use(helmet());
 
 // Aquest bloc activa els comportaments bàsics que necessita el servidor
 // per rebre peticions externes i interpretar correctament les dades en format JSON.
-app.use(cors()); // Permet que l’aplicació client es pugui comunicar amb el backend des d’un altre origen.
+//
+// El CORS està restringit a una llista blanca d'orígens. Només els navegadors
+// que carreguen el frontend des d'una d'aquestes adreces poden llegir les
+// respostes de l'API. Altres orígens (com una web maliciosa que intenti
+// aprofitar la sessió de l'usuari) es queden amb la petició bloquejada al
+// navegador. Això NO protegeix contra peticions sense origen com curl o apps
+// mòbils, ja que el CORS només l'aplica el navegador.
+//
+// FRONTEND_URL és l'URL del frontend de producció (Firebase Hosting).
+// CORS_DEV_ORIGINS permet afegir orígens addicionals separats per coma per a
+// desenvolupament local (per exemple http://localhost:8080 per a Flutter web).
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  ...(process.env.CORS_DEV_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Les peticions sense capçalera Origin (curl, apps mòbils, server-to-server)
+      // no estan subjectes a CORS i es deixen passar perquè la protecció afecta
+      // només els navegadors web.
+      if (!origin) {
+        return callback(null, true);
+      }
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  })
+);
 
 // Es limita la mida màxima del cos JSON a 10kb perquè cap endpoint de l'API
 // necessita rebre més dades que això (credencials, filtres i tokens són petits).

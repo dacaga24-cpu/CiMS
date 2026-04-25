@@ -61,9 +61,9 @@ class MyApp extends StatelessWidget {
     // Construeix l’aplicació principal utilitzant navegació declarativa
     // basada en router.
     return MaterialApp.router(
-  debugShowCheckedModeBanner: true,
-  routerConfig: appRouter.config(),
-  theme: AppTheme.light,
-);
+      debugShowCheckedModeBanner: false,
+      routerConfig: appRouter.config(),
+      theme: AppTheme.light,
+    );
   }
 }

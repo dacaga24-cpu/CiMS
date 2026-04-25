@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:cims/app/client/api/api_client_impl.dart';
+import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
 import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/peak.dart';
 import 'package:cims/core/entity/peak_status.dart';
 import 'package:cims/core/entity/region.dart';
-import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
+import 'package:cims/core/session/app_session.dart';
+import 'package:cims/core/store/peak_status_store.dart';
 import 'package:cims/core/usecase/get_peaks_usecase.dart';
 import 'package:cims/core/usecase/get_regions_usecase.dart';
 import 'package:cims/core/usecase/get_user_peak_statuses_usecase.dart';
@@ -22,6 +24,10 @@ enum PeaksCatalogDestination {
 // Carrega els cims reals des del backend, gestiona la cerca, els filtres,
 // els estats personals dels cims i prepara la navegació cap al detall
 // sense barrejar-la amb la UI.
+//
+// Els estats personals no es guarden aquí: viuen al PeakStatusStore compartit,
+// de manera que qualsevol canvi fet des del detall d'un cim es reflecteix
+// automàticament al catàleg sense necessitat de recarregar res.
 class PeaksCatalogController extends ChangeNotifier {
   // Aquest constructor prepara els casos d’ús necessaris per carregar
   // el catàleg, les comarques i els estats personals de l’usuari.
@@ -29,7 +35,8 @@ class PeaksCatalogController extends ChangeNotifier {
     GetPeaksUseCase? getPeaksUseCase,
     GetRegionsUseCase? getRegionsUseCase,
     GetUserPeakStatusesUseCase? getUserPeakStatusesUseCase,
-  }) {
+    PeakStatusStore? peakStatusStore,
+  }) : _peakStatusStore = peakStatusStore ?? AppSession.peakStatusStore {
     final apiClient = ApiClientImpl();
 
     _getPeaksUseCase = getPeaksUseCase ??
@@ -42,6 +49,10 @@ class PeaksCatalogController extends ChangeNotifier {
         );
     _getUserPeakStatusesUseCase =
         getUserPeakStatusesUseCase ?? GetUserPeakStatusesUseCase(apiClient);
+
+    // El controller s'enganxa al store per refrescar el filtre d'estat i la
+    // pantalla quan algun altre punt de l'app modifiqui l'estat d'un cim.
+    _peakStatusStore.addListener(_onStoreChanged);
   }
 
   // Aquest bloc guarda els casos d’ús que el controller necessita
@@ -49,17 +60,17 @@ class PeaksCatalogController extends ChangeNotifier {
   late final GetPeaksUseCase _getPeaksUseCase;
   late final GetRegionsUseCase _getRegionsUseCase;
   late final GetUserPeakStatusesUseCase _getUserPeakStatusesUseCase;
+  final PeakStatusStore _peakStatusStore;
 
   final searchController = TextEditingController();
 
   // Aquest bloc representa l’estat visible del catàleg.
-  // La pantalla l’utilitza per mostrar càrrega, errors, cims, comarques i estats personals.
+  // La pantalla l’utilitza per mostrar càrrega, errors, cims i comarques.
   bool isLoading = false;
   String? errorMessage;
   List<Peak> peaks = const [];
   List<Peak> _loadedPeaks = const [];
   List<Region> availableRegions = const [];
-  Map<int, PeakStatus> statusesByPeakId = {};
 
   // Aquest bloc manté els filtres actius del catàleg.
   // Es combinen amb la cerca per decidir quins cims s’han de mostrar.
@@ -148,11 +159,11 @@ class PeaksCatalogController extends ChangeNotifier {
     return parts.join(' · ');
   }
 
-  // Aquest mètode retorna l’estat personal d’un cim concret.
-  // La pantalla del catàleg l’utilitzarà per mostrar indicadors visuals
-  // a cada targeta sense haver de buscar directament dins del mapa.
+  // Aquest mètode retorna l’estat personal d’un cim consultant directament el
+  // store compartit. Així la pantalla del catàleg sempre veu l'estat més recent
+  // sense haver de mantenir cap còpia local.
   PeakStatus? statusForPeak(int peakId) {
-    return statusesByPeakId[peakId];
+    return _peakStatusStore.getStatus(peakId);
   }
 
   // Aquest mètode carrega les dades inicials del catàleg.
@@ -162,18 +173,6 @@ class PeaksCatalogController extends ChangeNotifier {
     await _loadRegions();
     await _loadUserPeakStatuses();
     await _loadPeaks();
-  }
-
-  // Aquest mètode permet refrescar només els estats personals dels cims.
-  // Serà útil quan l’usuari torni al catàleg després de modificar un estat
-  // des de la pantalla de detall.
-  Future<void> reloadStatuses() async {
-    await _loadUserPeakStatuses();
-    _applyStatusFilter();
-
-    if (!_disposed) {
-      notifyListeners();
-    }
   }
 
   // Aquest mètode carrega la llista de comarques disponibles
@@ -199,8 +198,8 @@ class PeaksCatalogController extends ChangeNotifier {
   }
 
   // Aquest mètode carrega tots els estats personals de l’usuari
-  // i els organitza per identificador de cim. Això permet consultar ràpidament
-  // si una targeta del catàleg està completada, marcada com a objectiu o preferida.
+  // i els bolca al store compartit, perquè el catàleg, el detall i qualsevol
+  // altra pantalla treballin amb la mateixa font de veritat.
   Future<void> _loadUserPeakStatuses() async {
     try {
       final statuses = await _getUserPeakStatusesUseCase.execute();
@@ -209,15 +208,13 @@ class PeaksCatalogController extends ChangeNotifier {
         return;
       }
 
-      statusesByPeakId = {
-        for (final status in statuses) status.peakId: status,
-      };
+      _peakStatusStore.setAll(statuses);
     } catch (_) {
       if (_disposed) {
         return;
       }
 
-      statusesByPeakId = {};
+      _peakStatusStore.clear();
     }
   }
 
@@ -356,7 +353,7 @@ class PeaksCatalogController extends ChangeNotifier {
 
   // Aquest mètode comprova si un cim compleix el filtre d’estat seleccionat.
   bool _matchesStatusFilter(Peak peak) {
-    final status = statusesByPeakId[peak.id];
+    final status = _peakStatusStore.getStatus(peak.id);
 
     switch (selectedStatusFilter) {
       case PeakStatusFilter.none:
@@ -372,12 +369,25 @@ class PeaksCatalogController extends ChangeNotifier {
     }
   }
 
+  // Quan el store notifica un canvi (per exemple, perquè el detall ha
+  // actualitzat l'estat d'un cim), s'ha de tornar a aplicar el filtre d'estat
+  // perquè la llista visible reflecteixi la nova realitat sense recarregar
+  // res del backend.
+  void _onStoreChanged() {
+    if (_disposed) {
+      return;
+    }
+    _applyStatusFilter();
+    notifyListeners();
+  }
+
   // Aquest mètode tanca correctament els recursos del controller quan la pantalla es destrueix.
   // També marca el controller com a inactiu per evitar actualitzacions posteriors sobre un estat ja eliminat.
   @override
   void dispose() {
     _disposed = true;
     _searchDebounce?.cancel();
+    _peakStatusStore.removeListener(_onStoreChanged);
     searchController.dispose();
     super.dispose();
   }

@@ -28,7 +28,33 @@ const forgotPasswordRateLimiter = rateLimit({
   message: { error: 'Too many password reset requests. Please try again later.' },
 });
 
+// Aquest limitador protegeix l'endpoint de registre. Sense límit, un atacant
+// podria crear comptes massivament per saturar la base de dades o per enumerar
+// quins correus existeixen al sistema combinant el registre amb els missatges
+// d'error. Un sostre per IP redueix aquest risc sense afectar usuaris legítims.
+const registerRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minuts
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many registration attempts. Please try again later.' },
+});
+
+// Aquest limitador protegeix la confirmació del restabliment de contrasenya.
+// És un endpoint de validació de tokens i, sense límit, un atacant podria
+// intentar endevinar tokens vàlids per força bruta. El filtre tanca aquesta
+// via abans que arribi a la lògica de validació.
+const resetPasswordRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minuts
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many password reset attempts. Please try again later.' },
+});
+
 module.exports = {
   loginRateLimiter,
   forgotPasswordRateLimiter,
+  registerRateLimiter,
+  resetPasswordRateLimiter,
 };

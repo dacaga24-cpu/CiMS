@@ -19,13 +19,23 @@ const authMiddleware = (req, res, next) => {
 
     // Aquest bloc comprova que la petició inclogui un token d’accés
     // amb el format esperat per poder validar la sessió de l’usuari.
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Es valida que la capçalera tingui exactament dues parts ("Bearer" i el
+    // token) per evitar que variants amb espais extra o esquemes diferents
+    // passin la validació de manera silenciosa.
+    if (!authHeader) {
       const error = new Error('No token provided');
       error.statusCode = 401;
       throw error;
     }
 
-    const token = authHeader.substring(7);
+    const parts = authHeader.split(' ');
+    if (parts.length !== 2 || parts[0] !== 'Bearer' || !parts[1]) {
+      const error = new Error('Invalid authorization header format');
+      error.statusCode = 401;
+      throw error;
+    }
+
+    const token = parts[1];
     const decoded = jwt.verify(token, secret);
 
     // Si el token és correcte, aquest valor identifica quin usuari

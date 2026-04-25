@@ -108,6 +108,10 @@ mixin _PeakStatusApiClientImplMixin on _ApiClientBase
 
   // Aquest mètode extreu una llista d’estats encara que el backend la retorni
   // directament o embolicada dins d’una propietat com data o statuses.
+  // Si la resposta no encaixa amb cap dels formats esperats es llança una
+  // ApiException explícita perquè el cridant la pugui tractar com a error de
+  // comunicació en lloc de rebre una llista buida que confondria amb "sense
+  // estats" i amagaria el problema.
   List<Map<String, dynamic>> _extractStatusList(dynamic data) {
     if (data is List) {
       return data.whereType<Map<String, dynamic>>().toList();
@@ -121,11 +125,16 @@ mixin _PeakStatusApiClientImplMixin on _ApiClientBase
       }
     }
 
-    return [];
+    throw const ApiException(
+      'Resposta inesperada del servidor: format invàlid de la llista d\'estats',
+    );
   }
 
   // Aquest mètode extreu un estat concret encara que el backend el retorni
   // directament o dins d’una propietat específica.
+  // Es llança una ApiException si la resposta no és un objecte vàlid, perquè
+  // el controlador la pugui mostrar amb el mateix tractament que la resta
+  // d'errors d'API en lloc d'una FormatException no capturada.
   Map<String, dynamic> _extractStatus(dynamic data) {
     if (data is Map<String, dynamic>) {
       final possibleStatus =
@@ -138,6 +147,8 @@ mixin _PeakStatusApiClientImplMixin on _ApiClientBase
       return data;
     }
 
-    throw const FormatException('La resposta de l’estat del cim no és vàlida');
+    throw const ApiException(
+      'Resposta inesperada del servidor: format invàlid de l\'estat del cim',
+    );
   }
 }

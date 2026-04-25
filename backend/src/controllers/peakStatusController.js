@@ -1,5 +1,23 @@
 const PeakStatusService = require('../services/peakStatusService');
 
+// Aquest mètode crea un error de validació amb codi 400.
+// S'utilitza quan el cos de la petició conté camps amb un format inesperat.
+function badRequest(message) {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+}
+
+// Aquest mètode comprova que un camp opcional, si s'ha enviat, sigui un boolean
+// estricte. Sense aquesta validació, JavaScript faria coerció de strings o
+// números a booleans i el client podria persistir estats incorrectes enviant
+// per exemple "true" (string) o 1 (número) sense que es detectés l'error.
+function ensureOptionalBoolean(value, fieldName) {
+  if (value !== undefined && typeof value !== 'boolean') {
+    throw badRequest(`Invalid ${fieldName}: must be a boolean`);
+  }
+}
+
 // Aquest controlador gestiona les peticions relacionades amb l'estat personal
 // dels cims per a cada usuari. La seva funció és llegir els paràmetres de la petició,
 // delegar la feina al servei i enviar la resposta HTTP amb el codi i el format adequats.
@@ -35,7 +53,15 @@ const PeakStatusController = {
   // tant si s'ha creat com si s'ha actualitzat, per simplicitat del client.
   async upsertPeakStatus(req, res, next) {
     try {
-      const { isCompleted, isTarget, isFavorite } = req.body;
+      const { isCompleted, isTarget, isFavorite } = req.body || {};
+
+      // Els flags arriben com a booleans estrictes per garantir que el client
+      // expressa la intenció de manera explícita. Si s'acceptessin valors com
+      // "true" o 1, una crida amb tipus incorrectes podria persistir estats
+      // erronis sense que ningú se n'adonés.
+      ensureOptionalBoolean(isCompleted, 'isCompleted');
+      ensureOptionalBoolean(isTarget, 'isTarget');
+      ensureOptionalBoolean(isFavorite, 'isFavorite');
 
       const status = await PeakStatusService.upsertPeakStatus(
         req.userId,

@@ -53,16 +53,14 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
     }
   }
 
-  // Aquest mètode obre el detall del cim i refresca els estats personals
-  // quan l’usuari torna al catàleg després d’haver-hi fet canvis.
+  // Aquest mètode obre el detall del cim. Quan l'usuari hi modifica algun
+  // estat, el canvi es propaga automàticament al catàleg a través del
+  // PeakStatusStore compartit, de manera que no cal cap recàrrega manual en
+  // tornar.
   Future<void> _openPeakDetail(int peakId) async {
     await context.router.root.push(
       PeakDetailRoute(peakId: peakId),
     );
-
-    if (!mounted) return;
-
-    await controller.reloadStatuses();
   }
 
   // Aquest mètode obre el panell flotant de filtres.
