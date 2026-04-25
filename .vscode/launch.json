@@ -26,6 +26,7 @@
       "deviceId": "chrome",
       "program": "frontend/lib/main.dart",
       "args": [
+        "--web-port=8080",
         "--dart-define=API_BASE_URL=http://localhost:3000"
       ]
     },

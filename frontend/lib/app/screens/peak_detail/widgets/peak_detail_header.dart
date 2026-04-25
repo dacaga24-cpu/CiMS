@@ -2,16 +2,22 @@ import 'package:cims/core/entity/peak.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget construeix la capçalera principal del detall del cim.
-// Mostra un bloc visual destacat amb el nom, l’altitud i la zona del cim.
+// Mostra un bloc visual destacat amb el nom, l’altitud, la zona del cim
+// i, si existeix, la data de l’última ascensió registrada per l’usuari.
 class PeakDetailHeader extends StatelessWidget {
   const PeakDetailHeader({
     super.key,
     required this.peak,
+    this.lastAscentDate,
   });
 
   // Aquesta propietat rep el cim que s’està mostrant
   // i permet pintar la informació principal del seu detall.
   final Peak peak;
+
+  // Aquesta propietat rep la data de l’última ascensió de l’usuari.
+  // Si no hi ha cap ascensió registrada, la capçalera no mostra aquest indicador.
+  final DateTime? lastAscentDate;
 
   @override
   Widget build(BuildContext context) {
@@ -51,28 +57,30 @@ class PeakDetailHeader extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Align(
-              alignment: Alignment.topLeft,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.90),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Text(
-                  'Últim ascens: 12/05/2024', // TODO: Substituir per data real del backend
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF24465D),
+            if (lastAscentDate != null) ...[
+              Align(
+                alignment: Alignment.topLeft,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.90),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    'Últim ascens: ${_formatDate(lastAscentDate!)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF24465D),
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 18),
+              const SizedBox(height: 18),
+            ],
 
             // Aquest bloc actua com a placeholder mentre el projecte
             // no disposa d’imatges reals dels cims.
@@ -146,5 +154,15 @@ class PeakDetailHeader extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // Aquest mètode transforma la data de l’última ascensió
+  // en un format curt i clar per mostrar-la a la capçalera.
+  String _formatDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year.toString();
+
+    return '$day/$month/$year';
   }
 }

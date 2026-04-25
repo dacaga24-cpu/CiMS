@@ -35,4 +35,12 @@ class ApiEndpoints {
   // Aquesta ajuda construeix la ruta de l’estat personal d’un cim concret.
   // Es farà servir des del detall per consultar o modificar els botons d’estat.
   static String peakStatusByPeakId(int peakId) => '$peakStatus/$peakId';
+
+  // Aquesta ruta correspon al registre i gestió d’ascensions.
+  // Permet enviar al backend una nova ascensió associada a un cim concret.
+  static const String ascents = '$api/ascents';
+
+  // Aquesta ajuda construeix la ruta de les ascensions d’un cim concret.
+  // Permet consultar l’historial personal de l’usuari sobre aquell cim.
+  static String ascentsByPeakId(int peakId) => '$ascents/peak/$peakId';
 }
