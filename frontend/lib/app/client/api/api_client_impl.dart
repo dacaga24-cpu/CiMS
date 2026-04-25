@@ -7,13 +7,17 @@ import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/peak.dart';
 import 'package:cims/core/entity/region.dart';
 import 'package:cims/core/entity/user.dart';
+import 'package:cims/core/entity/peak_status.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:http/http.dart' as http;
 
+// Aquests fitxers separen les peticions de l’API per àmbits funcionals.
+// Això permet mantenir aquest arxiu com a punt central sense acumular tota la lògica en un sol lloc.
 part 'api_client_impl_auth.dart';
 part 'api_client_impl_peaks.dart';
 part 'api_client_impl_profile.dart';
 part 'api_client_impl_regions.dart';
+part 'api_client_impl_peak_status.dart';
 
 // Aquesta classe base centralitza la infraestructura comuna del client d’API.
 // Les operacions funcionals es reparteixen en fitxers separats per àmbit
@@ -45,6 +49,29 @@ abstract class _ApiClientBase {
   }) async {
     final response = await _client
         .post(
+          Uri.parse('$_baseUrl$endpoint'),
+          headers: await _buildHeaders(requiresAuth: requiresAuth),
+          body: jsonEncode(body),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    await _handleUnauthorizedIfNeeded(
+      response,
+      requiresAuth: requiresAuth,
+    );
+
+    return response;
+  }
+
+  // Aquest mètode permet fer peticions PUT JSON sobre endpoints autenticats.
+  // S’utilitzarà quan calgui modificar dades ja existents, com l’estat personal d’un cim.
+  Future<http.Response> _putJson(
+    String endpoint, {
+    required Map<String, dynamic> body,
+    bool requiresAuth = false,
+  }) async {
+    final response = await _client
+        .put(
           Uri.parse('$_baseUrl$endpoint'),
           headers: await _buildHeaders(requiresAuth: requiresAuth),
           body: jsonEncode(body),
@@ -166,8 +193,11 @@ class ApiClientImpl extends _ApiClientBase
         _AuthApiClientImplMixin,
         _PeaksApiClientImplMixin,
         _ProfileApiClientImplMixin,
-        _RegionsApiClientImplMixin
+        _RegionsApiClientImplMixin,
+        _PeakStatusApiClientImplMixin
     implements ApiClient {
+  // Aquest constructor permet crear el client final de l’API.
+  // Reutilitza la configuració comuna definida a la classe base.
   ApiClientImpl({
     super.client,
     super.baseUrl,

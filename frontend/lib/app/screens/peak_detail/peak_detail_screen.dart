@@ -1,11 +1,13 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:cims/app/router/app_router.dart';
 import 'package:cims/app/screens/peak_detail/peak_detail_controller.dart';
+import 'package:cims/app/screens/peak_detail/widgets/peak_detail_bottom_action.dart';
+import 'package:cims/app/screens/peak_detail/widgets/peak_detail_description_card.dart';
+import 'package:cims/app/screens/peak_detail/widgets/peak_detail_empty_state.dart';
+import 'package:cims/app/screens/peak_detail/widgets/peak_detail_error_state.dart';
 import 'package:cims/app/screens/peak_detail/widgets/peak_detail_header.dart';
 import 'package:cims/app/screens/peak_detail/widgets/peak_detail_map_card.dart';
 import 'package:cims/app/screens/peak_detail/widgets/peak_detail_status_actions.dart';
-import 'package:cims/app/widgets/buttons/primary_gradient_button.dart';
-import 'package:cims/core/entity/peak.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta pantalla mostra el detall d’un cim concret.
@@ -32,6 +34,8 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
   PeakDetailController? _controller;
   String? _initializationError;
 
+  // Aquest mètode prepara la pantalla en obrir-se.
+  // Inicialitza el controller perquè el detall del cim es pugui carregar automàticament.
   @override
   void initState() {
     super.initState();
@@ -103,6 +107,8 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
     );
   }
 
+  // Aquest mètode allibera el controller quan la pantalla es tanca.
+  // També elimina l’escolta activa per evitar notificacions innecessàries.
   @override
   void dispose() {
     final controller = _controller;
@@ -115,6 +121,8 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
     super.dispose();
   }
 
+  // Aquest mètode construeix l’estructura principal de la pantalla.
+  // També contempla el cas en què el controller no s’hagi pogut preparar correctament.
   @override
   Widget build(BuildContext context) {
     final controller = _controller;
@@ -124,36 +132,10 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
     if (_initializationError != null || controller == null) {
       return Scaffold(
         backgroundColor: const Color(0xFFF6F7FB),
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          surfaceTintColor: Colors.transparent,
-        ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.error_outline_rounded,
-                  size: 42,
-                  color: Color(0xFF9AA3B2),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  _initializationError ??
-                      'No s\'ha pogut inicialitzar la pantalla de detall.',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF4B5563),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        appBar: _buildAppBar(),
+        body: PeakDetailErrorState(
+          message: _initializationError ??
+              'No s\'ha pogut inicialitzar la pantalla de detall.',
         ),
       );
     }
@@ -165,16 +147,24 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
       builder: (context, _) {
         return Scaffold(
           backgroundColor: const Color(0xFFF6F7FB),
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            surfaceTintColor: Colors.transparent,
-          ),
+          appBar: _buildAppBar(),
           body: _buildBody(controller),
-          bottomNavigationBar: _buildBottomAction(controller),
+          bottomNavigationBar: PeakDetailBottomAction(
+            onPressed: controller.onRegisterAscentTap,
+          ),
         );
       },
+    );
+  }
+
+  // Aquest mètode construeix la barra superior comuna de la pantalla.
+  // Es manté transparent per conservar l’estil visual del detall del cim.
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      surfaceTintColor: Colors.transparent,
     );
   }
 
@@ -188,42 +178,15 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
     }
 
     if (controller.errorMessage != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.error_outline_rounded,
-                size: 42,
-                color: Color(0xFF9AA3B2),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                controller.errorMessage!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF4B5563),
-                ),
-              ),
-              const SizedBox(height: 18),
-              ElevatedButton(
-                onPressed: controller.onRetryTap,
-                child: const Text('Torna-ho a provar'),
-              ),
-            ],
-          ),
-        ),
+      return PeakDetailErrorState(
+        message: controller.errorMessage!,
+        onRetryTap: controller.onRetryTap,
       );
     }
 
     final peak = controller.peak;
     if (peak == null) {
-      return const Center(
-        child: Text('No s\'ha trobat informació del cim'),
-      );
+      return const PeakDetailEmptyState();
     }
 
     // Aquest bloc construeix el contingut principal del detall,
@@ -238,15 +201,31 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
             peak: peak,
           ),
           const SizedBox(height: 18),
-          const PeakDetailStatusActions(
-            isTarget: false,
-            isCompleted: false,
-            isFavorite: false,
-            areActionsEnabled: false,
+          PeakDetailStatusActions(
+            isTarget: controller.peakStatus?.isTarget ?? false,
+            isCompleted: controller.peakStatus?.isCompleted ?? false,
+            isFavorite: controller.peakStatus?.isFavorite ?? false,
+            areActionsEnabled: !controller.isUpdatingStatus,
+            onTargetTap: controller.onTargetTap,
+            onCompletedTap: controller.onCompletedTap,
+            onFavoriteTap: controller.onFavoriteTap,
           ),
+          if (controller.statusErrorMessage != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              controller.statusErrorMessage!,
+              style: const TextStyle(
+                color: Color(0xFFE84A4A),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           if (peak.hasDescription) ...[
             const SizedBox(height: 18),
-            _buildDescriptionCard(peak),
+            PeakDetailDescriptionCard(
+              peak: peak,
+            ),
           ],
           const SizedBox(height: 18),
           PeakDetailMapCard(
@@ -254,58 +233,6 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
             onTap: controller.onMapTap,
           ),
         ],
-      ),
-    );
-  }
-
-  // Aquest bloc mostra la descripció només si el backend l’ha informat.
-  Widget _buildDescriptionCard(Peak peak) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Descripció',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF17212B),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            peak.description!,
-            style: const TextStyle(
-              fontSize: 15,
-              height: 1.45,
-              color: Color(0xFF4B5563),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Aquest botó fixa l’acció principal a la part inferior de la pantalla.
-  Widget _buildBottomAction(PeakDetailController controller) {
-    return SafeArea(
-      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: PrimaryGradientButton(
-        label: 'Registrar ascensió',
-        icon: Icons.north_east_rounded,
-        onPressed: controller.onRegisterAscentTap,
       ),
     );
   }

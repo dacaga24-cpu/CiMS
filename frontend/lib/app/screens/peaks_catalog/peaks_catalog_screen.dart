@@ -1,11 +1,12 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:cims/app/router/app_router.dart';
+import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
+import 'package:cims/app/screens/peaks_catalog/peaks_catalog_controller.dart';
+import 'package:cims/app/screens/peaks_catalog/widgets/peaks_active_filters_summary.dart';
+import 'package:cims/app/screens/peaks_catalog/widgets/peaks_catalog_content.dart';
+import 'package:cims/app/screens/peaks_catalog/widgets/peaks_filters_sheet.dart';
+import 'package:cims/app/screens/peaks_catalog/widgets/peaks_search_bar.dart';
 import 'package:flutter/material.dart';
-
-import 'peaks_catalog_controller.dart';
-import 'widgets/peak_detail_card.dart';
-import 'widgets/peaks_filters_sheet.dart';
-import 'widgets/peaks_search_bar.dart';
 
 // Aquesta pantalla mostra el catàleg de cims de l’aplicació.
 // La seva funció és construir la vista general del llistat i connectar-la
@@ -23,8 +24,8 @@ class PeaksCatalogScreen extends StatefulWidget {
 // i construir la interfície segons l’estat actual de les dades.
 class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
   // Aquest controlador concentra les dades i l’estat del catàleg,
-  // incloent la càrrega inicial, la cerca, els filtres
-  // i la navegació cap al detall.
+  // incloent la càrrega inicial, la cerca, els filtres,
+  // els estats personals dels cims i la navegació cap al detall.
   late final PeaksCatalogController controller;
 
   // Aquest mètode prepara el controller quan la pantalla es crea
@@ -47,11 +48,21 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
       controller.consumeNavigation();
 
       if (peakId != null) {
-        context.router.root.push(
-          PeakDetailRoute(peakId: peakId),
-        );
+        _openPeakDetail(peakId);
       }
     }
+  }
+
+  // Aquest mètode obre el detall del cim i refresca els estats personals
+  // quan l’usuari torna al catàleg després d’haver-hi fet canvis.
+  Future<void> _openPeakDetail(int peakId) async {
+    await context.router.root.push(
+      PeakDetailRoute(peakId: peakId),
+    );
+
+    if (!mounted) return;
+
+    await controller.reloadStatuses();
   }
 
   // Aquest mètode obre el panell flotant de filtres.
@@ -68,15 +79,18 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
           initialRegionId: controller.selectedRegionId,
           initialMinAltitude: controller.minAltitude,
           initialMaxAltitude: controller.maxAltitude,
+          initialStatusFilter: controller.selectedStatusFilter,
           onApply: ({
             int? regionId,
             int? minAltitude,
             int? maxAltitude,
+            PeakStatusFilter statusFilter = PeakStatusFilter.none,
           }) {
             controller.applyFilters(
               regionId: regionId,
               minAltitude: minAltitude,
               maxAltitude: maxAltitude,
+              statusFilter: statusFilter,
             );
           },
           onClear: controller.clearFilters,
@@ -117,189 +131,38 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
                   hasActiveFilters: controller.hasActiveFilters,
                 ),
 
+                // Aquest bloc només apareix quan hi ha filtres aplicats.
+                // Mostra un resum breu i permet netejar-los sense obrir el panell.
                 if (controller.hasActiveFilters) ...[
                   const SizedBox(height: 12),
-                  _buildActiveFiltersSummary(),
+                  PeaksActiveFiltersSummary(
+                    summary: controller.activeFiltersSummary,
+                    onClear: controller.clearFilters,
+                  ),
                 ],
 
                 const SizedBox(height: 18),
 
-                // Aquest espai principal mostra un indicador de càrrega,
-                // un estat d’error o la llista real del catàleg segons convingui.
+                // Aquest widget concentra el contingut variable del catàleg:
+                // càrrega, error, estat buit o llistat de cims.
                 Expanded(
-                  child: controller.isLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: controller.onRetryTap,
-                          child: _buildContent(),
-                        ),
+                  child: PeaksCatalogContent(
+                    isLoading: controller.isLoading,
+                    errorMessage: controller.errorMessage,
+                    peaks: controller.peaks,
+                    currentSearch: controller.currentSearch,
+                    hasActiveFilters: controller.hasActiveFilters,
+                    statusForPeak: controller.statusForPeak,
+                    onRefresh: controller.onRetryTap,
+                    onRetryTap: controller.onRetryTap,
+                    onPeakTap: controller.onPeakTap,
+                  ),
                 ),
               ],
             ),
           ),
         );
       },
-    );
-  }
-
-  // Aquest mètode mostra un resum curt dels filtres actius.
-  // Això ajuda a entendre ràpidament per què el catàleg està limitat.
-  Widget _buildActiveFiltersSummary() {
-    final theme = Theme.of(context);
-
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 10,
-        ),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primaryContainer.withValues(alpha: 0.6),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.filter_alt_outlined,
-              size: 18,
-              color: theme.colorScheme.primary,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                controller.activeFiltersSummary,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: controller.clearFilters,
-              child: const Text('Neteja'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Aquest mètode decideix quin contingut principal s’ha de veure.
-  // D’aquesta manera la lògica dels estats queda agrupada i la build principal és més clara.
-  Widget _buildContent() {
-    if (controller.errorMessage != null) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(top: 48),
-        children: [
-          _buildErrorState(),
-        ],
-      );
-    }
-
-    if (controller.peaks.isEmpty) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(top: 48),
-        children: [
-          _buildEmptyState(),
-        ],
-      );
-    }
-
-    return ListView.separated(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.only(bottom: 24),
-      itemCount: controller.peaks.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 14),
-      itemBuilder: (context, index) {
-        // Aquest bloc recupera el cim corresponent a cada posició
-        // i el converteix en una targeta visual del llistat.
-        final peak = controller.peaks[index];
-
-        return PeakDetailCard(
-          peak: peak,
-          onTap: () => controller.onPeakTap(peak),
-        );
-      },
-    );
-  }
-
-  // Aquest bloc mostra un missatge senzill quan la cerca o els filtres
-  // no retornen cap resultat al catàleg.
-  Widget _buildEmptyState() {
-    final hasSearch = controller.currentSearch.isNotEmpty;
-    final hasFilters = controller.hasActiveFilters;
-
-    String message = 'Encara no hi ha cims disponibles';
-
-    if (hasSearch && hasFilters) {
-      message = 'No s\'han trobat cims amb aquesta cerca i aquests filtres';
-    } else if (hasSearch) {
-      message = 'No s\'han trobat cims per a aquesta cerca';
-    } else if (hasFilters) {
-      message = 'No s\'han trobat cims amb els filtres aplicats';
-    }
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.landscape_outlined,
-              size: 44,
-              color: Color(0xFF9AA3B2),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1E1E1E),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Aquest bloc mostra un missatge d’error quan la càrrega del catàleg falla.
-  // També ofereix una acció directa per tornar-ho a provar.
-  Widget _buildErrorState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.cloud_off_outlined,
-              size: 44,
-              color: Color(0xFF9AA3B2),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              controller.errorMessage ?? 'No s\'ha pogut carregar el catàleg',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1E1E1E),
-              ),
-            ),
-            const SizedBox(height: 18),
-            FilledButton(
-              onPressed: controller.onRetryTap,
-              child: const Text('Torna-ho a provar'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

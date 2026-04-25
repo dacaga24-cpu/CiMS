@@ -3,8 +3,10 @@ export 'api/auth_api_client.dart';
 export 'api/peaks_api_client.dart';
 export 'api/profile_api_client.dart';
 export 'api/regions_api_client.dart';
+export 'api/peak_status_api_client.dart';
 
 import 'package:cims/core/client/api/auth_api_client.dart';
+import 'package:cims/core/client/api/peak_status_api_client.dart';
 import 'package:cims/core/client/api/peaks_api_client.dart';
 import 'package:cims/core/client/api/profile_api_client.dart';
 import 'package:cims/core/client/api/regions_api_client.dart';
@@ -19,4 +21,5 @@ abstract class ApiClient
         AuthApiClient,
         ProfileApiClient,
         PeaksApiClient,
-        RegionsApiClient {}
+        RegionsApiClient,
+        PeakStatusApiClient {}
