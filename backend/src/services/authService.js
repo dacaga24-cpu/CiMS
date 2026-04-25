@@ -174,13 +174,12 @@ const AuthService = {
       console.error('Error sending password reset email:', error);
     }
 
-    // En entorn de desenvolupament el token es registra als logs del servidor
-    // per facilitar les proves sense necessitat d'obrir el correu.
-    // Mai s'inclou el token a la resposta HTTP: si la variable NODE_ENV no està
-    // ben configurada a producció, no es filtra el token per l'API.
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[DEV] Password reset token for ${user.email}: ${token}`);
-    }
+    // El token NO es registra mai als logs, ni en desenvolupament. Encara que
+    // sembli còmode per a proves locals, deixar-lo a logs significa que qualsevol
+    // persona amb accés a la consola del servidor o al sistema de logging pot
+    // suplantar l'usuari fins que el token caduqui. Per provar el flux en local
+    // cal obrir el correu rebut o consultar directament la taula
+    // password_reset_tokens des de la base de dades.
     return genericResponse;
     },
 

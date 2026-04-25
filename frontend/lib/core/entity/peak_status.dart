@@ -32,10 +32,12 @@ class PeakStatus {
   }
 
   // Aquest constructor transforma la resposta del backend en un objecte PeakStatus.
-  // Accepta els noms de camps que retorna la base de dades i també possibles variants
-  // en camelCase per mantenir l’entitat flexible davant petits canvis de format.
+  // El backend respon sempre amb snake_case perquè els noms surten directament
+  // de les columnes de la base de dades. Mantenir un únic format esperat fa que
+  // si en el futur el contracte canvia, el frontend ho detecti immediatament en
+  // lloc de continuar funcionant per casualitat amb un fallback amagat.
   factory PeakStatus.fromJson(Map<String, dynamic> json) {
-    final parsedPeakId = _parseInt(json['peak_id'] ?? json['peakId']);
+    final parsedPeakId = _parseInt(json['peak_id']);
 
     if (parsedPeakId == null) {
       throw const FormatException('L\'identificador del cim no és vàlid');
@@ -43,11 +45,11 @@ class PeakStatus {
 
     return PeakStatus(
       id: _parseInt(json['id']),
-      userId: _parseInt(json['user_id'] ?? json['userId']),
+      userId: _parseInt(json['user_id']),
       peakId: parsedPeakId,
-      isCompleted: _parseBool(json['is_completed'] ?? json['isCompleted']),
-      isTarget: _parseBool(json['is_target'] ?? json['isTarget']),
-      isFavorite: _parseBool(json['is_favorite'] ?? json['isFavorite']),
+      isCompleted: _parseBool(json['is_completed']),
+      isTarget: _parseBool(json['is_target']),
+      isFavorite: _parseBool(json['is_favorite']),
     );
   }
 

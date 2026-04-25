@@ -1,26 +1,12 @@
 const PeakModel = require('../models/peakModel');
+const { badRequest, parseOptionalInteger } = require('../utils/validation');
 
-// Aquest mètode crea un error de validació amb codi 400.
-// S'utilitza quan els filtres rebuts no compleixen el format esperat.
-function badRequest(message) {
-  const error = new Error(message);
-  error.statusCode = 400;
-  return error;
-}
-
-// Aquest mètode converteix un valor rebut en un enter positiu.
-// Retorna null si el valor no es pot interpretar com un enter vàlid,
-// i d'aquesta manera permet detectar filtres mal formats.
-function parsePositiveInteger(value) {
-  if (value === undefined || value === null || value === '') {
-    return undefined;
-  }
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 0) {
-    return null;
-  }
-  return parsed;
-}
+// Sostre defensiu de resultats per al catàleg. Sense un límit, una cerca molt
+// permissiva (per exemple un sol caràcter al filtre de nom) podria retornar
+// milers de cims i carregar el navegador del client innecessàriament. Si en el
+// futur cal mostrar més resultats, l'endpoint hauria d'oferir paginació
+// explícita en lloc d'augmentar aquest sostre.
+const MAX_PEAK_RESULTS = 500;
 
 // Aquest servei centralitza la lògica del catàleg de cims.
 // Aquí es validen els filtres rebuts, es consulten les dades a través del model
@@ -30,20 +16,11 @@ const PeakService = {
   // Aquest mètode retorna la llista de cims aplicant els filtres opcionals.
   // Si algun filtre té un format incorrecte, es llança un error de validació
   // perquè el controlador respongui amb un 400 abans de consultar la base de dades.
+  // Les altituds permeten 0 perquè és un valor real i útil com a límit inferior.
   async getAll({ regionId, minAltitude, maxAltitude, search } = {}) {
-    const parsedRegionId = parsePositiveInteger(regionId);
-    const parsedMinAltitude = parsePositiveInteger(minAltitude);
-    const parsedMaxAltitude = parsePositiveInteger(maxAltitude);
-
-    if (parsedRegionId === null) {
-      throw badRequest('Invalid regionId: must be a positive integer');
-    }
-    if (parsedMinAltitude === null) {
-      throw badRequest('Invalid minAltitude: must be a positive integer');
-    }
-    if (parsedMaxAltitude === null) {
-      throw badRequest('Invalid maxAltitude: must be a positive integer');
-    }
+    const parsedRegionId = parseOptionalInteger(regionId, 'regionId');
+    const parsedMinAltitude = parseOptionalInteger(minAltitude, 'minAltitude', { min: 0 });
+    const parsedMaxAltitude = parseOptionalInteger(maxAltitude, 'maxAltitude', { min: 0 });
 
     // Aquest bloc comprova la coherència entre el mínim i el màxim d'altitud
     // per evitar consultes que mai podran retornar resultats.
@@ -60,6 +37,7 @@ const PeakService = {
       minAltitude: parsedMinAltitude,
       maxAltitude: parsedMaxAltitude,
       search: search ? String(search).trim() : undefined,
+      limit: MAX_PEAK_RESULTS,
     });
   },
 

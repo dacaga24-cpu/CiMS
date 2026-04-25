@@ -1,9 +1,18 @@
 const AuthService = require('../services/authService');
 const UserModel = require('../models/userModel');
 
-// Aquesta expressió serveix per fer una comprovació bàsica del format del correu electrònic
-// abans d’intentar registrar o validar un usuari.
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Aquesta expressió serveix per fer una comprovació del format del correu electrònic
+// abans d’intentar registrar o validar un usuari. La validació definitiva l'ha de fer
+// l'enviament real del correu, però aquesta primera barrera bloqueja entrades
+// clarament invàlides com cadenes sense @, sense domini o amb caràcters prohibits.
+// Es requereix:
+//   - una part local amb caràcters habituals (lletres, dígits, punt i alguns símbols)
+//   - exactament una @
+//   - un domini amb almenys un punt i una extensió de dues lletres com a mínim
+// Aquesta forma cobreix la gran majoria de correus reals sense intentar implementar
+// l'estàndard RFC 5322 complet, que requeriria una llibreria dedicada.
+const EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+const MIN_EMAIL_LENGTH = 5;
 
 // Aquestes constants defineixen els límits de longitud acceptats als camps del registre.
 // Coincideixen amb els tipus definits a la base de dades per evitar errors d'inserció
@@ -47,6 +56,9 @@ const AuthController = {
       }
       if (lastName.length > MAX_LAST_NAME_LENGTH) {
         throw badRequest(`Last name must be at most ${MAX_LAST_NAME_LENGTH} characters long`);
+      }
+      if (email.length < MIN_EMAIL_LENGTH) {
+        throw badRequest(`Email must be at least ${MIN_EMAIL_LENGTH} characters long`);
       }
       if (email.length > MAX_EMAIL_LENGTH) {
         throw badRequest(`Email must be at most ${MAX_EMAIL_LENGTH} characters long`);

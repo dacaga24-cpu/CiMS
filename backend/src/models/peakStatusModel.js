@@ -1,5 +1,13 @@
 const pool = require('../config/db');
 
+// Aquest mètode converteix un valor "truthy/falsy" en l'enter 1 o 0 que MySQL
+// utilitza per emmagatzemar booleans. Centralitzar-ho aquí evita que la mateixa
+// lògica es repeteixi a cada operació d'inserció o d'actualització i garanteix
+// un tractament uniforme de la coerció.
+function coerceBool(value) {
+  return value ? 1 : 0;
+}
+
 // Aquest model centralitza l'accés a les dades de l'estat personal que
 // cada usuari manté sobre els cims (completat, objectiu, preferit).
 // La seva funció és exposar les operacions bàsiques sobre la taula
@@ -54,18 +62,18 @@ const PeakStatusModel = {
             const [result] = await pool.execute(sql, [
                 userId,
                 peakId,
-                isCompleted ? 1 : 0,
-                isTarget ? 1 : 0,
-                isFavorite ? 1 : 0,
+                coerceBool(isCompleted),
+                coerceBool(isTarget),
+                coerceBool(isFavorite),
             ]);
 
             return {
                 id: result.insertId,
                 user_id: userId,
                 peak_id: peakId,
-                is_completed: isCompleted ? 1 : 0,
-                is_target: isTarget ? 1 : 0,
-                is_favorite: isFavorite ? 1 : 0,
+                is_completed: coerceBool(isCompleted),
+                is_target: coerceBool(isTarget),
+                is_favorite: coerceBool(isFavorite),
             };
         } catch (err) {
             if (err && err.code === 'ER_DUP_ENTRY') {
@@ -87,17 +95,17 @@ const PeakStatusModel = {
 
         if (isCompleted !== undefined) {
             fields.push('is_completed = ?');
-            params.push(isCompleted ? 1 : 0);
+            params.push(coerceBool(isCompleted));
         }
 
         if (isTarget !== undefined) {
             fields.push('is_target = ?');
-            params.push(isTarget ? 1 : 0);
+            params.push(coerceBool(isTarget));
         }
 
         if (isFavorite !== undefined) {
             fields.push('is_favorite = ?');
-            params.push(isFavorite ? 1 : 0);
+            params.push(coerceBool(isFavorite));
         }
 
         // Si no hi ha cap flag a modificar es retorna 0 sense tocar la base de
