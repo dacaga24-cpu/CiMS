@@ -1,4 +1,10 @@
 const AscentModel = require('../models/ascentModel');
+
+// Aquest servei permet mantenir sincronitzat l'estat personal del cim.
+// Quan un usuari registra una ascensió, el cim també ha de quedar marcat
+// com a assolit dins del seu estat personal.
+const PeakStatusService = require('./peakStatusService');
+
 const {
   badRequest,
   requireInteger,
@@ -55,12 +61,21 @@ const AscentService = {
     const parsedDate = requireIsoDate(ascentDate, 'ascentDate');
     const validatedNotes = ensureValidNotes(notes);
 
-    return AscentModel.create({
+    const ascent = await AscentModel.create({
       userId,
       peakId: parsedPeakId,
       ascentDate: parsedDate,
       notes: validatedNotes ?? null,
     });
+
+    // Registrar una ascensió implica que l'usuari ha assolit aquell cim.
+    // Per això, després de guardar l'ascensió, també s'actualitza el seu
+    // estat personal perquè el cim aparegui com a completat.
+    await PeakStatusService.upsertPeakStatus(userId, parsedPeakId, {
+      isCompleted: true,
+    });
+
+    return ascent;
   },
 
   // Actualitza els camps indicats d'una ascensió existent. Cal que l'ascensió
@@ -101,6 +116,15 @@ const AscentService = {
     // una idempotència trivial.
     if (Object.keys(payload).length > 0) {
       await AscentModel.updateByIdAndUserId(userId, parsedAscentId, payload);
+    }
+
+    // Si una ascensió es reassigna a un altre cim, el nou cim també ha de
+    // quedar marcat com a assolit per mantenir coherent l'historial de
+    // l'usuari amb l'estat personal dels seus cims.
+    if (payload.peakId !== undefined) {
+      await PeakStatusService.upsertPeakStatus(userId, payload.peakId, {
+        isCompleted: true,
+      });
     }
 
     return AscentModel.findByIdAndUserId(userId, parsedAscentId);
