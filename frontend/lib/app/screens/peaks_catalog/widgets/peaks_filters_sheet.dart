@@ -1,12 +1,14 @@
-import 'package:cims/app/screens/peaks_catalog/peaks_catalog_controller.dart';
-import 'package:cims/app/widgets/buttons/primary_gradient_button.dart';
-import 'package:cims/app/widgets/buttons/secondary_pill_button.dart';
+import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
+import 'package:cims/app/screens/peaks_catalog/widgets/peaks_altitude_range_fields.dart';
+import 'package:cims/app/screens/peaks_catalog/widgets/peaks_filters_actions.dart';
+import 'package:cims/app/screens/peaks_catalog/widgets/peaks_region_filter_field.dart';
+import 'package:cims/app/screens/peaks_catalog/widgets/peaks_status_filter_section.dart';
 import 'package:cims/core/entity/region.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget mostra el panell de filtres del catàleg.
 // S’obre com un bottom sheet i permet filtrar per comarca,
-// rang d’altura i estat personal sense perdre de vista el llistat del darrere.
+// rang d’altitud i estat personal sense perdre de vista el llistat del darrere.
 class PeaksFiltersSheet extends StatefulWidget {
   const PeaksFiltersSheet({
     super.key,
@@ -39,7 +41,7 @@ class PeaksFiltersSheet extends StatefulWidget {
 }
 
 class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
-  // Aquests controladors mantenen el contingut dels camps d’altura
+  // Aquests controladors mantenen el contingut dels camps d’alttitud
   // mentre l’usuari interactua amb el formulari.
   late final TextEditingController _minAltitudeController;
   late final TextEditingController _maxAltitudeController;
@@ -63,7 +65,7 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     );
   }
 
-  // Aquest mètode converteix el text introduït en una altura numèrica.
+  // Aquest mètode converteix el text introduït en una altitud numèrica.
   // Si el camp està buit o no és vàlid, retorna null per indicar que no s’aplica aquest filtre.
   int? _parseAltitude(String value) {
     final trimmedValue = value.trim();
@@ -117,7 +119,7 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
   }
 
   // Aquest mètode construeix el contingut visual del panell de filtres.
-  // Agrupa els filtres per comarca, altura i estat personal en un únic formulari.
+  // Agrupa els filtres per comarca, altitud i estat personal en un únic formulari.
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -161,155 +163,33 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
                       style: theme.textTheme.titleLarge,
                     ),
                     const SizedBox(height: 16),
-
-                    // Aquest desplegable permet filtrar el catàleg per comarca.
-                    // L’estil visual principal ja s’hereta del tema global de l’aplicació.
-                    DropdownButtonFormField<int?>(
-                      initialValue: _selectedRegionId,
-                      items: [
-                        const DropdownMenuItem<int?>(
-                          value: null,
-                          child: Text('Totes les comarques'),
-                        ),
-                        ...widget.availableRegions.map(
-                          (region) => DropdownMenuItem<int?>(
-                            value: region.id,
-                            child: Text(region.name),
-                          ),
-                        ),
-                      ],
-                      decoration: const InputDecoration(
-                        labelText: 'Comarca',
-                      ),
+                    PeaksRegionFilterField(
+                      availableRegions: widget.availableRegions,
+                      selectedRegionId: _selectedRegionId,
                       onChanged: (value) {
                         setState(() {
                           _selectedRegionId = value;
                         });
                       },
                     ),
-
                     const SizedBox(height: 16),
-
-                    // Aquest bloc mostra el rang d’altura mínim i màxim.
-                    // Els camps mantenen l’estil comú dels formularis gràcies a l’AppTheme.
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _minAltitudeController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Altura mínima',
-                              suffixText: 'm',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: _maxAltitudeController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Altura màxima',
-                              suffixText: 'm',
-                            ),
-                          ),
-                        ),
-                      ],
+                    PeaksAltitudeRangeFields(
+                      minAltitudeController: _minAltitudeController,
+                      maxAltitudeController: _maxAltitudeController,
                     ),
-
                     const SizedBox(height: 20),
-
-                    // Aquest bloc permet filtrar els cims segons l’estat personal
-                    // que l’usuari ha assignat a cada cim.
-                    const Text(
-                      'Estat personal',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF17212B),
-                      ),
+                    PeaksStatusFilterSection(
+                      selectedStatusFilter: _selectedStatusFilter,
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedStatusFilter = value;
+                        });
+                      },
                     ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _StatusFilterChip(
-                          label: 'Tots',
-                          isSelected:
-                              _selectedStatusFilter == PeakStatusFilter.none,
-                          onTap: () {
-                            setState(() {
-                              _selectedStatusFilter = PeakStatusFilter.none;
-                            });
-                          },
-                        ),
-                        _StatusFilterChip(
-                          label: 'Pendents',
-                          isSelected:
-                              _selectedStatusFilter == PeakStatusFilter.pending,
-                          onTap: () {
-                            setState(() {
-                              _selectedStatusFilter = PeakStatusFilter.pending;
-                            });
-                          },
-                        ),
-                        _StatusFilterChip(
-                          label: 'Completats',
-                          isSelected: _selectedStatusFilter ==
-                              PeakStatusFilter.completed,
-                          onTap: () {
-                            setState(() {
-                              _selectedStatusFilter =
-                                  PeakStatusFilter.completed;
-                            });
-                          },
-                        ),
-                        _StatusFilterChip(
-                          label: 'Objectius',
-                          isSelected:
-                              _selectedStatusFilter == PeakStatusFilter.target,
-                          onTap: () {
-                            setState(() {
-                              _selectedStatusFilter = PeakStatusFilter.target;
-                            });
-                          },
-                        ),
-                        _StatusFilterChip(
-                          label: 'Preferits',
-                          isSelected: _selectedStatusFilter ==
-                              PeakStatusFilter.favorite,
-                          onTap: () {
-                            setState(() {
-                              _selectedStatusFilter =
-                                  PeakStatusFilter.favorite;
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-
                     const SizedBox(height: 20),
-
-                    // Aquest bloc mostra les accions principals del panell:
-                    // netejar filtres o aplicar-los al catàleg.
-                    Row(
-                      children: [
-                        Expanded(
-                          child: SecondaryPillButton(
-                            label: 'Neteja',
-                            onPressed: _handleClear,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: PrimaryGradientButton(
-                            label: 'Aplica',
-                            onPressed: _handleApply,
-                          ),
-                        ),
-                      ],
+                    PeaksFiltersActions(
+                      onClear: _handleClear,
+                      onApply: _handleApply,
                     ),
                   ],
                 ),
@@ -317,45 +197,6 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-// Aquest widget intern representa una opció de filtre d’estat.
-// Manté el bottom sheet net i reutilitza el mateix estil per totes les opcions.
-class _StatusFilterChip extends StatelessWidget {
-  const _StatusFilterChip({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  // Aquestes propietats defineixen el text, l’estat visual
-  // i l’acció que s’executa quan l’usuari selecciona una opció.
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  // Aquest mètode construeix una opció seleccionable del filtre d’estat.
-  // L’aspecte canvia segons si l’opció està activa o no.
-  @override
-  Widget build(BuildContext context) {
-    final color =
-        isSelected ? const Color(0xFF0B57D0) : const Color(0xFFE5E7EB);
-
-    return ChoiceChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (_) => onTap(),
-      selectedColor: color.withValues(alpha: 0.14),
-      backgroundColor: const Color(0xFFF8FAFC),
-      labelStyle: TextStyle(
-        color: isSelected ? const Color(0xFF0B57D0) : const Color(0xFF4B5563),
-        fontWeight: FontWeight.w700,
-      ),
-      side: BorderSide(
-        color: color,
       ),
     );
   }

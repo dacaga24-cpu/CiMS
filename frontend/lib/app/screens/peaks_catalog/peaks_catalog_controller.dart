@@ -5,6 +5,7 @@ import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/peak.dart';
 import 'package:cims/core/entity/peak_status.dart';
 import 'package:cims/core/entity/region.dart';
+import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
 import 'package:cims/core/usecase/get_peaks_usecase.dart';
 import 'package:cims/core/usecase/get_regions_usecase.dart';
 import 'package:cims/core/usecase/get_user_peak_statuses_usecase.dart';
@@ -15,16 +16,6 @@ import 'package:flutter/material.dart';
 enum PeaksCatalogDestination {
   none,
   peakDetail,
-}
-
-// Aquest enum defineix els filtres disponibles segons l’estat personal del cim.
-// Aquests filtres s’apliquen localment sobre els cims ja carregats.
-enum PeakStatusFilter {
-  none,
-  pending,
-  completed,
-  target,
-  favorite,
 }
 
 // Aquest controlador gestiona l’estat local de la pantalla del catàleg.
@@ -287,8 +278,8 @@ class PeaksCatalogController extends ChangeNotifier {
     );
   }
 
-  // Aquest mètode prepara la navegació al detall del cim seleccionat.
-  // El detall complet arribarà en una altra tasca, però la navegació ja queda connectada.
+  // Aquest mètode prepara la navegació cap al detall del cim seleccionat.
+  // La pantalla consumirà aquest destí i obrirà la vista corresponent.
   void onPeakTap(Peak peak) {
     _selectedPeakId = peak.id;
     _destination = PeaksCatalogDestination.peakDetail;
