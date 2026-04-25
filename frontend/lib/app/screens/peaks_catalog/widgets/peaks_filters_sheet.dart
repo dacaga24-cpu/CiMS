@@ -41,7 +41,7 @@ class PeaksFiltersSheet extends StatefulWidget {
 }
 
 class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
-  // Aquests controladors mantenen el contingut dels camps d’alttitud
+  // Aquests controladors mantenen el contingut dels camps d’altitud
   // mentre l’usuari interactua amb el formulari.
   late final TextEditingController _minAltitudeController;
   late final TextEditingController _maxAltitudeController;
