@@ -9,6 +9,9 @@ class PrimaryGradientButton extends StatelessWidget {
     required this.onPressed,
     this.isLoading = false,
     this.icon,
+    this.height = 54,
+    this.fontSize = 20,
+    this.iconSize = 20,
   });
 
   // Aquest bloc recull la informació bàsica del botó:
@@ -17,13 +20,16 @@ class PrimaryGradientButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool isLoading;
   final IconData? icon;
+  final double height;
+  final double fontSize;
+  final double iconSize;
 
   // Aquest mètode construeix el botó principal amb degradat i indicador de càrrega.
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 54,
+      height: height,
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(28),
@@ -69,8 +75,8 @@ class PrimaryGradientButton extends StatelessWidget {
                   children: [
                     Text(
                       label,
-                      style: const TextStyle(
-                        fontSize: 20,
+                      style: TextStyle(
+                        fontSize: fontSize,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),
@@ -80,7 +86,7 @@ class PrimaryGradientButton extends StatelessWidget {
                       Icon(
                         icon,
                         color: Colors.white,
-                        size: 20,
+                        size: iconSize,
                       ),
                     ],
                   ],

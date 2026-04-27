@@ -19,7 +19,6 @@ class PeakDetailBottomAction extends StatelessWidget {
       minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: PrimaryGradientButton(
         label: 'Registrar ascensió',
-        icon: Icons.north_east_rounded,
         onPressed: onPressed,
       ),
     );

@@ -43,6 +43,18 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
     _initializeController();
   }
 
+  // Obre la pantalla de mapa amb el cim actual seleccionat.
+  // Així el mapa es carrega centrat en el marcador del cim.
+  Future<void> _openPeakMap(int peakId) async {
+    await context.router.root.replaceAll([
+      MainNavigationRoute(
+        children: [
+          PeaksMapRoute(initialPeakId: peakId),
+        ],
+      ),
+    ]);
+  }
+
   // Aquest mètode crea el controller de manera segura.
   // Si falla la inicialització, la pantalla no peta i deixa visible
   // un missatge d’error per poder detectar millor el problema real.
@@ -76,12 +88,21 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
     switch (controller.destination) {
       case PeakDetailDestination.none:
         return;
+
       case PeakDetailDestination.openMap:
+        final peak = controller.peak;
         controller.consumeNavigation();
-        _showInfoMessage(
-          'La connexió directa amb el mapa del cim encara està pendent d\'integrar.',
-        );
+
+        if (peak == null || !peak.hasMapPosition) {
+          _showInfoMessage(
+            'No s\'ha pogut obrir la ubicació del cim.',
+          );
+          return;
+        }
+
+        _openPeakMap(peak.id);
         return;
+
       case PeakDetailDestination.registerAscent:
         final peak = controller.peak;
         controller.consumeNavigation();
@@ -259,7 +280,7 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
           const SizedBox(height: 18),
           PeakDetailMapCard(
             peak: peak,
-            onTap: controller.onMapTap,
+            onTap: () => _openPeakMap(peak.id),
           ),
         ],
       ),

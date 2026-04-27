@@ -186,18 +186,48 @@ class PeaksCatalogRoute extends PageRouteInfo<void> {
 
 /// generated route for
 /// [PeaksMapScreen]
-class PeaksMapRoute extends PageRouteInfo<void> {
-  const PeaksMapRoute({List<PageRouteInfo>? children})
-      : super(PeaksMapRoute.name, initialChildren: children);
+class PeaksMapRoute extends PageRouteInfo<PeaksMapRouteArgs> {
+  PeaksMapRoute({Key? key, int? initialPeakId, List<PageRouteInfo>? children})
+      : super(
+          PeaksMapRoute.name,
+          args: PeaksMapRouteArgs(key: key, initialPeakId: initialPeakId),
+          initialChildren: children,
+        );
 
   static const String name = 'PeaksMapRoute';
 
   static PageInfo page = PageInfo(
     name,
     builder: (data) {
-      return const PeaksMapScreen();
+      final args = data.argsAs<PeaksMapRouteArgs>(
+        orElse: () => const PeaksMapRouteArgs(),
+      );
+      return PeaksMapScreen(key: args.key, initialPeakId: args.initialPeakId);
     },
   );
+}
+
+class PeaksMapRouteArgs {
+  const PeaksMapRouteArgs({this.key, this.initialPeakId});
+
+  final Key? key;
+
+  final int? initialPeakId;
+
+  @override
+  String toString() {
+    return 'PeaksMapRouteArgs{key: $key, initialPeakId: $initialPeakId}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! PeaksMapRouteArgs) return false;
+    return key == other.key && initialPeakId == other.initialPeakId;
+  }
+
+  @override
+  int get hashCode => key.hashCode ^ initialPeakId.hashCode;
 }
 
 /// generated route for

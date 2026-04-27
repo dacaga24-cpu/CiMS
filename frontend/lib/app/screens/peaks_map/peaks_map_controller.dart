@@ -25,9 +25,9 @@ enum PeaksMapDestination {
 // d’un cim i prepara la navegació cap al detall sense dependre de la UI.
 class PeaksMapController extends ChangeNotifier {
   // Aquest constructor prepara les dependències necessàries per carregar el mapa.
-  // Permet injectar casos d’ús externs en proves o reutilitzar els valors reals
-  // de l’aplicació quan no se n’indica cap.
+  // També permet rebre un cim inicial quan la pantalla s’obre des del detall.
   PeaksMapController({
+    this.initialPeakId,
     GetPeaksUseCase? getPeaksUseCase,
     GetRegionsUseCase? getRegionsUseCase,
     GetUserPeakStatusesUseCase? getUserPeakStatusesUseCase,
@@ -43,6 +43,9 @@ class PeaksMapController extends ChangeNotifier {
 
     _peakStatusStore.addListener(_onStoreChanged);
   }
+
+  // Identificador opcional del cim que s’ha de seleccionar en obrir el mapa.
+  final int? initialPeakId;
 
   // Aquests casos d’ús concentren les operacions de dades que necessita el mapa.
   // El controller els utilitza per obtenir cims, regions i estats personals
@@ -79,6 +82,7 @@ class PeaksMapController extends ChangeNotifier {
   // Evita actualitzacions després de destruir la pantalla, regula la cerca
   // i descarta respostes antigues quan hi ha diverses càrregues en curs.
   bool _disposed = false;
+  bool _hasAppliedInitialPeak = false;
   Timer? _searchDebounce;
   int _loadRequestId = 0;
   int? _selectedPeakId;
@@ -331,6 +335,7 @@ class PeaksMapController extends ChangeNotifier {
 
       _loadedPeaks = loadedPeaks;
       _applyLocalFilters();
+      _applyInitialPeakSelection();
     } on ApiException catch (error) {
       if (_disposed || requestId != _loadRequestId) {
         return;
@@ -388,6 +393,36 @@ class PeaksMapController extends ChangeNotifier {
     }
   }
 
+  // Aplica la selecció inicial quan la pantalla s’obre des del detall d’un cim.
+  // Només s’executa una vegada per evitar reobrir la targeta en cada reconstrucció.
+  void _applyInitialPeakSelection() {
+    if (_hasAppliedInitialPeak || initialPeakId == null) {
+      return;
+    }
+
+    _hasAppliedInitialPeak = true;
+
+    final peak = _findPeakById(initialPeakId!);
+
+    if (peak == null || !peak.hasMapPosition) {
+      return;
+    }
+
+    selectedPeak = peak;
+  }
+
+  // Busca un cim dins del llistat carregat.
+  // Es fa servir per connectar la navegació des del detall amb la pantalla de mapa.
+  Peak? _findPeakById(int peakId) {
+    for (final peak in peaks) {
+      if (peak.id == peakId) {
+        return peak;
+      }
+    }
+
+    return null;
+  }
+
   // Manté la selecció del cim coherent amb la llista filtrada.
   // Si el cim seleccionat ja no és visible pels filtres actuals, es deselecciona.
   void _syncSelectedPeak() {
@@ -404,6 +439,17 @@ class PeaksMapController extends ChangeNotifier {
     }
 
     selectedPeak = null;
+  }
+
+  // Aquest mètode neteja el cim seleccionat al mapa.
+  // S'utilitza quan l'usuari toca una zona buida del mapa i vol tancar la targeta flotant.
+  void clearSelectedPeak() {
+    if (selectedPeak == null) {
+      return;
+    }
+
+    selectedPeak = null;
+    notifyListeners();
   }
 
   // Reacciona als canvis globals dels estats dels cims.

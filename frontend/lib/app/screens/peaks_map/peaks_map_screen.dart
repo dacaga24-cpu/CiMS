@@ -9,11 +9,16 @@ import 'package:cims/app/screens/peaks_map/widgets/peaks_map_content.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta pantalla mostra el mapa de cims de l’aplicació.
-// En aquesta primera versió prepara el flux funcional complet i deixa
-// l’espai del mapa preparat per substituir-lo pel component real de Google Maps.
+// Permet consultar els cims sobre Google Maps, aplicar cerca i filtres,
+// i obrir el detall d’un cim seleccionat.
 @RoutePage()
 class PeaksMapScreen extends StatefulWidget {
-  const PeaksMapScreen({super.key});
+  const PeaksMapScreen({
+    super.key,
+    this.initialPeakId,
+  });
+
+  final int? initialPeakId;
 
   @override
   State<PeaksMapScreen> createState() => _PeaksMapScreenState();
@@ -29,12 +34,14 @@ class _PeaksMapScreenState extends State<PeaksMapScreen> {
   // Inicialitza el controller quan es crea la pantalla.
   // També registra l’escolta de canvis i inicia la càrrega de dades del mapa.
   @override
-  void initState() {
-    super.initState();
-    controller = PeaksMapController()
-      ..addListener(_handleControllerChanges)
-      ..initialize();
-  }
+void initState() {
+  super.initState();
+  controller = PeaksMapController(
+    initialPeakId: widget.initialPeakId,
+  )
+    ..addListener(_handleControllerChanges)
+    ..initialize();
+}
 
   // Reacciona als canvis del controller que afecten la navegació.
   // Quan hi ha un cim seleccionat per obrir, consumeix l’acció i envia l’usuari al detall.
@@ -137,10 +144,12 @@ class _PeaksMapScreenState extends State<PeaksMapScreen> {
                     selectedPeak: controller.selectedPeak,
                     currentSearch: controller.currentSearch,
                     hasActiveFilters: controller.hasActiveFilters,
+                    selectedStatusFilter: controller.selectedStatusFilter,
                     onRefresh: controller.onRetryTap,
                     onRetryTap: controller.onRetryTap,
                     onPeakTap: controller.onPeakSelected,
                     onSelectedPeakDetailTap: controller.onSelectedPeakDetailTap,
+                    onMapTap: controller.clearSelectedPeak,
                   ),
                 ),
               ],
