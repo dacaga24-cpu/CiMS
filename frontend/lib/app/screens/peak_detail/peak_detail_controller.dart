@@ -4,6 +4,7 @@ import 'package:cims/core/entity/peak.dart';
 import 'package:cims/core/entity/peak_status.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:cims/core/store/peak_status_store.dart';
+import 'package:cims/core/usecase/get_ascents_by_peak_usecase.dart';
 import 'package:cims/core/usecase/get_peak_by_id_usecase.dart';
 import 'package:cims/core/usecase/get_peak_status_usecase.dart';
 import 'package:cims/core/usecase/update_peak_status_usecase.dart';
@@ -18,23 +19,23 @@ enum PeakDetailDestination {
 }
 
 // Aquest controller gestiona l’estat de la pantalla de detall del cim.
-// Carrega la informació principal del Peak i exposa l’estat personal que
-// l'usuari té assignat al cim, llegit del PeakStatusStore compartit.
+// Carrega la informació principal del Peak, l’estat personal de l’usuari
+// i les ascensions registrades per poder mostrar dades com l’últim ascens.
 //
 // Les accions sobre l'estat (objectiu, completat, preferit) apliquen un
 // canvi optimista al store: la interfície es refresca immediatament i, si
-// la petició al backend falla, el valor anterior es restaura. Això elimina
-// el retard visible entre el clic i la resposta del servidor.
+// la petició al backend falla, el valor anterior es restaura.
 class PeakDetailController extends ChangeNotifier {
   // Aquest constructor rep l’identificador del cim que s’ha de carregar
   // i prepara els casos d’ús responsables de recuperar-ne el detall,
-  // consultar-ne l’estat personal i actualitzar-lo.
+  // consultar-ne l’estat personal, actualitzar-lo i llegir les ascensions.
   factory PeakDetailController({
     required int peakId,
     ApiClient? apiClient,
     GetPeakByIdUseCase? getPeakByIdUseCase,
     GetPeakStatusUseCase? getPeakStatusUseCase,
     UpdatePeakStatusUseCase? updatePeakStatusUseCase,
+    GetAscentsByPeakUseCase? getAscentsByPeakUseCase,
     PeakStatusStore? peakStatusStore,
   }) {
     final resolvedApiClient = apiClient ?? ApiClientImpl();
@@ -49,6 +50,8 @@ class PeakDetailController extends ChangeNotifier {
           getPeakStatusUseCase ?? GetPeakStatusUseCase(resolvedApiClient),
       updatePeakStatusUseCase:
           updatePeakStatusUseCase ?? UpdatePeakStatusUseCase(resolvedApiClient),
+      getAscentsByPeakUseCase:
+          getAscentsByPeakUseCase ?? GetAscentsByPeakUseCase(resolvedApiClient),
       peakStatusStore: peakStatusStore ?? AppSession.peakStatusStore,
     );
   }
@@ -60,10 +63,12 @@ class PeakDetailController extends ChangeNotifier {
     required GetPeakByIdUseCase getPeakByIdUseCase,
     required GetPeakStatusUseCase getPeakStatusUseCase,
     required UpdatePeakStatusUseCase updatePeakStatusUseCase,
+    required GetAscentsByPeakUseCase getAscentsByPeakUseCase,
     required PeakStatusStore peakStatusStore,
   })  : _getPeakByIdUseCase = getPeakByIdUseCase,
         _getPeakStatusUseCase = getPeakStatusUseCase,
         _updatePeakStatusUseCase = updatePeakStatusUseCase,
+        _getAscentsByPeakUseCase = getAscentsByPeakUseCase,
         _peakStatusStore = peakStatusStore {
     // El controller s'enganxa al store per propagar els canvis fets per
     // qualsevol altra pantalla a la vista del detall.
@@ -76,6 +81,7 @@ class PeakDetailController extends ChangeNotifier {
   final GetPeakByIdUseCase _getPeakByIdUseCase;
   final GetPeakStatusUseCase _getPeakStatusUseCase;
   final UpdatePeakStatusUseCase _updatePeakStatusUseCase;
+  final GetAscentsByPeakUseCase _getAscentsByPeakUseCase;
   final PeakStatusStore _peakStatusStore;
 
   // Aquest bloc representa l’estat visible de la pantalla.
@@ -84,7 +90,9 @@ class PeakDetailController extends ChangeNotifier {
   bool isUpdatingStatus = false;
   String? errorMessage;
   String? statusErrorMessage;
+  String? ascentsErrorMessage;
   Peak? peak;
+  DateTime? lastAscentDate;
 
   // L'estat personal del cim no es guarda aquí: es llegeix sempre del store
   // compartit per garantir que cap còpia local el desincronitzi.
@@ -141,8 +149,7 @@ class PeakDetailController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Aquesta acció deixa preparada la futura navegació
-  // cap al registre d’una ascensió.
+  // Aquesta acció deixa preparada la navegació cap al registre d’una ascensió.
   void onRegisterAscentTap() {
     _destination = PeakDetailDestination.registerAscent;
     notifyListeners();
@@ -153,13 +160,41 @@ class PeakDetailController extends ChangeNotifier {
     _destination = PeakDetailDestination.none;
   }
 
-  // Aquest bloc centralitza la càrrega real del cim i del seu estat personal.
-  // L'estat carregat es bolca al store compartit perquè qualsevol altra
-  // pantalla que el necessiti el vegi sense haver de fer una nova petició.
+  // Aquest mètode recupera les ascensions personals de l’usuari sobre aquest cim.
+  // La data més recent es guarda per mostrar-la a la capçalera del detall.
+  Future<void> refreshLastAscentDate() async {
+    try {
+      final ascents = await _getAscentsByPeakUseCase(peakId);
+
+      if (_disposed) {
+        return;
+      }
+
+      lastAscentDate = ascents.isEmpty ? null : ascents.first.ascentDate;
+      ascentsErrorMessage = null;
+      notifyListeners();
+    } on ApiException catch (error) {
+      if (_disposed) {
+        return;
+      }
+
+      ascentsErrorMessage = error.message;
+    } catch (_) {
+      if (_disposed) {
+        return;
+      }
+
+      ascentsErrorMessage = 'No s\'han pogut carregar les ascensions del cim';
+    }
+  }
+
+  // Aquest bloc centralitza la càrrega real del cim, del seu estat personal
+  // i de l’última ascensió registrada per l’usuari.
   Future<void> _loadPeak() async {
     isLoading = true;
     errorMessage = null;
     statusErrorMessage = null;
+    ascentsErrorMessage = null;
 
     if (!_disposed) {
       notifyListeners();
@@ -174,6 +209,7 @@ class PeakDetailController extends ChangeNotifier {
 
       peak = loadedPeak;
       await _refreshPeakStatusFromBackend();
+      await refreshLastAscentDate();
     } on ApiException catch (error) {
       if (_disposed) {
         return;
@@ -219,8 +255,7 @@ class PeakDetailController extends ChangeNotifier {
   // Aquest mètode actualitza l’estat personal del cim al backend amb una
   // estratègia optimista: primer s'aplica el canvi al store perquè la UI
   // respongui a l'instant, i només si el backend rebutja la petició es
-  // restaura el valor anterior. Així s'elimina la sensació de retard quan
-  // la connexió és lenta.
+  // restaura el valor anterior.
   Future<void> _updateStatus({
     bool? isCompleted,
     bool? isTarget,
@@ -255,8 +290,8 @@ class PeakDetailController extends ChangeNotifier {
         return;
       }
 
-      // La resposta del backend és la versió canònica (inclou id, user_id,
-      // etc.) i substitueix l'optimista al store.
+      // La resposta del backend és la versió canònica i substitueix
+      // l'estat optimista al store compartit.
       _peakStatusStore.setStatus(updatedStatus);
     } on ApiException catch (error) {
       if (_disposed) {
@@ -280,23 +315,21 @@ class PeakDetailController extends ChangeNotifier {
     }
   }
 
-  // Aquest mètode reverteix el store al valor que tenia abans del canvi
-  // optimista. Si abans no hi havia cap registre, es deixa l'estat actual
-  // tal com està (igual que abans del clic) per evitar deixar entrades
-  // fantasma al store que no existeixen al backend.
+  // Aquest mètode reverteix el store al valor que tenia abans del canvi optimista.
+  // Si abans no hi havia cap registre, no força cap estat nou.
   void _restorePreviousStatus(PeakStatus? previousStatus) {
     if (previousStatus != null) {
       _peakStatusStore.setStatus(previousStatus);
     }
   }
 
-  // Quan el store canvia per qualsevol motiu (per exemple, un altre punt
-  // de l'app modifica l'estat del mateix cim), la pantalla es refresca
+  // Quan el store canvia per qualsevol motiu, la pantalla es refresca
   // perquè els indicadors d'estat reflecteixin el valor nou.
   void _onStoreChanged() {
     if (_disposed) {
       return;
     }
+
     notifyListeners();
   }
 

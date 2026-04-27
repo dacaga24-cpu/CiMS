@@ -8,6 +8,7 @@ import 'package:cims/app/screens/peak_detail/widgets/peak_detail_error_state.dar
 import 'package:cims/app/screens/peak_detail/widgets/peak_detail_header.dart';
 import 'package:cims/app/screens/peak_detail/widgets/peak_detail_map_card.dart';
 import 'package:cims/app/screens/peak_detail/widgets/peak_detail_status_actions.dart';
+import 'package:cims/core/entity/peak.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta pantalla mostra el detall d’un cim concret.
@@ -66,7 +67,7 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
 
   // Aquest mètode resol les accions globals des de la vista.
   // La navegació real cap al mapa o cap al registre d’ascensió
-  // es completarà en una iteració posterior.
+  // es fa des de la pantalla per mantenir el controller separat del context visual.
   void _handleControllerChanges() {
     final controller = _controller;
 
@@ -92,11 +93,27 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
           return;
         }
 
-        context.router.push(
-          AscentRegisterRoute(peak: peak),
-        );
+        _openAscentRegister(controller, peak);
         return;
     }
+  }
+
+  // Aquest mètode obre el formulari de registre d’ascensió.
+  // Quan l’usuari torna al detall, es refresca la data de l’últim ascens
+  // perquè la capçalera mostri la informació acabada de guardar al backend.
+  Future<void> _openAscentRegister(
+    PeakDetailController controller,
+    Peak peak,
+  ) async {
+    await context.router.push(
+      AscentRegisterRoute(peak: peak),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    await controller.refreshLastAscentDate();
   }
 
   // Aquest mètode mostra un missatge breu a la part inferior
@@ -199,6 +216,7 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
         children: [
           PeakDetailHeader(
             peak: peak,
+            lastAscentDate: controller.lastAscentDate,
           ),
           const SizedBox(height: 18),
           PeakDetailStatusActions(
@@ -214,6 +232,17 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
             const SizedBox(height: 12),
             Text(
               controller.statusErrorMessage!,
+              style: const TextStyle(
+                color: Color(0xFFE84A4A),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          if (controller.ascentsErrorMessage != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              controller.ascentsErrorMessage!,
               style: const TextStyle(
                 color: Color(0xFFE84A4A),
                 fontSize: 13,
