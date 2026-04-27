@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-// Aquest widget mostra la zona reservada per a l’estat personal del cim.
-// La lògica real arribarà quan backend integri PeakStatus.
+// Aquest widget mostra les accions d’estat personal del cim.
+// Permet marcar o desmarcar el cim com a objectiu, completat o preferit
+// a partir de les dades carregades pel controller.
 class PeakDetailStatusActions extends StatelessWidget {
   const PeakDetailStatusActions({
     super.key,
@@ -28,8 +29,7 @@ class PeakDetailStatusActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Aquest bloc construeix la secció d’estat del cim dins la pantalla de detall.
-    // Mostra les tres accions principals i, si encara no estan actives,
-    // informa clarament que aquesta part queda pendent d’integració.
+    // Mostra les tres accions principals i permet modificar-les si estan disponibles.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -46,7 +46,7 @@ class PeakDetailStatusActions extends StatelessWidget {
           label: 'Objectiu',
           icon: Icons.flag_rounded,
           isActive: isTarget,
-          color: const Color(0xFF0E63F4),
+          color: const Color(0xFFF97316),
           onTap: areActionsEnabled ? onTargetTap : null,
         ),
         const SizedBox(height: 12),
@@ -65,10 +65,13 @@ class PeakDetailStatusActions extends StatelessWidget {
           color: const Color(0xFFE84A4A),
           onTap: areActionsEnabled ? onFavoriteTap : null,
         ),
+
+        // Aquest missatge informa l’usuari que les accions estan temporalment bloquejades
+        // mentre es carrega o s’actualitza l’estat del cim.
         if (!areActionsEnabled) ...[
           const SizedBox(height: 12),
           const Text(
-            'Aquesta part quedarà connectada quan backend integri PeakStatus.', //TODO: Reemplaçar aquest missatge quan es conegui el motiu de la falta d’integració (ex. funcionalitat pendent, dependència externa, etc.).
+            'Actualitzant l’estat del cim...',
             style: TextStyle(
               fontSize: 13,
               height: 1.35,
@@ -105,7 +108,7 @@ class _PeakStatusButton extends StatelessWidget {
     final isEnabled = onTap != null;
 
     // Aquest bloc adapta l’aspecte del botó segons el seu estat actual:
-    // actiu, disponible per interactuar o encara desactivat.
+    // actiu, disponible per interactuar o temporalment desactivat.
     final backgroundColor = isActive
         ? color
         : isEnabled

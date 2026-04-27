@@ -1,25 +1,30 @@
+import 'package:cims/app/screens/peaks_catalog/widgets/peaks_status_tags.dart';
 import 'package:cims/core/entity/peak.dart';
+import 'package:cims/core/entity/peak_status.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget representa la targeta reutilitzable de cada cim del catàleg.
-// Mostra només la informació essencial d’aquesta iteració: nom, altitud i regions.
+// Mostra la informació essencial del cim i, si existeixen, els seus estats personals.
 class PeakDetailCard extends StatelessWidget {
   const PeakDetailCard({
     super.key,
     required this.peak,
+    this.status,
     this.onTap,
   });
 
-  // Aquest bloc rep les dades del cim que s’han de mostrar
-  // i l’acció opcional que s’executarà quan l’usuari seleccioni la targeta.
+  // Aquest bloc rep les dades del cim, el seu estat personal opcional
+  // i l’acció que s’executarà quan l’usuari seleccioni la targeta.
   final Peak peak;
+  final PeakStatus? status;
   final VoidCallback? onTap;
 
-  // Aquest mètode construeix la targeta visual d’un cim dins del catàleg.
-  // La targeta resumeix la informació principal i deixa preparada la interacció
-  // per accedir més endavant al detall complet del cim.
+  // Aquest mètode construeix la targeta visual del cim dins del catàleg.
+  // Combina les dades bàsiques del cim amb els estats personals de l’usuari.
   @override
   Widget build(BuildContext context) {
+    final currentStatus = status;
+
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(28),
@@ -90,6 +95,15 @@ class PeakDetailCard extends StatelessWidget {
                         ),
                       ],
                     ),
+
+                    // Aquest bloc mostra només els estats personals actius.
+                    // No es mostra l’estat pendent per evitar carregar visualment el catàleg.
+                    if (currentStatus != null && currentStatus.hasAnyStatus) ...[
+                      const SizedBox(height: 12),
+                      PeakStatusTags(
+                        status: currentStatus,
+                      ),
+                    ],
                   ],
                 ),
               ),

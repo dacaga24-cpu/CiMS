@@ -8,7 +8,9 @@ const PeakModel = {
     // Aquest mètode retorna la llista de cims que compleixen els filtres rebuts.
     // Tots els filtres són opcionals i es combinen amb AND,
     // de manera que si no s'especifica cap filtre es retornen tots els cims.
-    async findAll({ regionId, minAltitude, maxAltitude, search } = {}) {
+    // El paràmetre limit és un sostre defensiu definit pel servei per evitar
+    // que una cerca massa permissiva retorni un volum desmesurat de resultats.
+    async findAll({ regionId, minAltitude, maxAltitude, search, limit } = {}) {
 
         // La consulta dels cims i la de les comarques es fan per separat
         // per poder retornar les comarques com una llista d'objectes {id, name},
@@ -58,6 +60,13 @@ const PeakModel = {
         // Es fa un ORDER BY per garantir que els cims es mostren sempre en el mateix ordre,
         // primer per altitud descendent i després per nom ascendent per facilitar la lectura.
         peakSql += ' ORDER BY p.altitude DESC, p.name ASC';
+
+        // El LIMIT s'interpola directament a la consulta perquè mysql2 no suporta
+        // paràmetres preparats per a LIMIT en totes les versions, però el valor
+        // és un enter validat al servei i mai prové de l'usuari directament.
+        if (Number.isInteger(limit) && limit > 0) {
+            peakSql += ` LIMIT ${limit}`;
+        }
 
         const [peakRows] = await pool.execute(peakSql, peakParams);
 

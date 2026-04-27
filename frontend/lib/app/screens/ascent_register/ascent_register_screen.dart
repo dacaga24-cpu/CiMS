@@ -7,9 +7,9 @@ import 'package:cims/app/widgets/buttons/secondary_pill_button.dart';
 import 'package:cims/core/entity/peak.dart';
 import 'package:flutter/material.dart';
 
-// Aquesta pantalla mostra el formulari visual de registre d’una ascensió.
-// En aquesta iteració només cobreix la presentació i la navegació del flux,
-// deixant el desat real per quan backend estigui preparat.
+// Aquesta pantalla mostra el formulari de registre d’una ascensió.
+// Permet revisar el cim seleccionat, introduir la data i les notes,
+// i enviar el registre al backend a través del controller.
 @RoutePage()
 class AscentRegisterScreen extends StatefulWidget {
   const AscentRegisterScreen({
@@ -34,36 +34,39 @@ class _AscentRegisterScreenState extends State<AscentRegisterScreen> {
   void initState() {
     super.initState();
 
-    // Aquí es prepara el controller i s’escolten els seus canvis
+    // Aquí es prepara el controller amb el cim actual i s’escolten els seus canvis
     // per reaccionar des de la vista quan calgui.
-    controller = AscentRegisterController()
-      ..addListener(_handleControllerChanges);
+    controller = AscentRegisterController(
+      peakId: widget.peak.id,
+    )..addListener(_handleControllerChanges);
   }
 
   // Aquest mètode resol les accions globals que el controller comunica a la vista.
   void _handleControllerChanges() {
     if (!mounted) return;
 
+    if (controller.feedback == AscentRegisterFeedback.saved) {
+      controller.consumeFeedback();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ascensió registrada correctament.'),
+        ),
+      );
+    }
+
     if (controller.destination == AscentRegisterNavigationDestination.back) {
       controller.consumeNavigation();
       context.router.pop();
       return;
     }
-
-    if (controller.feedback == AscentRegisterFeedback.pendingSave) {
-      controller.consumeFeedback();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'La pantalla ja està preparada, però el registre real encara no està connectat amb el backend.',
-          ),
-        ),
-      );
-    }
   }
 
   // Aquest mètode obre el selector de calendari i actualitza la data local del formulari.
   Future<void> _selectAscentDate() async {
+    if (controller.isLoading) {
+      return;
+    }
+
     final selectedDate = await showDatePicker(
       context: context,
       initialDate: controller.selectedAscentDate,
@@ -120,6 +123,15 @@ class _AscentRegisterScreenState extends State<AscentRegisterScreen> {
                       controller: controller,
                       onDateTap: _selectAscentDate,
                     ),
+
+                    // Aquest missatge informa de qualsevol error de validació
+                    // o de comunicació amb el backend durant el registre.
+                    if (controller.errorMessage != null) ...[
+                      const SizedBox(height: 16),
+                      _AscentRegisterErrorMessage(
+                        message: controller.errorMessage!,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -135,11 +147,13 @@ class _AscentRegisterScreenState extends State<AscentRegisterScreen> {
               children: [
                 PrimaryGradientButton(
                   label: 'Confirmar',
+                  isLoading: controller.isLoading,
                   onPressed: controller.onConfirmTap,
                 ),
                 const SizedBox(height: 12),
                 SecondaryPillButton(
                   label: 'Cancel·lar',
+                  enabled: !controller.isLoading,
                   onPressed: controller.onCancelTap,
                 ),
               ],
@@ -147,6 +161,39 @@ class _AscentRegisterScreenState extends State<AscentRegisterScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+// Aquest widget mostra els errors generals del formulari.
+// Es manté dins de la pantalla perquè només s’utilitza en aquest flux.
+class _AscentRegisterErrorMessage extends StatelessWidget {
+  const _AscentRegisterErrorMessage({
+    required this.message,
+  });
+
+  // Aquest text conté l’avís que s’ha de mostrar a l’usuari.
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 12,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1F1),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Text(
+        message,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFFE84A4A),
+        ),
+      ),
     );
   }
 }
