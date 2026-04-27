@@ -1,4 +1,4 @@
-import 'package:cims/app/screens/peaks_map/widgets/peaks_map_placeholder.dart';
+import 'package:cims/app/screens/peaks_map/widgets/peaks_google_map.dart';
 import 'package:cims/app/screens/peaks_map/widgets/peaks_map_selected_peak_card.dart';
 import 'package:cims/core/entity/peak.dart';
 import 'package:flutter/material.dart';
@@ -63,7 +63,7 @@ class PeaksMapContent extends StatelessWidget {
               hasActiveFilters: hasActiveFilters,
             )
           else ...[
-            PeaksMapPlaceholder(
+            PeaksGoogleMap(
               peaks: peaks,
               selectedPeak: selectedPeak,
               onPeakTap: onPeakTap,
@@ -149,7 +149,8 @@ class _PeaksMapEmptyState extends StatelessWidget {
     String message = 'Encara no hi ha cims amb ubicació disponible';
 
     if (hasSearch && hasActiveFilters) {
-      message = 'No s\'han trobat cims al mapa amb aquesta cerca i aquests filtres';
+      message =
+          'No s\'han trobat cims al mapa amb aquesta cerca i aquests filtres';
     } else if (hasSearch) {
       message = 'No s\'han trobat cims al mapa per a aquesta cerca';
     } else if (hasActiveFilters) {
