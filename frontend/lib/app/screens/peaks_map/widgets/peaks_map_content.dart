@@ -41,16 +41,16 @@ class PeaksMapContent extends StatelessWidget {
   final VoidCallback onMapTap;
 
   // Construeix el contingut segons l’estat actual del mapa.
-  // Mostra càrrega, error, estat buit o el mapa ocupant tot l’espai disponible.
+  // Si el mapa ja té cims carregats, no es desmunta durant una nova càrrega.
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
+    if (isLoading && peaks.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
 
-    if (errorMessage != null) {
+    if (errorMessage != null && peaks.isEmpty) {
       return RefreshIndicator(
         onRefresh: onRefresh,
         child: ListView(
@@ -82,16 +82,49 @@ class PeaksMapContent extends StatelessWidget {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: PeaksGoogleMap(
-        peaks: peaks,
-        selectedPeak: selectedPeak,
-        onPeakTap: onPeakTap,
-        onSelectedPeakDetailTap: onSelectedPeakDetailTap,
-        onMapTap: onMapTap,
-        statusFilter: selectedStatusFilter,
-      ),
+    return Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: PeaksGoogleMap(
+            peaks: peaks,
+            selectedPeak: selectedPeak,
+            onPeakTap: onPeakTap,
+            onSelectedPeakDetailTap: onSelectedPeakDetailTap,
+            onMapTap: onMapTap,
+            statusFilter: selectedStatusFilter,
+          ),
+        ),
+
+        // Aquesta càrrega flotant evita desmuntar Google Maps mentre s’apliquen filtres.
+        // En web és important perquè reconstruir el mapa complet pot bloquejar la interfície.
+        if (isLoading)
+          Positioned(
+            top: 14,
+            right: 14,
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.94),
+                borderRadius: BorderRadius.circular(21),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x22000000),
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Padding(
+                padding: EdgeInsets.all(10),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.4,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -104,11 +137,9 @@ class _PeaksMapErrorState extends StatelessWidget {
     required this.onRetryTap,
   });
 
-  // Aquest bloc conté el missatge d’error i l’acció per reintentar la càrrega.
   final String message;
   final Future<void> Function() onRetryTap;
 
-  // Construeix l’estat d’error amb una explicació clara i una acció de recuperació.
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -149,12 +180,9 @@ class _PeaksMapEmptyState extends StatelessWidget {
     required this.hasActiveFilters,
   });
 
-  // Aquest bloc permet adaptar el missatge segons el context de la consulta.
-  // Diferencia entre absència de dades, cerca sense resultats o filtres massa restrictius.
   final String currentSearch;
   final bool hasActiveFilters;
 
-  // Construeix l’estat buit amb un missatge entenedor per a l’usuari.
   @override
   Widget build(BuildContext context) {
     final hasSearch = currentSearch.isNotEmpty;

@@ -76,37 +76,45 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     return int.tryParse(trimmedValue);
   }
 
-  // Aquest mètode reinicia tots els filtres visibles del panell i executa
-  // l’acció externa de neteja perquè el catàleg torni al seu estat general.
+  // Aquest mètode reinicia tots els filtres visibles del panell.
+// Primer tanca el panell i després executa la neteja per evitar reconstruir el mapa sota el modal.
   Future<void> _handleClear() async {
     _minAltitudeController.clear();
     _maxAltitudeController.clear();
+
     setState(() {
       _selectedRegionId = null;
       _selectedStatusFilter = PeakStatusFilter.none;
     });
 
-    await widget.onClear();
+    final onClear = widget.onClear;
 
-    if (mounted) {
-      Navigator.of(context).pop();
-    }
+    Navigator.of(context).pop();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      onClear();
+    });
   }
 
-  // Aquest mètode recull els valors seleccionats, els prepara en un format útil
-  // i els envia a la pantalla principal perquè actualitzi el catàleg filtrat.
+// Aquest mètode recull els valors seleccionats i els envia a la pantalla principal.
+// Primer tanca el panell perquè Google Maps no es reconstrueixi mentre el modal encara existeix.
   void _handleApply() {
     final minAltitude = _parseAltitude(_minAltitudeController.text);
     final maxAltitude = _parseAltitude(_maxAltitudeController.text);
-
-    widget.onApply(
-      regionId: _selectedRegionId,
-      minAltitude: minAltitude,
-      maxAltitude: maxAltitude,
-      statusFilter: _selectedStatusFilter,
-    );
+    final selectedRegionId = _selectedRegionId;
+    final selectedStatusFilter = _selectedStatusFilter;
+    final onApply = widget.onApply;
 
     Navigator.of(context).pop();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      onApply(
+        regionId: selectedRegionId,
+        minAltitude: minAltitude,
+        maxAltitude: maxAltitude,
+        statusFilter: selectedStatusFilter,
+      );
+    });
   }
 
   // Aquest mètode allibera els controladors dels camps quan es tanca el panell.

@@ -1,6 +1,7 @@
 import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
 import 'package:cims/app/screens/peaks_map/widgets/peaks_map_marker_factory.dart';
-import 'package:cims/app/widgets/buttons/primary_gradient_button.dart';
+import 'package:cims/app/screens/peaks_map/widgets/peaks_map_selected_peak_card.dart';
+import 'package:cims/app/screens/peaks_map/widgets/peaks_map_summary_badge.dart';
 import 'package:cims/core/entity/peak.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -48,7 +49,11 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
 
   final PeaksMapMarkerFactory _markerFactory = PeaksMapMarkerFactory();
 
-  BitmapDescriptor? _peakMarker;
+  // Aquest mapa guarda una icona preparada per a cada filtre d’estat.
+  // Això evita regenerar o actualitzar icones sobre marcadors que Google Maps Web ja ha eliminat.
+  final Map<PeakStatusFilter, BitmapDescriptor> _markersByFilter = {};
+
+  bool _areMarkersReady = false;
 
   // Retorna només els cims que tenen coordenades disponibles.
   // Això evita intentar crear marcadors amb dades incompletes.
@@ -58,16 +63,12 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
   @override
   void initState() {
     super.initState();
-    _loadMarker();
+    _loadMarkers();
   }
 
   @override
   void didUpdateWidget(covariant PeaksGoogleMap oldWidget) {
     super.didUpdateWidget(oldWidget);
-
-    if (oldWidget.statusFilter != widget.statusFilter) {
-      _loadMarker();
-    }
 
     final previousSelectedId = oldWidget.selectedPeak?.id;
     final currentSelectedId = widget.selectedPeak?.id;
@@ -75,43 +76,30 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
     if (previousSelectedId != currentSelectedId &&
         widget.selectedPeak != null) {
       _centerSelectedPeak();
-      return;
-    }
-
-    if (!_sameVisiblePeaks(oldWidget.peaks, widget.peaks)) {
-      _fitVisiblePeaks();
     }
   }
 
-  // Carrega el marcador circular corresponent al filtre actiu.
-  // El marcador es reutilitza des de la factoria per evitar generar-lo repetidament.
-  Future<void> _loadMarker() async {
-    final currentFilter = widget.statusFilter;
-    final marker = await _markerFactory.markerForFilter(currentFilter);
+  // Carrega totes les icones de marcador una sola vegada.
+  // D’aquesta manera el color pot canviar segons el filtre actiu sense modificar
+  // directament la icona d’un marcador ja existent al mapa web.
+  Future<void> _loadMarkers() async {
+    final markerEntries = await Future.wait(
+      PeakStatusFilter.values.map((filter) async {
+        final marker = await _markerFactory.markerForFilter(filter);
+        return MapEntry(filter, marker);
+      }),
+    );
 
-    if (!mounted || currentFilter != widget.statusFilter) {
+    if (!mounted) {
       return;
     }
 
     setState(() {
-      _peakMarker = marker;
+      _markersByFilter
+        ..clear()
+        ..addEntries(markerEntries);
+      _areMarkersReady = true;
     });
-  }
-
-  // Compara els cims visibles abans i després d’una actualització.
-  // Això permet reajustar la càmera quan canvien la cerca o els filtres.
-  bool _sameVisiblePeaks(List<Peak> previousPeaks, List<Peak> currentPeaks) {
-    final previousIds = previousPeaks
-        .where((peak) => peak.hasMapPosition)
-        .map((peak) => peak.id)
-        .toList();
-
-    final currentIds = currentPeaks
-        .where((peak) => peak.hasMapPosition)
-        .map((peak) => peak.id)
-        .toList();
-
-    return listEquals(previousIds, currentIds);
   }
 
   // Guarda el controller del mapa quan Google Maps ja està carregat.
@@ -240,16 +228,18 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
   }
 
   // Converteix els cims visibles en marcadors circulars de Google Maps.
-  // El color del marcador depèn del filtre d’estat aplicat al mapa.
+  // El color depèn del filtre actiu i l'identificador també inclou aquest filtre.
+  // Això permet que un mateix cim pugui aparèixer amb colors diferents segons el filtre,
+  // sense que Google Maps Web intenti actualitzar un marcador eliminat.
   Set<Marker> _buildMarkers() {
-    final markerIcon = _peakMarker ??
+    final markerIcon = _markersByFilter[widget.statusFilter] ??
         BitmapDescriptor.defaultMarkerWithHue(
           BitmapDescriptor.hueAzure,
         );
 
     return _visiblePeaks.map((peak) {
       return Marker(
-        markerId: MarkerId('peak_${peak.id}'),
+        markerId: MarkerId('peak_${peak.id}_${widget.statusFilter.name}'),
         position: LatLng(peak.latitude!, peak.longitude!),
         icon: markerIcon,
         anchor: const Offset(0.5, 0.5),
@@ -272,6 +262,12 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
 
     if (visiblePeaks.isEmpty) {
       return const SizedBox.shrink();
+    }
+
+    if (!_areMarkersReady) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
     }
 
     final mapContent = ClipRRect(
@@ -305,7 +301,7 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
               left: 18,
               right: 18,
               top: 18,
-              child: _SelectedPeakMapCard(
+              child: PeaksMapSelectedPeakCard(
                 peak: widget.selectedPeak!,
                 onDetailTap: widget.onSelectedPeakDetailTap,
               ),
@@ -316,7 +312,7 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
               right: 18,
               bottom: 18,
               child: Center(
-                child: _MapSummaryBadge(
+                child: PeaksMapSummaryBadge(
                   totalPeaks: visiblePeaks.length,
                 ),
               ),
@@ -334,119 +330,6 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
     return SizedBox(
       height: widget.height,
       child: mapContent,
-    );
-  }
-}
-
-// Aquesta targeta mostra el cim seleccionat dins del mateix mapa.
-// Substitueix la targeta inferior externa i manté l’accés directe al detall.
-class _SelectedPeakMapCard extends StatelessWidget {
-  const _SelectedPeakMapCard({
-    required this.peak,
-    required this.onDetailTap,
-  });
-
-  // Aquest bloc rep el cim seleccionat i l’acció per obrir-ne el detall.
-  final Peak peak;
-  final VoidCallback onDetailTap;
-
-  // Construeix una targeta compacta amb la informació principal i el botó d’acció.
-  @override
-  Widget build(BuildContext context) {
-    final regionsText = peak.formattedRegions.isEmpty
-        ? 'Sense comarca informada'
-        : peak.formattedRegions;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.96),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x22000000),
-            blurRadius: 14,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            peak.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF17212B),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${peak.altitude} m · $regionsText',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 13,
-              height: 1.3,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF5B6573),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: SizedBox(
-              width: 118,
-              child: PrimaryGradientButton(
-                label: 'Detall',
-                icon: Icons.open_in_new_rounded,
-                height: 38,
-                fontSize: 15,
-                iconSize: 16,
-                onPressed: onDetailTap,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Aquest element mostra quants cims s’estan representant al mapa.
-// Ajuda l’usuari a entendre el resultat de la cerca i dels filtres aplicats.
-class _MapSummaryBadge extends StatelessWidget {
-  const _MapSummaryBadge({
-    required this.totalPeaks,
-  });
-
-  // Nombre total de cims visibles amb la cerca i els filtres actuals.
-  final int totalPeaks;
-
-  // Mostra una etiqueta informativa sobre el volum de cims representats.
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 10,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Text(
-        '$totalPeaks cims',
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-          color: Color(0xFF17212B),
-        ),
-      ),
     );
   }
 }
