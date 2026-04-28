@@ -18,6 +18,8 @@ class PeaksMapScreen extends StatefulWidget {
     this.initialPeakId,
   });
 
+  // Identificador opcional del cim que s’ha de seleccionar en obrir el mapa.
+  // S’utilitza quan l’usuari arriba al mapa des de la pantalla de detall d’un cim.
   final int? initialPeakId;
 
   @override
@@ -34,14 +36,14 @@ class _PeaksMapScreenState extends State<PeaksMapScreen> {
   // Inicialitza el controller quan es crea la pantalla.
   // També registra l’escolta de canvis i inicia la càrrega de dades del mapa.
   @override
-void initState() {
-  super.initState();
-  controller = PeaksMapController(
-    initialPeakId: widget.initialPeakId,
-  )
-    ..addListener(_handleControllerChanges)
-    ..initialize();
-}
+  void initState() {
+    super.initState();
+    controller = PeaksMapController(
+      initialPeakId: widget.initialPeakId,
+    )
+      ..addListener(_handleControllerChanges)
+      ..initialize();
+  }
 
   // Reacciona als canvis del controller que afecten la navegació.
   // Quan hi ha un cim seleccionat per obrir, consumeix l’acció i envia l’usuari al detall.

@@ -15,6 +15,8 @@ class RegisterEmailField extends StatelessWidget {
   // Controller que exposa el valor del correu i el seu estat de validació.
   final RegisterController controller;
 
+  // Aquest mètode construeix el camp de correu del formulari de registre.
+  // També mostra els avisos de validació quan el correu falta o no té un format correcte.
   @override
   Widget build(BuildContext context) {
     return Column(

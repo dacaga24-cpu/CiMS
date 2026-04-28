@@ -85,6 +85,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     super.dispose();
   }
 
+  // Aquest mètode construeix la pantalla de configuració del perfil.
+  // Organitza la capçalera, les opcions del compte i el botó de tancar sessió.
   @override
   Widget build(BuildContext context) {
     return Scaffold(

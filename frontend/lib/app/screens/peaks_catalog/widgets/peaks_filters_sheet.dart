@@ -40,6 +40,8 @@ class PeaksFiltersSheet extends StatefulWidget {
   State<PeaksFiltersSheet> createState() => _PeaksFiltersSheetState();
 }
 
+// Aquesta classe gestiona l’estat temporal del panell de filtres.
+// Manté els valors seleccionats mentre el modal està obert i comunica els canvis a la pantalla principal.
 class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
   // Aquests controladors mantenen el contingut dels camps d’altitud
   // mentre l’usuari interactua amb el formulari.
@@ -77,7 +79,7 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
   }
 
   // Aquest mètode reinicia tots els filtres visibles del panell.
-// Primer tanca el panell i després executa la neteja per evitar reconstruir el mapa sota el modal.
+  // Primer tanca el panell i després executa la neteja per evitar reconstruir el mapa sota el modal.
   Future<void> _handleClear() async {
     _minAltitudeController.clear();
     _maxAltitudeController.clear();
@@ -96,8 +98,8 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     });
   }
 
-// Aquest mètode recull els valors seleccionats i els envia a la pantalla principal.
-// Primer tanca el panell perquè Google Maps no es reconstrueixi mentre el modal encara existeix.
+  // Aquest mètode recull els valors seleccionats i els envia a la pantalla principal.
+  // Primer tanca el panell perquè Google Maps no es reconstrueixi mentre el modal encara existeix.
   void _handleApply() {
     final minAltitude = _parseAltitude(_minAltitudeController.text);
     final maxAltitude = _parseAltitude(_maxAltitudeController.text);

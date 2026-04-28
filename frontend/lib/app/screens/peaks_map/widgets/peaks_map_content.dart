@@ -82,6 +82,8 @@ class PeaksMapContent extends StatelessWidget {
       );
     }
 
+    // Quan hi ha cims disponibles, es mostra el mapa sense desmuntar-lo en recàrregues posteriors.
+    // Això manté una experiència més fluida, especialment quan s’apliquen filtres o cerques.
     return Stack(
       children: [
         Padding(

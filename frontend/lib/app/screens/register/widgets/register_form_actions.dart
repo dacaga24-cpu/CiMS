@@ -14,6 +14,8 @@ class RegisterFormActions extends StatelessWidget {
   // Controller que executa la creació del compte o el retorn al login.
   final RegisterController controller;
 
+  // Aquest mètode construeix els botons principals del registre.
+  // Permet crear un compte nou o tornar al login segons la necessitat de l’usuari.
   @override
   Widget build(BuildContext context) {
     return Column(

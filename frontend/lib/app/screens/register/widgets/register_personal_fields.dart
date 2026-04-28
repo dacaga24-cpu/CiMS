@@ -15,6 +15,8 @@ class RegisterPersonalFields extends StatelessWidget {
   // Controller que proporciona l’estat dels camps i les validacions visuals.
   final RegisterController controller;
 
+  // Aquest mètode construeix els camps de dades personals del registre.
+  // Mostra les validacions bàsiques perquè el compte es creï amb nom i cognom informats.
   @override
   Widget build(BuildContext context) {
     return Column(

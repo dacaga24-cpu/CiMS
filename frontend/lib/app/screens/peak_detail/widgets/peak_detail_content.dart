@@ -45,6 +45,8 @@ class PeakDetailContent extends StatelessWidget {
   final VoidCallback onFavoriteTap;
   final Future<void> Function(int peakId) onMapTap;
 
+  // Aquest mètode construeix el contingut visual segons l’estat actual de les dades.
+  // Permet mostrar una càrrega, un error, un estat buit o el detall complet del cim.
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -65,6 +67,8 @@ class PeakDetailContent extends StatelessWidget {
       return const PeakDetailEmptyState();
     }
 
+    // Quan el cim existeix, es mostra el detall complet en una llista refrescable.
+    // Això permet tornar a carregar la informació si l’usuari arrossega la pantalla cap avall.
     return RefreshIndicator(
       onRefresh: onRetryTap,
       child: ListView(

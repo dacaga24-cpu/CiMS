@@ -13,6 +13,8 @@ class ProfileSettingsLogoutButton extends StatelessWidget {
   final bool isLoggingOut;
   final VoidCallback onLogoutTap;
 
+  // Aquest mètode construeix el botó de tancament de sessió.
+  // Adapta el seu estat visual perquè l’usuari vegi quan l’acció està en procés.
   @override
   Widget build(BuildContext context) {
     return SizedBox(

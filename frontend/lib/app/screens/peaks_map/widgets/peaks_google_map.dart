@@ -45,6 +45,8 @@ class PeaksGoogleMap extends StatefulWidget {
 class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
   GoogleMapController? _mapController;
 
+  // Punt central de Catalunya utilitzat com a posició inicial del mapa.
+  // Serveix quan encara no hi ha cap cim seleccionat o visible.
   static const LatLng _cataloniaCenter = LatLng(41.7830, 1.8260);
 
   final PeaksMapMarkerFactory _markerFactory = PeaksMapMarkerFactory();
@@ -66,6 +68,8 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
     _loadMarkers();
   }
 
+  // Detecta si ha canviat el cim seleccionat des de fora del widget.
+  // Quan això passa, centra la càmera perquè el mapa mostri clarament el nou cim.
   @override
   void didUpdateWidget(covariant PeaksGoogleMap oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -248,6 +252,8 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
     }).toSet();
   }
 
+  // Allibera el controller intern de Google Maps quan el widget es destrueix.
+  // Això evita mantenir recursos del mapa actius fora de la pantalla.
   @override
   void dispose() {
     _mapController?.dispose();

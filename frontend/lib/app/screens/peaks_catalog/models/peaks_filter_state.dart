@@ -4,6 +4,8 @@ import 'package:cims/core/entity/region.dart';
 // Aquest model concentra els filtres compartits entre el catàleg i el mapa.
 // Permet evitar duplicar la mateixa lògica de regió, altitud i estat en dos controllers.
 class PeaksFilterState {
+  // Aquest bloc guarda els filtres que l’usuari pot aplicar sobre els cims.
+  // Es manté en un model separat perquè diferents pantalles puguin reutilitzar el mateix estat.
   int? selectedRegionId;
   int? minAltitude;
   int? maxAltitude;

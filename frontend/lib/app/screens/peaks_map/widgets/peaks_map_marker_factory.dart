@@ -9,11 +9,13 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 // Centralitza els colors i evita que el widget del mapa hagi de generar
 // les icones directament.
 class PeaksMapMarkerFactory {
+  // Colors utilitzats per diferenciar visualment els marcadors segons l’estat del cim.
   static const Color primaryColor = Color(0xFF0E63F4);
   static const Color completedColor = Color(0xFF18B56A);
   static const Color targetColor = Color(0xFFF97316);
   static const Color favoriteColor = Color(0xFFE84A4A);
 
+  // Guarda els marcadors ja generats per reutilitzar-los en futures càrregues del mapa.
   final Map<PeakStatusFilter, BitmapDescriptor> _cache = {};
 
   // Retorna el marcador corresponent al filtre actiu.

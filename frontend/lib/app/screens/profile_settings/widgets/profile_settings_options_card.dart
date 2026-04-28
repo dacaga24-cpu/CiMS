@@ -6,6 +6,8 @@ import 'profile_settings_option_tile.dart';
 class ProfileSettingsOptionsCard extends StatelessWidget {
   const ProfileSettingsOptionsCard({super.key});
 
+  // Aquest mètode construeix la targeta d’opcions del compte.
+  // Agrupa accions relacionades amb el perfil perquè la pantalla sigui més clara i ordenada.
   @override
   Widget build(BuildContext context) {
     return Container(

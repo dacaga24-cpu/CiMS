@@ -12,6 +12,8 @@ class ProfileSettingsHeader extends StatelessWidget {
   // Nom que es mostra a la capçalera del perfil.
   final String displayName;
 
+  // Aquest mètode construeix la capçalera visual del perfil.
+  // Mostra el logotip dins d’un contenidor circular i el nom de l’usuari a sota.
   @override
   Widget build(BuildContext context) {
     return Column(

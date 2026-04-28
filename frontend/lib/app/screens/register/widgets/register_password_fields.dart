@@ -15,6 +15,8 @@ class RegisterPasswordFields extends StatelessWidget {
   // Controller que gestiona la visibilitat, els valors i les validacions de contrasenya.
   final RegisterController controller;
 
+  // Aquest mètode construeix els camps de contrasenya del registre.
+  // Mostra les validacions necessàries perquè l’usuari pugui crear una contrasenya vàlida i confirmada.
   @override
   Widget build(BuildContext context) {
     return Column(

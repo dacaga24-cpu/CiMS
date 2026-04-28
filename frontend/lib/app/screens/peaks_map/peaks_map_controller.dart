@@ -63,6 +63,8 @@ class PeaksMapController extends ChangeNotifier {
   // i les regions disponibles per aplicar filtres.
   bool isLoading = false;
   String? errorMessage;
+  // peaks conté els cims finals que es poden mostrar al mapa.
+  // _loadedPeaks conserva els cims retornats pel backend abans d’aplicar filtres locals.
   List<Peak> peaks = const [];
   List<Peak> _loadedPeaks = const [];
   List<Region> availableRegions = const [];

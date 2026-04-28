@@ -20,6 +20,8 @@ class PeakDetailMapCard extends StatefulWidget {
   State<PeakDetailMapCard> createState() => _PeakDetailMapCardState();
 }
 
+// Aquesta classe gestiona la càrrega del marcador del mapa.
+// Manté separat el procés de preparació visual del marcador respecte a la construcció de la targeta.
 class _PeakDetailMapCardState extends State<PeakDetailMapCard> {
   final PeaksMapMarkerFactory _markerFactory = PeaksMapMarkerFactory();
 
@@ -45,6 +47,8 @@ class _PeakDetailMapCardState extends State<PeakDetailMapCard> {
     });
   }
 
+  // Aquest mètode construeix la targeta del mapa dins del detall del cim.
+  // Si el cim té coordenades, mostra una previsualització; si no en té, mostra un estat alternatiu.
   @override
   Widget build(BuildContext context) {
     final peak = widget.peak;
@@ -95,6 +99,8 @@ class _PeakStaticMapPreview extends StatelessWidget {
   final Peak peak;
   final BitmapDescriptor? markerIcon;
 
+  // Aquest mètode prepara la posició i el marcador del cim dins del mapa.
+  // El mapa queda bloquejat perquè funcioni només com a vista prèvia i no com a pantalla interactiva.
   @override
   Widget build(BuildContext context) {
     final position = LatLng(

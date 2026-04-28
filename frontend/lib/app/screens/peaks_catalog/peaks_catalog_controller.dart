@@ -68,6 +68,8 @@ class PeaksCatalogController extends ChangeNotifier {
   // La pantalla l’utilitza per mostrar càrrega, errors, cims i comarques.
   bool isLoading = false;
   String? errorMessage;
+  // peaks conté la llista final que veu l’usuari.
+  // _loadedPeaks conserva els cims retornats pel backend abans d’aplicar el filtre d’estat local.
   List<Peak> peaks = const [];
   List<Peak> _loadedPeaks = const [];
   List<Region> availableRegions = const [];
