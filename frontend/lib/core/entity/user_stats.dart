@@ -11,7 +11,6 @@ class UserStats {
     required this.totalAltitudeMeters,
     required this.monthlyAscents,
     required this.recentAscents,
-    this.lastAscent,
     this.highestCompletedAltitude,
     this.mostAscendedPeak,
     this.challengeProgress,
@@ -27,7 +26,6 @@ class UserStats {
   final int totalAltitudeMeters;
   final List<MonthlyAscentsStats> monthlyAscents;
   final List<RecentAscentStats> recentAscents;
-  final LastAscentStats? lastAscent;
   final int? highestCompletedAltitude;
   final MostAscendedPeakStats? mostAscendedPeak;
   final ChallengeProgressStats? challengeProgress;
@@ -45,7 +43,6 @@ class UserStats {
       highestCompletedAltitude: _parseNullableInt(
         json['highestCompletedAltitude'],
       ),
-      lastAscent: LastAscentStats.fromNullableJson(json['lastAscent']),
       mostAscendedPeak: MostAscendedPeakStats.fromNullableJson(
         json['mostAscendedPeak'],
       ),
@@ -53,7 +50,9 @@ class UserStats {
         json['challengeProgress'],
       ),
       monthlyAscents: _parseMonthlyAscents(json['monthlyAscents']),
-      recentAscents: _parseRecentAscents(json['recentAscents']),
+      recentAscents: _parseRecentAscents(
+        json['recentAscent'] ?? json['recentAscents'],
+      ),
     );
   }
 
@@ -104,66 +103,6 @@ class UserStats {
     if (value is num) return value.toInt();
     if (value is String) return int.tryParse(value);
     return null;
-  }
-}
-
-// Aquesta entitat representa l’última ascensió registrada.
-// De moment el backend retorna només el cim i la data, però queda separada
-// per poder ampliar-la fàcilment amb més informació si cal.
-class LastAscentStats {
-  const LastAscentStats({
-    required this.peakId,
-    required this.ascentDate,
-  });
-
-  // Aquestes dades identifiquen el cim de l’última ascensió i la data en què es va fer.
-  final int peakId;
-  final DateTime ascentDate;
-
-  // Aquest constructor transforma l’última ascensió rebuda del backend en una entitat usable.
-  factory LastAscentStats.fromJson(Map<String, dynamic> json) {
-    return LastAscentStats(
-      peakId: _parseInt(json['peakId']),
-      ascentDate: _parseDateOnly(json['ascentDate']),
-    );
-  }
-
-  // Aquest mètode només crea l’objecte si el backend envia dades vàlides.
-  // Això permet representar correctament usuaris que encara no tenen cap ascensió.
-  static LastAscentStats? fromNullableJson(dynamic value) {
-    if (value is Map<String, dynamic>) {
-      return LastAscentStats.fromJson(value);
-    }
-    return null;
-  }
-
-  // Aquest mètode converteix identificadors numèrics rebuts en diferents formats.
-  static int _parseInt(dynamic value) {
-    if (value is int) return value;
-    if (value is num) return value.toInt();
-    if (value is String) return int.tryParse(value) ?? 0;
-    return 0;
-  }
-
-  // Aquest mètode transforma una data del backend en una data local simple.
-  // Només utilitza any, mes i dia perquè les ascensions es representen per data d’activitat.
-  static DateTime _parseDateOnly(dynamic value) {
-    if (value is String) {
-      final datePart = value.length >= 10 ? value.substring(0, 10) : value;
-      final parts = datePart.split('-');
-
-      if (parts.length == 3) {
-        final year = int.tryParse(parts[0]);
-        final month = int.tryParse(parts[1]);
-        final day = int.tryParse(parts[2]);
-
-        if (year != null && month != null && day != null) {
-          return DateTime(year, month, day);
-        }
-      }
-    }
-
-    return DateTime.now();
   }
 }
 
