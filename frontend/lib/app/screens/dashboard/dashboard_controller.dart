@@ -1,3 +1,5 @@
+import 'package:cims/app/client/api/api_client_impl.dart';
+import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/dashboard_summary.dart';
 import 'package:cims/core/usecase/get_dashboard_summary_usecase.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +18,7 @@ class DashboardController extends ChangeNotifier {
   DashboardController({
     GetDashboardSummaryUseCase? getDashboardSummaryUseCase,
   }) : _getDashboardSummaryUseCase =
-           getDashboardSummaryUseCase ?? const GetDashboardSummaryUseCase();
+           getDashboardSummaryUseCase ?? GetDashboardSummaryUseCase(ApiClientImpl());
 
   // Aquest cas d’ús centralitza l’obtenció de les dades del dashboard.
   // Permet que el controller no depengui directament de l’origen de les dades.
@@ -41,14 +43,20 @@ class DashboardController extends ChangeNotifier {
   // Aquest mètode carrega les dades principals del dashboard.
   // Actualitza els estats visuals perquè la pantalla pugui mostrar càrrega, error o contingut.
   Future<void> loadDashboard() async {
+    if (_isLoading) return;
+
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
       _summary = await _getDashboardSummaryUseCase.execute();
+    } on ApiUnauthorizedException {
+      _errorMessage = 'La sessió ha caducat. Torna a iniciar sessió.';
+    } on ApiException catch (error) {
+      _errorMessage = error.message;
     } catch (_) {
-      _errorMessage = 'No s’ha pogut carregar el resum del dashboard.';
+      _errorMessage = 'No s\'ha pogut carregar el resum del dashboard.';
     } finally {
       _isLoading = false;
       notifyListeners();

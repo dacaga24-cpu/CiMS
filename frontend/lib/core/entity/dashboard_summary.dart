@@ -41,16 +41,19 @@ class DashboardSummary {
   // Aquest constructor transforma la resposta JSON del backend en un objecte usable pel frontend.
   // Els valors per defecte eviten errors si algun camp encara no està disponible al backend.
   factory DashboardSummary.fromJson(Map<String, dynamic> json) {
+    final completedPeaks = _asInt(json['completedPeaks']);
+    final challengeJson = _asMap(json['challengeProgress']);
+
     return DashboardSummary(
-      completedPeaks: _asInt(json['completedPeaks']),
+      completedPeaks: completedPeaks,
       activeTargets: _asInt(json['activeTargets']),
       favorites: _asInt(json['favorites']),
       totalAscents: _asInt(json['totalAscents']),
       uniquePeaksAscended: _asInt(json['uniquePeaksAscended']),
       totalAltitudeMeters: _asInt(json['totalAltitudeMeters']),
-      challengeProgress: ChallengeProgress.fromJson(
-        _asMap(json['challengeProgress']),
-      ),
+      challengeProgress: challengeJson.isEmpty
+          ? ChallengeProgress.fromCompleted(completedPeaks)
+          : ChallengeProgress.fromJson(challengeJson),
       pendingPeaks: _asList(json['pendingPeaks'])
           .map((item) => DashboardPeakItem.fromJson(item))
           .toList(),
@@ -96,19 +99,34 @@ class ChallengeProgress {
   final int remaining;
   final int percentage;
 
+  // Aquest constructor crea el progrés del repte a partir del total de cims completats.
+  // S’utilitza com a suport si el backend encara no envia l’objecte challengeProgress.
+  factory ChallengeProgress.fromCompleted(int completed) {
+    const target = 100;
+    final remaining = (target - completed).clamp(0, target).toInt();
+    final percentage = ((completed / target) * 100).round().clamp(0, 100).toInt();
+
+    return ChallengeProgress(
+      completed: completed,
+      target: target,
+      remaining: remaining,
+      percentage: percentage,
+    );
+  }
+
   // Aquest constructor crea el progrés del repte a partir del JSON rebut.
   // Si el backend no envia algun valor calculat, el model el genera amb dades bàsiques.
   factory ChallengeProgress.fromJson(Map<String, dynamic> json) {
-    final completed = _asInt(json['completed']);
+    final completed = _asInt(json['completed'] ?? json['current']);
     final target = _asInt(json['target'], defaultValue: 100);
     final remaining = json.containsKey('remaining')
         ? _asInt(json['remaining'])
-        : (target - completed).clamp(0, target);
+        : (target - completed).clamp(0, target).toInt();
     final percentage = json.containsKey('percentage')
         ? _asInt(json['percentage'])
         : target == 0
             ? 0
-            : ((completed / target) * 100).round().clamp(0, 100);
+            : ((completed / target) * 100).round().clamp(0, 100).toInt();
 
     return ChallengeProgress(
       completed: completed,
@@ -141,15 +159,28 @@ class DashboardPeakItem {
   final int? ascentCount;
 
   // Aquest constructor transforma un cim del JSON en un element visual del dashboard.
-  // Accepta camps opcionals perquè cada secció pot necessitar només una part de la informació.
+  // Accepta camps opcionals i noms alternatius per adaptar-se a la resposta real del backend.
   factory DashboardPeakItem.fromJson(Map<String, dynamic> json) {
     return DashboardPeakItem(
-      id: _asInt(json['id']),
-      name: _asString(json['name']),
-      altitude: json['altitude'] == null ? null : _asInt(json['altitude']),
-      regionName: _asNullableString(json['regionName'] ?? json['region']),
+      id: _asInt(json['id'] ?? json['peakId'] ?? json['peak_id']),
+      name: _asString(json['name'] ?? json['peakName'] ?? json['peak_name']),
+      altitude: json['altitude'] == null &&
+              json['peakAltitude'] == null &&
+              json['peak_altitude'] == null
+          ? null
+          : _asInt(
+              json['altitude'] ?? json['peakAltitude'] ?? json['peak_altitude'],
+            ),
+      regionName: _asRegionsText(json['regions']) ??
+          _asNullableString(json['regionName'] ?? json['region']),
       imageUrl: _asNullableString(json['imageUrl']),
-      ascentCount: json['ascentCount'] == null ? null : _asInt(json['ascentCount']),
+      ascentCount: json['ascentCount'] == null &&
+              json['count'] == null &&
+              json['totalAscents'] == null
+          ? null
+          : _asInt(
+              json['ascentCount'] ?? json['count'] ?? json['totalAscents'],
+            ),
     );
   }
 }
@@ -184,13 +215,13 @@ class MonthlyChallenge {
         ? _asInt(json['percentage'])
         : target == 0
             ? 0
-            : ((current / target) * 100).round().clamp(0, 100);
+            : ((current / target) * 100).round().clamp(0, 100).toInt();
 
     return MonthlyChallenge(
       current: current,
       target: target,
       percentage: percentage,
-      unit: _asString(json['unit'], defaultValue: 'ascents'),
+      unit: _asString(json['unit'], defaultValue: 'ascensions'),
       title: _asNullableString(json['title']),
       description: _asNullableString(json['description']),
     );
@@ -228,8 +259,15 @@ class DashboardRecentAscent {
       peakId: _asInt(json['peakId'] ?? json['peak_id']),
       peakName: _asString(json['peakName'] ?? json['peak_name'] ?? json['name']),
       ascentDate: _asString(json['ascentDate'] ?? json['ascent_date']),
-      altitude: json['altitude'] == null ? null : _asInt(json['altitude']),
-      regionName: _asNullableString(json['regionName'] ?? json['region']),
+      altitude: json['altitude'] == null &&
+              json['peakAltitude'] == null &&
+              json['peak_altitude'] == null
+          ? null
+          : _asInt(
+              json['altitude'] ?? json['peakAltitude'] ?? json['peak_altitude'],
+            ),
+      regionName: _asRegionsText(json['regions']) ??
+          _asNullableString(json['regionName'] ?? json['region']),
       notes: _asNullableString(json['notes']),
     );
   }
@@ -303,4 +341,18 @@ List<Map<String, dynamic>> _asList(dynamic value) {
         .toList();
   }
   return <Map<String, dynamic>>[];
+}
+
+// Aquesta funció converteix la llista de regions del backend en un text llegible.
+// Permet mostrar correctament cims que poden pertànyer a més d’una comarca o regió.
+String? _asRegionsText(dynamic value) {
+  if (value is! List) return null;
+
+  final regions = value
+      .map((region) => region.toString().trim())
+      .where((region) => region.isNotEmpty)
+      .toList();
+
+  if (regions.isEmpty) return null;
+  return regions.join(', ');
 }
