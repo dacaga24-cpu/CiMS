@@ -83,9 +83,9 @@ async function seed() {
   for (const peak of peaks) {
     try {
       await db.execute(
-        `INSERT INTO peaks (name, altitude, latitude, longitude, description)
-         VALUES (?, ?, ?, ?, ?)`,
-        [peak.name, peak.altitude, peak.latitude, peak.longitude, peak.description]
+        `INSERT INTO peaks (name, altitude, latitude, longitude)
+         VALUES (?, ?, ?, ?)`,
+        [peak.name, peak.altitude, peak.latitude, peak.longitude]
       );
       inserted++;
     } catch (err) {
