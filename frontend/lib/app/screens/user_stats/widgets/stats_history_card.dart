@@ -1,21 +1,28 @@
 import 'package:cims/core/entity/user_stats.dart';
 import 'package:flutter/material.dart';
 
-// Aquesta targeta mostra l’impacte general de l’usuari.
-// Inclou el total d’ascensions i una representació visual simple de l’evolució mensual.
-class StatsImpactCard extends StatelessWidget {
-  const StatsImpactCard({
+// Aquesta targeta mostra l’historial recent d’ascensions de l’usuari.
+// Inclou el total acumulat i una representació visual configurable de l’evolució mensual.
+class StatsHistoryCard extends StatelessWidget {
+  const StatsHistoryCard({
     super.key,
     required this.totalAscents,
     required this.monthlyAscents,
-  });
+    this.monthsToShow = 6,
+  }) : assert(
+          monthsToShow == 1 ||
+              monthsToShow == 3 ||
+              monthsToShow == 6 ||
+              monthsToShow == 12,
+        );
 
   // Aquestes dades permeten mostrar el volum total d’activitat i l’evolució mensual.
-  // S’utilitzen per donar una visió ràpida del progrés acumulat de l’usuari.
+  // El nombre de mesos visibles es pot ajustar segons el nivell de detall necessari.
   final int totalAscents;
   final List<MonthlyAscentsStats> monthlyAscents;
+  final int monthsToShow;
 
-  // Aquest mètode construeix la targeta principal d’impacte amb el total d’ascensions
+  // Aquest mètode construeix la targeta d’historial amb el total d’ascensions
   // i un gràfic senzill que ajuda a interpretar l’activitat recent.
   @override
   Widget build(BuildContext context) {
@@ -39,7 +46,7 @@ class StatsImpactCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'EL TEU IMPACTE',
+            'HISTORIAL',
             style: TextStyle(
               fontSize: 11,
               letterSpacing: 0.8,
@@ -72,6 +79,18 @@ class StatsImpactCard extends StatelessWidget {
                   ),
                 ),
               ),
+              const Spacer(),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  'Últims $monthsToShow mesos',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -100,20 +119,27 @@ class StatsImpactCard extends StatelessWidget {
     );
   }
 
-  // Aquest getter limita el gràfic als últims set mesos disponibles.
-  // Si encara no hi ha dades mensuals, mostra una estructura neutra.
+  // Aquest getter limita el gràfic al nombre de mesos configurat.
+  // Si hi ha menys dades disponibles, completa el principi amb mesos sense activitat.
   List<int> get _visibleValues {
-    if (monthlyAscents.isEmpty) {
-      return const [1, 2, 2, 3, 4, 5, 4];
-    }
-
     final totals = monthlyAscents.map((month) => month.total).toList();
 
-    if (totals.length <= 7) {
-      return totals;
+    if (totals.isEmpty) {
+      return List.filled(monthsToShow, 0);
     }
 
-    return totals.sublist(totals.length - 7);
+    final visibleTotals = totals.length <= monthsToShow
+        ? totals
+        : totals.sublist(totals.length - monthsToShow);
+
+    if (visibleTotals.length == monthsToShow) {
+      return visibleTotals;
+    }
+
+    return [
+      ...List.filled(monthsToShow - visibleTotals.length, 0),
+      ...visibleTotals,
+    ];
   }
 
   // Aquest mètode obté el valor més alt del gràfic.
@@ -144,7 +170,7 @@ class _StatsBar extends StatelessWidget {
   // Aquest mètode construeix una barra proporcional al valor mensual rebut.
   @override
   Widget build(BuildContext context) {
-    final height = 24 + (52 * (value / maxValue));
+    final height = value == 0 ? 18.0 : 24 + (52 * (value / maxValue));
 
     return Align(
       alignment: Alignment.bottomCenter,

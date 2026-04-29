@@ -1,9 +1,8 @@
 import 'package:auto_route/auto_route.dart';
-import 'package:auto_route/auto_route.dart';
 import 'package:cims/app/screens/user_stats/user_stats_controller.dart';
 import 'package:cims/app/screens/user_stats/widgets/stats_challenge_card.dart';
 import 'package:cims/app/screens/user_stats/widgets/stats_error_state.dart';
-import 'package:cims/app/screens/user_stats/widgets/stats_impact_card.dart';
+import 'package:cims/app/screens/user_stats/widgets/stats_history_card.dart';
 import 'package:cims/app/screens/user_stats/widgets/stats_loading_state.dart';
 import 'package:cims/app/screens/user_stats/widgets/stats_most_ascended_card.dart';
 import 'package:cims/app/screens/user_stats/widgets/stats_recent_ascents_list.dart';
@@ -60,7 +59,7 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
         if (stats == null) {
           return StatsErrorState(
             message: controller.errorMessage ??
-                'No hi ha dades d’estadístiques disponibles',
+                'No hi ha dades d\'estadístiques disponibles',
             onRetryTap: controller.onRetryTap,
           );
         }
@@ -92,9 +91,10 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
                 ),
               ),
               const SizedBox(height: 28),
-              StatsImpactCard(
+              StatsHistoryCard(
                 totalAscents: stats.totalAscents,
                 monthlyAscents: stats.monthlyAscents,
+                monthsToShow: 6,
               ),
               const SizedBox(height: 14),
               StatsTotalMetersCard(

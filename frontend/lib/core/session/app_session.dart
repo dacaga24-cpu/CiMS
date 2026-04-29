@@ -1,6 +1,7 @@
 import 'package:cims/app/client/session/session_storage_impl.dart';
 import 'package:cims/core/client/session_storage.dart';
 import 'package:cims/core/store/peak_status_store.dart';
+import 'package:cims/core/store/user_stats_refresh_store.dart';
 import 'package:cims/core/usecase/session/clear_session_usecase.dart';
 import 'package:cims/core/usecase/session/has_saved_session_usecase.dart';
 import 'package:cims/core/usecase/session/save_session_usecase.dart';
@@ -19,6 +20,10 @@ class AppSession {
   static late final SaveSessionUseCase saveSessionUseCase;
   static late final ClearSessionUseCase clearSessionUseCase;
 
+  // Aquest store notifica canvis que afecten la pantalla d’estadístiques.
+  // Permet recarregar les dades quan es registra una nova ascensió.
+  static late final UserStatsRefreshStore userStatsRefreshStore;
+
   // Store únic dels estats personals dels cims. Viu lligat a la sessió perquè
   // s'ha de buidar quan l'usuari tanca sessió o quan el backend invalida el
   // token, per evitar que els estats d'un usuari es mostrin a un altre.
@@ -29,8 +34,8 @@ class AppSession {
   static Future<void> Function()? _onSessionExpired;
 
   // Aquest mètode inicialitza la infraestructura comuna de sessió.
-  // Crea la persistència real i prepara els casos d’ús necessaris
-  // per guardar, comprovar o netejar la sessió de l’usuari.
+  // Crea la persistència real, prepara els casos d’ús necessaris
+  // i inicialitza els stores compartits de la sessió.
   static void initialize({
     SessionStorage? sessionStorage,
   }) {
@@ -48,6 +53,7 @@ class AppSession {
       sessionStorage: storage,
     );
 
+    userStatsRefreshStore = UserStatsRefreshStore();
     peakStatusStore = PeakStatusStore();
   }
 
