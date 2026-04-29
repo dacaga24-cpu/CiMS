@@ -43,4 +43,8 @@ class ApiEndpoints {
   // Aquesta ajuda construeix la ruta de les ascensions d’un cim concret.
   // Permet consultar l’historial personal de l’usuari sobre aquell cim.
   static String ascentsByPeakId(int peakId) => '$ascents/peak/$peakId';
+
+  // Aquesta ruta correspon a les estadístiques personals de l’usuari.
+  // Permet carregar el resum de progrés amb una sola petició autenticada.
+  static const String stats = '$api/stats';
 }
