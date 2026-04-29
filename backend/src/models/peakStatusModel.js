@@ -81,6 +81,15 @@ const PeakStatusModel = {
                 error.statusCode = 409;
                 throw error;
             }
+            // Si la foreign key cap a peaks falla és perquè el peakId no
+            // existeix. Es converteix en 404 amb un missatge clar perquè el
+            // servei no hagi de conèixer codis específics del driver, i el
+            // client distingeixi aquest cas d'un error intern de servidor.
+            if (err && (err.code === 'ER_NO_REFERENCED_ROW' || err.code === 'ER_NO_REFERENCED_ROW_2')) {
+                const error = new Error('Peak not found');
+                error.statusCode = 404;
+                throw error;
+            }
             throw err;
         }
     },
@@ -122,8 +131,19 @@ const PeakStatusModel = {
 
         params.push(userId, peakId);
 
-        const [result] = await pool.execute(sql, params);
-        return result.affectedRows;
+        try {
+            const [result] = await pool.execute(sql, params);
+            return result.affectedRows;
+        } catch (err) {
+            // Coherent amb el create: una FK trencada cap a peaks indica que
+            // el peakId no existeix i s'ha de respondre 404, no 500.
+            if (err && (err.code === 'ER_NO_REFERENCED_ROW' || err.code === 'ER_NO_REFERENCED_ROW_2')) {
+                const error = new Error('Peak not found');
+                error.statusCode = 404;
+                throw error;
+            }
+            throw err;
+        }
     },
 
     // Aquest mètode elimina el registre d'estat d'un cim per a un usuari.
