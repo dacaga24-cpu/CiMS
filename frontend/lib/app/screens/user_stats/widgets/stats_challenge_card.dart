@@ -53,7 +53,7 @@ class StatsChallengeCard extends StatelessWidget {
                 ),
               ),
               Text(
-                '$percentage%',
+                '$percentage%', //TODO: no mostra el precentatge, revisar
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
@@ -76,7 +76,7 @@ class StatsChallengeCard extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
             child: LinearProgressIndicator(
-              value: progress,
+              value: progress, //TODO: no mostra el progres, revisar
               minHeight: 9,
               backgroundColor: const Color(0xFFE8E0FF),
               valueColor: const AlwaysStoppedAnimation<Color>(
@@ -89,7 +89,7 @@ class StatsChallengeCard extends StatelessWidget {
           Row(
             children: [
               const Text(
-                'INICIAT',
+                'INICI',
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w900,
@@ -98,7 +98,7 @@ class StatsChallengeCard extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                '$current DE $target CIMS',
+                '$current DE $target CIMS', //TODO: no mostra el número de cims actuals, revisar
                 style: const TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w900,
@@ -107,7 +107,7 @@ class StatsChallengeCard extends StatelessWidget {
               ),
               const Spacer(),
               const Text(
-                'OBJECTIU ANUAL',
+                'OBJECTIU',
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w900,
