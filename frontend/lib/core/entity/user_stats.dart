@@ -37,7 +37,7 @@ class UserStats {
       completedPeaks: _parseInt(json['completedPeaks']),
       activeTargets: _parseInt(json['activeTargets']),
       favorites: _parseInt(json['favorites']),
-      totalAscents: _parseInt(json['totalAscents']),
+      totalAscents: _parseInt(json['totalAscents'] ?? json['count']),
       uniquePeaksAscended: _parseInt(json['uniquePeaksAscended']),
       totalAltitudeMeters: _parseInt(json['totalAltitudeMeters']),
       highestCompletedAltitude: _parseNullableInt(
@@ -155,9 +155,9 @@ class MostAscendedPeakStats {
   // Aquest constructor transforma la dada del cim més repetit en un objecte preparat per la UI.
   factory MostAscendedPeakStats.fromJson(Map<String, dynamic> json) {
     return MostAscendedPeakStats(
-      peakId: _parseInt(json['peakId']),
-      peakName: json['peakName']?.toString() ?? '',
-      totalAscents: _parseInt(json['totalAscents']),
+      peakId: _parseInt(json['peakId'] ?? json['peak_id']),
+      peakName: (json['peakName'] ?? json['peak_name'])?.toString() ?? '',
+      totalAscents: _parseInt(json['totalAscents'] ?? json['count']),
       imageUrl: _parseNullableString(json['imageUrl']),
     );
   }
@@ -255,10 +255,12 @@ class RecentAscentStats {
   factory RecentAscentStats.fromJson(Map<String, dynamic> json) {
     return RecentAscentStats(
       id: _parseInt(json['id']),
-      peakId: _parseInt(json['peakId']),
-      peakName: json['peakName']?.toString() ?? '',
-      altitude: _parseInt(json['altitude']),
-      ascentDate: _parseDateOnly(json['ascentDate']),
+      peakId: _parseInt(json['peakId'] ?? json['peak_id']),
+      peakName: (json['peakName'] ?? json['peak_name'])?.toString() ?? '',
+      altitude: _parseInt(
+        json['altitude'] ?? json['peakAltitude'] ?? json['peak_altitude'],
+      ),
+      ascentDate: _parseDateOnly(json['ascentDate'] ?? json['ascent_date']),
       regions: _parseRegions(json['regions']),
     );
   }
