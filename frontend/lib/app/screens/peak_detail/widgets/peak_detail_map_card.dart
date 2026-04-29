@@ -1,31 +1,58 @@
+import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
+import 'package:cims/app/screens/peaks_map/widgets/peaks_map_marker_factory.dart';
 import 'package:cims/core/entity/peak.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-// Aquest widget reserva la zona del mapa del cim.
-// Ara mateix prepara la targeta visual i l’acció futura per obrir la seva posició.
-class PeakDetailMapCard extends StatelessWidget {
+// Aquest widget mostra la ubicació del cim dins del detall.
+// Inclou una vista de mapa no interactiva i un accés directe a la pantalla de mapa.
+class PeakDetailMapCard extends StatefulWidget {
   const PeakDetailMapCard({
     super.key,
     required this.peak,
     required this.onTap,
   });
 
-  // Aquestes propietats reben la informació del cim i l’acció
-  // que s’executarà quan l’usuari vulgui obrir-ne la ubicació.
   final Peak peak;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
-    // Aquest text prepara la informació de coordenades que es mostra a la targeta.
-    // Si el cim encara no té posició disponible, s’informa clarament a l’usuari.
-    final coordinatesText = peak.hasMapPosition
-        ? 'Lat ${peak.latitude!.toStringAsFixed(5)} · Lon ${peak.longitude!.toStringAsFixed(5)}'
-        : 'La posició del cim encara no està disponible en aquesta iteració.'; //TODO: Reemplaçar aquest missatge quan es conegui el motiu de la falta de coordenades (ex. dades pendents, cim no geolocalitzable, etc.).
+  State<PeakDetailMapCard> createState() => _PeakDetailMapCardState();
+}
 
-    // Aquest bloc construeix la targeta de localització del cim.
-    // La seva funció és reservar l’espai del mapa dins del detall
-    // i oferir un punt clar d’accés a la ubicació quan estigui disponible.
+// Aquesta classe gestiona la càrrega del marcador del mapa.
+// Manté separat el procés de preparació visual del marcador respecte a la construcció de la targeta.
+class _PeakDetailMapCardState extends State<PeakDetailMapCard> {
+  final PeaksMapMarkerFactory _markerFactory = PeaksMapMarkerFactory();
+
+  BitmapDescriptor? _markerIcon;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMarker();
+  }
+
+  // Carrega el marcador circular genèric del mapa.
+  // Es fa servir el mateix estil visual que a la pantalla principal de mapa.
+  Future<void> _loadMarker() async {
+    final marker = await _markerFactory.markerForFilter(PeakStatusFilter.none);
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _markerIcon = marker;
+    });
+  }
+
+  // Aquest mètode construeix la targeta del mapa dins del detall del cim.
+  // Si el cim té coordenades, mostra una previsualització; si no en té, mostra un estat alternatiu.
+  @override
+  Widget build(BuildContext context) {
+    final peak = widget.peak;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -43,69 +70,118 @@ class PeakDetailMapCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Aquest fragment mostra un espai visual provisional del mapa
-            // mentre aquesta part encara no s’ha substituït per una vista real.
-            Container(
-              height: 170,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                gradient: const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFFE8EEF5),
-                    Color(0xFFD9E2EC),
-                  ],
+            if (peak.hasMapPosition)
+              GestureDetector(
+                onTap: widget.onTap,
+                child: _PeakStaticMapPreview(
+                  peak: peak,
+                  markerIcon: _markerIcon,
                 ),
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(
-                      Icons.map_outlined,
-                      size: 44,
-                      color: Color(0xFF5D6C80),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Vista de mapa',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF334155),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+              )
+            else
+              const _PeakMapUnavailablePreview(),
             const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-            // Aquest bloc resumeix la informació de localització
-            // i activa el botó només si el cim ja disposa de coordenades.
-            const Text(
-              'Ubicació del cim',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF17212B),
-              ),
+// Aquesta vista mostra un mapa real però sense interacció.
+// Serveix com a previsualització visual de la ubicació del cim.
+class _PeakStaticMapPreview extends StatelessWidget {
+  const _PeakStaticMapPreview({
+    required this.peak,
+    required this.markerIcon,
+  });
+
+  final Peak peak;
+  final BitmapDescriptor? markerIcon;
+
+  // Aquest mètode prepara la posició i el marcador del cim dins del mapa.
+  // El mapa queda bloquejat perquè funcioni només com a vista prèvia i no com a pantalla interactiva.
+  @override
+  Widget build(BuildContext context) {
+    final position = LatLng(
+      peak.latitude!,
+      peak.longitude!,
+    );
+
+    final marker = Marker(
+      markerId: MarkerId('peak_${peak.id}'),
+      position: position,
+      icon: markerIcon ??
+          BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueAzure,
+          ),
+      anchor: const Offset(0.5, 0.5),
+    );
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: SizedBox(
+        height: 170,
+        child: AbsorbPointer(
+          child: GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: position,
+              zoom: 11,
             ),
-            const SizedBox(height: 8),
+            markers: {marker},
+            mapType: MapType.terrain,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+            mapToolbarEnabled: false,
+            compassEnabled: false,
+            rotateGesturesEnabled: false,
+            scrollGesturesEnabled: false,
+            tiltGesturesEnabled: false,
+            zoomGesturesEnabled: false,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Aquest estat es mostra quan el cim encara no disposa de coordenades.
+// Manté una alternativa visual clara sense trencar el disseny de la targeta.
+class _PeakMapUnavailablePreview extends StatelessWidget {
+  const _PeakMapUnavailablePreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 170,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFFE8EEF5),
+            Color(0xFFD9E2EC),
+          ],
+        ),
+      ),
+      child: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.map_outlined,
+              size: 44,
+              color: Color(0xFF5D6C80),
+            ),
+            SizedBox(height: 8),
             Text(
-              coordinatesText,
-              style: const TextStyle(
-                fontSize: 14,
-                height: 1.35,
-                color: Color(0xFF5B6573),
+              'Vista de mapa no disponible',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF334155),
               ),
-            ),
-            const SizedBox(height: 14),
-            OutlinedButton.icon(
-              onPressed: peak.hasMapPosition ? onTap : null,
-              icon: const Icon(Icons.open_in_full_rounded),
-              label: const Text('Veure al mapa'),
             ),
           ],
         ),

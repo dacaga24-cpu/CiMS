@@ -20,11 +20,11 @@ class MainNavigationScreen extends StatelessWidget {
     return AutoTabsRouter(
       // Aquest bloc defineix les seccions principals que formen part
       // de la navegació interna de l’usuari autenticat.
-      routes: const [
+      routes: [
         PeaksMapRoute(),
-        PeaksCatalogRoute(),
-        DashboardRoute(),
-        UserStatsRoute(),
+        const PeaksCatalogRoute(),
+        const DashboardRoute(),
+        const UserStatsRoute(),
       ],
       builder: (context, child) {
         // Aquest objecte permet consultar i canviar la pestanya activa

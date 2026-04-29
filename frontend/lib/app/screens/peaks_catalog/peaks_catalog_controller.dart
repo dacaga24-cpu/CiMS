@@ -1,7 +1,7 @@
-import 'dart:async';
-
 import 'package:cims/app/client/api/api_client_impl.dart';
 import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
+import 'package:cims/app/screens/peaks_catalog/models/peaks_filter_state.dart';
+import 'package:cims/app/screens/peaks_catalog/models/peaks_search_debouncer.dart';
 import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/peak.dart';
 import 'package:cims/core/entity/peak_status.dart';
@@ -68,21 +68,20 @@ class PeaksCatalogController extends ChangeNotifier {
   // La pantalla l’utilitza per mostrar càrrega, errors, cims i comarques.
   bool isLoading = false;
   String? errorMessage;
+  // peaks conté la llista final que veu l’usuari.
+  // _loadedPeaks conserva els cims retornats pel backend abans d’aplicar el filtre d’estat local.
   List<Peak> peaks = const [];
   List<Peak> _loadedPeaks = const [];
   List<Region> availableRegions = const [];
 
-  // Aquest bloc manté els filtres actius del catàleg.
-  // Es combinen amb la cerca per decidir quins cims s’han de mostrar.
-  int? selectedRegionId;
-  int? minAltitude;
-  int? maxAltitude;
-  PeakStatusFilter selectedStatusFilter = PeakStatusFilter.none;
+  // Aquest objecte concentra els filtres compartits amb l’altra vista de cims.
+  // Així s’evita duplicar la mateixa lògica de resum i estat en dos controllers.
+  final _filtersState = PeaksFilterState();
 
   // Aquest bloc guarda informació interna del controller.
   // Serveix per controlar cerques, evitar respostes antigues i preparar navegacions.
   bool _disposed = false;
-  Timer? _searchDebounce;
+  final _searchDebouncer = PeaksSearchDebouncer();
   int _loadRequestId = 0;
   int? _selectedPeakId;
 
@@ -94,70 +93,34 @@ class PeaksCatalogController extends ChangeNotifier {
   // És útil per reutilitzar-lo en reintents i en missatges de la pantalla.
   String get currentSearch => searchController.text.trim();
 
+  // Aquest getter exposa la regió seleccionada per mantenir compatible la UI existent.
+  int? get selectedRegionId => _filtersState.selectedRegionId;
+
+  // Aquest getter exposa l’altitud mínima seleccionada.
+  int? get minAltitude => _filtersState.minAltitude;
+
+  // Aquest getter exposa l’altitud màxima seleccionada.
+  int? get maxAltitude => _filtersState.maxAltitude;
+
+  // Aquest getter exposa el filtre d’estat seleccionat.
+  PeakStatusFilter get selectedStatusFilter =>
+      _filtersState.selectedStatusFilter;
+
   // Aquest getter indica si hi ha algun filtre aplicat.
-  bool get hasActiveFilters =>
-      selectedRegionId != null ||
-      minAltitude != null ||
-      maxAltitude != null ||
-      selectedStatusFilter != PeakStatusFilter.none;
+  bool get hasActiveFilters => _filtersState.hasActiveFilters;
 
   // Aquest getter retorna el nom de la comarca seleccionada, si n’hi ha.
-  String? get selectedRegionName {
-    if (selectedRegionId == null) {
-      return null;
-    }
-
-    for (final region in availableRegions) {
-      if (region.id == selectedRegionId) {
-        return region.name;
-      }
-    }
-
-    return null;
-  }
+  String? get selectedRegionName =>
+      _filtersState.selectedRegionName(availableRegions);
 
   // Aquest getter retorna el nom visible del filtre d’estat seleccionat.
   // Si no hi ha filtre d’estat, no aporta cap text al resum.
-  String? get selectedStatusFilterName {
-    switch (selectedStatusFilter) {
-      case PeakStatusFilter.none:
-        return null;
-      case PeakStatusFilter.pending:
-        return 'Pendents';
-      case PeakStatusFilter.completed:
-        return 'Completats';
-      case PeakStatusFilter.target:
-        return 'Objectius';
-      case PeakStatusFilter.favorite:
-        return 'Preferits';
-    }
-  }
+  String? get selectedStatusFilterName => selectedStatusFilter.displayName;
 
   // Aquest getter construeix un resum curt dels filtres actius
   // perquè la pantalla el pugui mostrar sota la barra de cerca.
-  String get activeFiltersSummary {
-    final parts = <String>[];
-
-    final regionName = selectedRegionName;
-    if (regionName != null && regionName.isNotEmpty) {
-      parts.add(regionName);
-    }
-
-    if (minAltitude != null && maxAltitude != null) {
-      parts.add('$minAltitude - $maxAltitude m');
-    } else if (minAltitude != null) {
-      parts.add('Des de $minAltitude m');
-    } else if (maxAltitude != null) {
-      parts.add('Fins a $maxAltitude m');
-    }
-
-    final statusFilterName = selectedStatusFilterName;
-    if (statusFilterName != null) {
-      parts.add(statusFilterName);
-    }
-
-    return parts.join(' · ');
-  }
+  String get activeFiltersSummary =>
+      _filtersState.activeFiltersSummary(availableRegions);
 
   // Aquest mètode retorna l’estat personal d’un cim consultant directament el
   // store compartit. Així la pantalla del catàleg sempre veu l'estat més recent
@@ -219,22 +182,17 @@ class PeaksCatalogController extends ChangeNotifier {
   }
 
   // Aquest mètode reacciona als canvis del camp de cerca.
-  // Aplica un petit debounce per evitar una petició al backend a cada tecla.
+  // Utilitza un debounce compartit per evitar una petició al backend a cada tecla.
   void onSearchChanged(String value) {
     errorMessage = null;
+
     if (!_disposed) {
       notifyListeners();
     }
 
-    _searchDebounce?.cancel();
-    _searchDebounce = Timer(
-      const Duration(milliseconds: 350),
-      () {
-        _loadPeaks(
-          search: value.trim().isEmpty ? null : value.trim(),
-        );
-      },
-    );
+    _searchDebouncer.run(value, (search) {
+      return _loadPeaks(search: search);
+    });
   }
 
   // Aquest mètode aplica els filtres escollits des del panell visual
@@ -245,10 +203,12 @@ class PeaksCatalogController extends ChangeNotifier {
     int? maxAltitude,
     PeakStatusFilter statusFilter = PeakStatusFilter.none,
   }) async {
-    selectedRegionId = regionId;
-    this.minAltitude = minAltitude;
-    this.maxAltitude = maxAltitude;
-    selectedStatusFilter = statusFilter;
+    _filtersState.apply(
+      regionId: regionId,
+      minAltitude: minAltitude,
+      maxAltitude: maxAltitude,
+      statusFilter: statusFilter,
+    );
 
     await _loadPeaks(
       search: currentSearch.isEmpty ? null : currentSearch,
@@ -257,10 +217,7 @@ class PeaksCatalogController extends ChangeNotifier {
 
   // Aquest mètode elimina els filtres actius i torna a carregar el catàleg.
   Future<void> clearFilters() async {
-    selectedRegionId = null;
-    minAltitude = null;
-    maxAltitude = null;
-    selectedStatusFilter = PeakStatusFilter.none;
+    _filtersState.clear();
 
     await _loadPeaks(
       search: currentSearch.isEmpty ? null : currentSearch,
@@ -354,19 +311,7 @@ class PeaksCatalogController extends ChangeNotifier {
   // Aquest mètode comprova si un cim compleix el filtre d’estat seleccionat.
   bool _matchesStatusFilter(Peak peak) {
     final status = _peakStatusStore.getStatus(peak.id);
-
-    switch (selectedStatusFilter) {
-      case PeakStatusFilter.none:
-        return true;
-      case PeakStatusFilter.pending:
-        return !(status?.isCompleted ?? false);
-      case PeakStatusFilter.completed:
-        return status?.isCompleted ?? false;
-      case PeakStatusFilter.target:
-        return status?.isTarget ?? false;
-      case PeakStatusFilter.favorite:
-        return status?.isFavorite ?? false;
-    }
+    return selectedStatusFilter.matches(status);
   }
 
   // Quan el store notifica un canvi (per exemple, perquè el detall ha
@@ -377,6 +322,7 @@ class PeaksCatalogController extends ChangeNotifier {
     if (_disposed) {
       return;
     }
+
     _applyStatusFilter();
     notifyListeners();
   }
@@ -386,7 +332,7 @@ class PeaksCatalogController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    _searchDebounce?.cancel();
+    _searchDebouncer.dispose();
     _peakStatusStore.removeListener(_onStoreChanged);
     searchController.dispose();
     super.dispose();

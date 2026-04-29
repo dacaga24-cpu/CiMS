@@ -1,5 +1,5 @@
-import 'package:cims/app/screens/peaks_map/widgets/peaks_map_placeholder.dart';
-import 'package:cims/app/screens/peaks_map/widgets/peaks_map_selected_peak_card.dart';
+import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
+import 'package:cims/app/screens/peaks_map/widgets/peaks_google_map.dart';
 import 'package:cims/core/entity/peak.dart';
 import 'package:flutter/material.dart';
 
@@ -18,6 +18,8 @@ class PeaksMapContent extends StatelessWidget {
     required this.onRetryTap,
     required this.onPeakTap,
     required this.onSelectedPeakDetailTap,
+    required this.onMapTap,
+    required this.selectedStatusFilter,
   });
 
   // Aquest bloc rep l’estat necessari per decidir què s’ha de mostrar.
@@ -28,6 +30,7 @@ class PeaksMapContent extends StatelessWidget {
   final Peak? selectedPeak;
   final String currentSearch;
   final bool hasActiveFilters;
+  final PeakStatusFilter selectedStatusFilter;
 
   // Aquest bloc rep les accions que el contingut pot comunicar a la pantalla.
   // Així el widget mostra la interfície, però no decideix com es carreguen o naveguen les dades.
@@ -35,50 +38,95 @@ class PeaksMapContent extends StatelessWidget {
   final Future<void> Function() onRetryTap;
   final ValueChanged<Peak> onPeakTap;
   final VoidCallback onSelectedPeakDetailTap;
+  final VoidCallback onMapTap;
 
   // Construeix el contingut segons l’estat actual del mapa.
-  // Mostra càrrega, error, estat buit o el mapa amb la targeta del cim seleccionat.
+  // Si el mapa ja té cims carregats, no es desmunta durant una nova càrrega.
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
+    if (isLoading && peaks.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 24),
-        children: [
-          if (errorMessage != null)
+    if (errorMessage != null && peaks.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: onRefresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 24),
+          children: [
             _PeaksMapErrorState(
               message: errorMessage!,
               onRetryTap: onRetryTap,
-            )
-          else if (peaks.isEmpty)
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (peaks.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: onRefresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 24),
+          children: [
             _PeaksMapEmptyState(
               currentSearch: currentSearch,
               hasActiveFilters: hasActiveFilters,
-            )
-          else ...[
-            PeaksMapPlaceholder(
-              peaks: peaks,
-              selectedPeak: selectedPeak,
-              onPeakTap: onPeakTap,
             ),
-            const SizedBox(height: 16),
-            if (selectedPeak != null)
-              PeaksMapSelectedPeakCard(
-                peak: selectedPeak!,
-                onDetailTap: onSelectedPeakDetailTap,
-              )
-            else
-              const _PeaksMapHintCard(),
           ],
-        ],
-      ),
+        ),
+      );
+    }
+
+    // Quan hi ha cims disponibles, es mostra el mapa sense desmuntar-lo en recàrregues posteriors.
+    // Això manté una experiència més fluida, especialment quan s’apliquen filtres o cerques.
+    return Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: PeaksGoogleMap(
+            peaks: peaks,
+            selectedPeak: selectedPeak,
+            onPeakTap: onPeakTap,
+            onSelectedPeakDetailTap: onSelectedPeakDetailTap,
+            onMapTap: onMapTap,
+            statusFilter: selectedStatusFilter,
+          ),
+        ),
+
+        // Aquesta càrrega flotant evita desmuntar Google Maps mentre s’apliquen filtres.
+        // En web és important perquè reconstruir el mapa complet pot bloquejar la interfície.
+        if (isLoading)
+          Positioned(
+            top: 14,
+            right: 14,
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.94),
+                borderRadius: BorderRadius.circular(21),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x22000000),
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Padding(
+                padding: EdgeInsets.all(10),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.4,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -91,11 +139,9 @@ class _PeaksMapErrorState extends StatelessWidget {
     required this.onRetryTap,
   });
 
-  // Aquest bloc conté el missatge d’error i l’acció per reintentar la càrrega.
   final String message;
   final Future<void> Function() onRetryTap;
 
-  // Construeix l’estat d’error amb una explicació clara i una acció de recuperació.
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -136,12 +182,9 @@ class _PeaksMapEmptyState extends StatelessWidget {
     required this.hasActiveFilters,
   });
 
-  // Aquest bloc permet adaptar el missatge segons el context de la consulta.
-  // Diferencia entre absència de dades, cerca sense resultats o filtres massa restrictius.
   final String currentSearch;
   final bool hasActiveFilters;
 
-  // Construeix l’estat buit amb un missatge entenedor per a l’usuari.
   @override
   Widget build(BuildContext context) {
     final hasSearch = currentSearch.isNotEmpty;
@@ -149,7 +192,8 @@ class _PeaksMapEmptyState extends StatelessWidget {
     String message = 'Encara no hi ha cims amb ubicació disponible';
 
     if (hasSearch && hasActiveFilters) {
-      message = 'No s\'han trobat cims al mapa amb aquesta cerca i aquests filtres';
+      message =
+          'No s\'han trobat cims al mapa amb aquesta cerca i aquests filtres';
     } else if (hasSearch) {
       message = 'No s\'han trobat cims al mapa per a aquesta cerca';
     } else if (hasActiveFilters) {
@@ -176,32 +220,6 @@ class _PeaksMapEmptyState extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// Aquesta targeta dona una indicació inicial abans que l’usuari seleccioni un cim.
-class _PeaksMapHintCard extends StatelessWidget {
-  const _PeaksMapHintCard();
-
-  // Mostra una ajuda breu perquè l’usuari entengui com interactuar amb el mapa.
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: const Text(
-        'Selecciona un punt del mapa per veure la informació bàsica del cim.',
-        style: TextStyle(
-          fontSize: 15,
-          height: 1.35,
-          fontWeight: FontWeight.w500,
-          color: Color(0xFF5B6573),
-        ),
       ),
     );
   }

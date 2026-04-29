@@ -9,11 +9,18 @@ import 'package:cims/app/screens/peaks_map/widgets/peaks_map_content.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta pantalla mostra el mapa de cims de l’aplicació.
-// En aquesta primera versió prepara el flux funcional complet i deixa
-// l’espai del mapa preparat per substituir-lo pel component real de Google Maps.
+// Permet consultar els cims sobre Google Maps, aplicar cerca i filtres,
+// i obrir el detall d’un cim seleccionat.
 @RoutePage()
 class PeaksMapScreen extends StatefulWidget {
-  const PeaksMapScreen({super.key});
+  const PeaksMapScreen({
+    super.key,
+    this.initialPeakId,
+  });
+
+  // Identificador opcional del cim que s’ha de seleccionar en obrir el mapa.
+  // S’utilitza quan l’usuari arriba al mapa des de la pantalla de detall d’un cim.
+  final int? initialPeakId;
 
   @override
   State<PeaksMapScreen> createState() => _PeaksMapScreenState();
@@ -31,7 +38,9 @@ class _PeaksMapScreenState extends State<PeaksMapScreen> {
   @override
   void initState() {
     super.initState();
-    controller = PeaksMapController()
+    controller = PeaksMapController(
+      initialPeakId: widget.initialPeakId,
+    )
       ..addListener(_handleControllerChanges)
       ..initialize();
   }
@@ -137,10 +146,12 @@ class _PeaksMapScreenState extends State<PeaksMapScreen> {
                     selectedPeak: controller.selectedPeak,
                     currentSearch: controller.currentSearch,
                     hasActiveFilters: controller.hasActiveFilters,
+                    selectedStatusFilter: controller.selectedStatusFilter,
                     onRefresh: controller.onRetryTap,
                     onRetryTap: controller.onRetryTap,
                     onPeakTap: controller.onPeakSelected,
                     onSelectedPeakDetailTap: controller.onSelectedPeakDetailTap,
+                    onMapTap: controller.clearSelectedPeak,
                   ),
                 ),
               ],
