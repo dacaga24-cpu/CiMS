@@ -1,6 +1,8 @@
 import 'package:cims/app/client/api/api_client_impl.dart';
 import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/user_stats.dart';
+import 'package:cims/core/session/app_session.dart';
+import 'package:cims/core/store/user_stats_refresh_store.dart';
 import 'package:cims/core/usecase/get_user_stats_usecase.dart';
 import 'package:flutter/material.dart';
 
@@ -10,12 +12,21 @@ import 'package:flutter/material.dart';
 class UserStatsController extends ChangeNotifier {
   UserStatsController({
     GetUserStatsUseCase? getUserStatsUseCase,
-  }) : _getUserStatsUseCase =
-            getUserStatsUseCase ?? GetUserStatsUseCase(ApiClientImpl());
+    UserStatsRefreshStore? userStatsRefreshStore,
+  })  : _getUserStatsUseCase =
+            getUserStatsUseCase ?? GetUserStatsUseCase(ApiClientImpl()),
+        _userStatsRefreshStore =
+            userStatsRefreshStore ?? AppSession.userStatsRefreshStore {
+    _userStatsRefreshStore.addListener(_handleStatsChanged);
+  }
 
   // Aquest cas d’ús encapsula la consulta de les estadístiques personals.
   // El controller no fa peticions HTTP directes.
   final GetUserStatsUseCase _getUserStatsUseCase;
+
+  // Aquest store permet detectar quan una acció externa, com registrar una ascensió,
+  // pot haver modificat les dades que es mostren a estadístiques.
+  final UserStatsRefreshStore _userStatsRefreshStore;
 
   // Aquest bloc conserva les dades rebudes del backend i els estats visuals
   // necessaris per saber si la pantalla ha de mostrar contingut, càrrega o error.
@@ -29,7 +40,7 @@ class UserStatsController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   // Aquestes banderes internes eviten actualitzacions insegures i càrregues repetides.
-  // Són importants perquè la pantalla pot reconstruir-se sense haver de repetir la petició.
+  // Són importants perquè la pantalla pot reconstruir-se sense haver de repetir la petició inicial.
   bool _disposed = false;
   bool _hasLoaded = false;
 
@@ -115,6 +126,12 @@ class UserStatsController extends ChangeNotifier {
     await loadStats();
   }
 
+  // Aquest mètode s’executa quan una altra part de l’aplicació indica
+  // que les estadístiques poden haver canviat.
+  void _handleStatsChanged() {
+    loadStats();
+  }
+
   // Aquest mètode demana les estadístiques al backend i actualitza l’estat visual.
   Future<void> loadStats() async {
     if (_isLoading) return;
@@ -155,9 +172,10 @@ class UserStatsController extends ChangeNotifier {
   }
 
   // Aquest mètode marca el controller com a finalitzat abans d’alliberar-lo.
-  // Això evita avisos a la UI quan una petició acaba després de sortir de la pantalla.
+  // També deixa d’escoltar el store compartit per evitar actualitzacions innecessàries.
   @override
   void dispose() {
+    _userStatsRefreshStore.removeListener(_handleStatsChanged);
     _disposed = true;
     super.dispose();
   }

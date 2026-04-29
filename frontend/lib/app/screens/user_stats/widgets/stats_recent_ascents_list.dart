@@ -134,18 +134,6 @@ class _RecentAscentTile extends StatelessWidget {
                   horizontal: 6,
                   vertical: 3,
                 ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFE27A),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Text(
-                  'SUMMIT',
-                  style: TextStyle(
-                    fontSize: 7,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF5B4A00),
-                  ),
-                ),
               ),
             ],
           ),
