@@ -171,6 +171,40 @@ const StatsModel = {
     }));
   },
 
+  // Retorna els cims que tenen un flag concret actiu al peak_status d'un
+  // usuari, ordenats per la modificació més recent i limitats al sostre
+  // sol·licitat. S'utilitza des del dashboard per llistar els objectius
+  // pendents (is_target = 1) i els preferits (is_favorite = 1) sense haver
+  // de duplicar la query a múltiples mètodes específics.
+  //
+  // El nom de la columna del flag s'interpola directament al SQL perquè
+  // mysql2 no permet parametritzar identificadors. La whitelist garanteix
+  // que el valor només pot ser un dels valors permesos i, per tant, no és
+  // un vector d'injecció. Mai s'ha de passar input d'usuari a aquest paràmetre.
+  async findFlaggedPeaks(userId, flagColumn, limit) {
+    const allowedFlags = ['is_target', 'is_favorite', 'is_completed'];
+    if (!allowedFlags.includes(flagColumn)) {
+      throw new Error(`Invalid flag column requested: ${flagColumn}`);
+    }
+
+    const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : 5;
+    const sql = `
+      SELECT p.id AS peak_id, p.name AS peak_name, p.altitude AS peak_altitude
+      FROM peak_status ps
+      INNER JOIN peaks p ON p.id = ps.peak_id
+      WHERE ps.user_id = ? AND ps.${flagColumn} = 1
+      ORDER BY ps.updated_at DESC, p.name ASC
+      LIMIT ${safeLimit}
+    `;
+
+    const [rows] = await pool.execute(sql, [userId]);
+    return rows.map((row) => ({
+      peakId: Number(row.peak_id),
+      peakName: row.peak_name,
+      peakAltitude: Number(row.peak_altitude),
+    }));
+  },
+
   // Retorna les comarques associades a un conjunt de cims en una sola query.
   // L'ús habitual és cridar-lo amb els peakIds que el servei ja sap que
   // necessita (els del cim més pujat i els de les ascensions recents) per

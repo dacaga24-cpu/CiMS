@@ -66,7 +66,7 @@ class StatsMostAscendedCard extends StatelessWidget {
                 Text(
                   peak == null
                       ? 'Registra ascensions per veure aquesta dada'
-                      : '${peak.totalAscents} ascensions', //TODO: no mostra els números de les ascensions, revisar
+                      : '${peak.totalAscents} ascensions',
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,

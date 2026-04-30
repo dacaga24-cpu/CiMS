@@ -1,4 +1,5 @@
 import 'package:cims/app/client/session/session_storage_impl.dart';
+import 'package:cims/app/screens/peaks_catalog/models/peaks_filter_state.dart';
 import 'package:cims/core/client/session_storage.dart';
 import 'package:cims/core/store/peak_status_store.dart';
 import 'package:cims/core/store/user_stats_refresh_store.dart';
@@ -64,11 +65,13 @@ class AppSession {
   }
 
   // Aquest mètode centralitza la reacció davant d’una sessió caducada:
-  // neteja la sessió local, buida l'estat compartit i executa la redirecció
-  // global a login.
+  // neteja la sessió local, buida l'estat compartit (incloent-hi el filtre
+  // de cims, perquè un nou usuari no hereti els filtres de l'anterior) i
+  // executa la redirecció global a login.
   static Future<void> handleUnauthorized() async {
     await clearSessionUseCase.execute();
     peakStatusStore.clear();
+    PeaksFilterState.shared.clear();
 
     if (_onSessionExpired != null) {
       await _onSessionExpired!();

@@ -166,7 +166,7 @@ class _RecentAscentTile extends StatelessWidget {
   // Aquest mètode prepara el subtítol de l’ascensió combinant territori i altitud.
   // Si el cim no té regions associades, mostra només l’altitud.
   String _buildSubtitle(RecentAscentStats ascent) {
-    final altitude = '${_formatNumber(ascent.altitude)}m'; //TODO: no muestra los metros de la altitud, revisar
+    final altitude = '${_formatNumber(ascent.altitude)}m';
 
     if (ascent.regions.isEmpty) {
       return altitude;
