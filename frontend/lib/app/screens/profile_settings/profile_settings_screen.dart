@@ -2,6 +2,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:cims/app/router/app_router.dart';
 import 'package:flutter/material.dart';
 import 'profile_settings_controller.dart';
+import 'widgets/profile_edit_form.dart';
+import 'widgets/profile_password_form.dart';
 import 'widgets/profile_settings_header.dart';
 import 'widgets/profile_settings_logout_button.dart';
 import 'widgets/profile_settings_options_card.dart';
@@ -9,7 +11,8 @@ import 'widgets/profile_settings_section_title.dart';
 import 'widgets/profile_settings_top_bar.dart';
 
 // Aquesta pantalla mostra la configuració bàsica del compte.
-// En aquest sprint es prioritza el disseny visual i el logout funcional.
+// Permet consultar el perfil real, editar dades personals, canviar la contrasenya
+// i tancar la sessió de l’usuari autenticat.
 @RoutePage()
 class ProfileSettingsScreen extends StatefulWidget {
   const ProfileSettingsScreen({
@@ -29,7 +32,7 @@ class ProfileSettingsScreen extends StatefulWidget {
 // i construir la interfície segons l’estat actual del perfil.
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   // Aquest controlador concentra la càrrega del perfil,
-  // la gestió d’errors i l’acció de tancar sessió.
+  // la gestió d’errors, l’edició del compte i l’acció de tancar sessió.
   late final ProfileSettingsController controller;
 
   // Aquest mètode prepara el controller quan la pantalla es crea
@@ -75,6 +78,86 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         ),
       );
     }
+
+    // Aquest bloc mostra les confirmacions de les operacions del perfil.
+    // Després de mostrar-les, el missatge es consumeix per evitar repeticions.
+    if (controller.successMessage != null) {
+      final successMessage = controller.successMessage!;
+      controller.consumeSuccessMessage();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(successMessage),
+        ),
+      );
+    }
+  }
+
+  // Aquest mètode obre el formulari per editar les dades personals.
+  // La pantalla resol la presentació visual i el controller manté l’estat del formulari.
+  void _openEditProfileForm() {
+    controller.prepareProfileForm();
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) {
+        return AnimatedBuilder(
+          animation: controller,
+          builder: (context, _) {
+            return ProfileEditForm(
+              firstNameController: controller.firstNameController,
+              lastNameController: controller.lastNameController,
+              showValidation: controller.showProfileValidation,
+              isLoading: controller.isSavingProfile,
+              onChanged: controller.onProfileFieldChanged,
+              onSave: () async {
+                final success = await controller.saveProfileChanges();
+
+                if (success && sheetContext.mounted) {
+                  Navigator.of(sheetContext).pop();
+                }
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Aquest mètode obre el formulari per canviar la contrasenya.
+  // Quan es tanca el formulari, es netegen els camps per no conservar dades sensibles.
+  void _openPasswordForm() {
+    controller.clearPasswordForm();
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) {
+        return AnimatedBuilder(
+          animation: controller,
+          builder: (context, _) {
+            return ProfilePasswordForm(
+              currentPasswordController: controller.currentPasswordController,
+              newPasswordController: controller.newPasswordController,
+              confirmPasswordController: controller.confirmPasswordController,
+              showValidation: controller.showPasswordValidation,
+              isLoading: controller.isChangingPassword,
+              onChanged: controller.onPasswordFieldChanged,
+              onSave: () async {
+                final success = await controller.changePassword();
+
+                if (success && sheetContext.mounted) {
+                  Navigator.of(sheetContext).pop();
+                }
+              },
+            );
+          },
+        );
+      },
+    ).whenComplete(controller.clearPasswordForm);
   }
 
   // Aquest mètode allibera el controller quan la pantalla deixa d’utilitzar-se.
@@ -110,7 +193,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   const Spacer(),
                   const ProfileSettingsSectionTitle(),
                   const SizedBox(height: 14),
-                  const ProfileSettingsOptionsCard(),
+                  ProfileSettingsOptionsCard(
+                    onEditProfileTap: _openEditProfileForm,
+                    onChangePasswordTap: _openPasswordForm,
+                  ),
                   const SizedBox(height: 28),
                   ProfileSettingsLogoutButton(
                     isLoggingOut: controller.isLoggingOut,
