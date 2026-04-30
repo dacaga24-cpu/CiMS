@@ -27,6 +27,89 @@ class AppStartRoute extends PageRouteInfo<void> {
 }
 
 /// generated route for
+/// [AscentHistoryScreen]
+class AscentHistoryRoute extends PageRouteInfo<AscentHistoryRouteArgs> {
+  AscentHistoryRoute({
+    Key? key,
+    required int peakId,
+    required String peakName,
+    required int altitude,
+    required List<String> regions,
+    List<PageRouteInfo>? children,
+  }) : super(
+          AscentHistoryRoute.name,
+          args: AscentHistoryRouteArgs(
+            key: key,
+            peakId: peakId,
+            peakName: peakName,
+            altitude: altitude,
+            regions: regions,
+          ),
+          initialChildren: children,
+        );
+
+  static const String name = 'AscentHistoryRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      final args = data.argsAs<AscentHistoryRouteArgs>();
+      return AscentHistoryScreen(
+        key: args.key,
+        peakId: args.peakId,
+        peakName: args.peakName,
+        altitude: args.altitude,
+        regions: args.regions,
+      );
+    },
+  );
+}
+
+class AscentHistoryRouteArgs {
+  const AscentHistoryRouteArgs({
+    this.key,
+    required this.peakId,
+    required this.peakName,
+    required this.altitude,
+    required this.regions,
+  });
+
+  final Key? key;
+
+  final int peakId;
+
+  final String peakName;
+
+  final int altitude;
+
+  final List<String> regions;
+
+  @override
+  String toString() {
+    return 'AscentHistoryRouteArgs{key: $key, peakId: $peakId, peakName: $peakName, altitude: $altitude, regions: $regions}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! AscentHistoryRouteArgs) return false;
+    return key == other.key &&
+        peakId == other.peakId &&
+        peakName == other.peakName &&
+        altitude == other.altitude &&
+        const ListEquality<String>().equals(regions, other.regions);
+  }
+
+  @override
+  int get hashCode =>
+      key.hashCode ^
+      peakId.hashCode ^
+      peakName.hashCode ^
+      altitude.hashCode ^
+      const ListEquality<String>().hash(regions);
+}
+
+/// generated route for
 /// [AscentRegisterScreen]
 class AscentRegisterRoute extends PageRouteInfo<AscentRegisterRouteArgs> {
   AscentRegisterRoute({
@@ -186,18 +269,48 @@ class PeaksCatalogRoute extends PageRouteInfo<void> {
 
 /// generated route for
 /// [PeaksMapScreen]
-class PeaksMapRoute extends PageRouteInfo<void> {
-  const PeaksMapRoute({List<PageRouteInfo>? children})
-      : super(PeaksMapRoute.name, initialChildren: children);
+class PeaksMapRoute extends PageRouteInfo<PeaksMapRouteArgs> {
+  PeaksMapRoute({Key? key, int? initialPeakId, List<PageRouteInfo>? children})
+      : super(
+          PeaksMapRoute.name,
+          args: PeaksMapRouteArgs(key: key, initialPeakId: initialPeakId),
+          initialChildren: children,
+        );
 
   static const String name = 'PeaksMapRoute';
 
   static PageInfo page = PageInfo(
     name,
     builder: (data) {
-      return const PeaksMapScreen();
+      final args = data.argsAs<PeaksMapRouteArgs>(
+        orElse: () => const PeaksMapRouteArgs(),
+      );
+      return PeaksMapScreen(key: args.key, initialPeakId: args.initialPeakId);
     },
   );
+}
+
+class PeaksMapRouteArgs {
+  const PeaksMapRouteArgs({this.key, this.initialPeakId});
+
+  final Key? key;
+
+  final int? initialPeakId;
+
+  @override
+  String toString() {
+    return 'PeaksMapRouteArgs{key: $key, initialPeakId: $initialPeakId}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! PeaksMapRouteArgs) return false;
+    return key == other.key && initialPeakId == other.initialPeakId;
+  }
+
+  @override
+  int get hashCode => key.hashCode ^ initialPeakId.hashCode;
 }
 
 /// generated route for

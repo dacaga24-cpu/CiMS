@@ -1,13 +1,10 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:cims/app/router/app_router.dart';
 import 'package:cims/app/screens/peak_detail/peak_detail_controller.dart';
+import 'package:cims/app/screens/peak_detail/widgets/peak_detail_app_bar.dart';
 import 'package:cims/app/screens/peak_detail/widgets/peak_detail_bottom_action.dart';
-import 'package:cims/app/screens/peak_detail/widgets/peak_detail_description_card.dart';
-import 'package:cims/app/screens/peak_detail/widgets/peak_detail_empty_state.dart';
+import 'package:cims/app/screens/peak_detail/widgets/peak_detail_content.dart';
 import 'package:cims/app/screens/peak_detail/widgets/peak_detail_error_state.dart';
-import 'package:cims/app/screens/peak_detail/widgets/peak_detail_header.dart';
-import 'package:cims/app/screens/peak_detail/widgets/peak_detail_map_card.dart';
-import 'package:cims/app/screens/peak_detail/widgets/peak_detail_status_actions.dart';
 import 'package:cims/core/entity/peak.dart';
 import 'package:flutter/material.dart';
 
@@ -29,6 +26,8 @@ class PeakDetailScreen extends StatefulWidget {
   State<PeakDetailScreen> createState() => _PeakDetailScreenState();
 }
 
+// Aquest estat connecta la pantalla amb el controller del detall.
+// També resol les navegacions derivades de les accions de l’usuari.
 class _PeakDetailScreenState extends State<PeakDetailScreen> {
   // Aquest bloc guarda el controller real de la pantalla
   // i un possible missatge d’error si la seva creació falla d’entrada.
@@ -41,6 +40,18 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
   void initState() {
     super.initState();
     _initializeController();
+  }
+
+  // Obre la pantalla de mapa amb el cim actual seleccionat.
+  // Així el mapa es carrega centrat en el marcador del cim.
+  Future<void> _openPeakMap(int peakId) async {
+    await context.router.root.replaceAll([
+      MainNavigationRoute(
+        children: [
+          PeaksMapRoute(initialPeakId: peakId),
+        ],
+      ),
+    ]);
   }
 
   // Aquest mètode crea el controller de manera segura.
@@ -66,7 +77,7 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
   }
 
   // Aquest mètode resol les accions globals des de la vista.
-  // La navegació real cap al mapa o cap al registre d’ascensió
+  // La navegació real cap al mapa, cap al registre d’ascensió o cap a l’historial
   // es fa des de la pantalla per mantenir el controller separat del context visual.
   void _handleControllerChanges() {
     final controller = _controller;
@@ -76,12 +87,21 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
     switch (controller.destination) {
       case PeakDetailDestination.none:
         return;
+
       case PeakDetailDestination.openMap:
+        final peak = controller.peak;
         controller.consumeNavigation();
-        _showInfoMessage(
-          'La connexió directa amb el mapa del cim encara està pendent d\'integrar.',
-        );
+
+        if (peak == null || !peak.hasMapPosition) {
+          _showInfoMessage(
+            'No s\'ha pogut obrir la ubicació del cim.',
+          );
+          return;
+        }
+
+        _openPeakMap(peak.id);
         return;
+
       case PeakDetailDestination.registerAscent:
         final peak = controller.peak;
         controller.consumeNavigation();
@@ -94,6 +114,20 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
         }
 
         _openAscentRegister(controller, peak);
+        return;
+
+      case PeakDetailDestination.ascentHistory:
+        final peak = controller.peak;
+        controller.consumeNavigation();
+
+        if (peak == null) {
+          _showInfoMessage(
+            'No s\'ha pogut obrir l\'historial d\'ascensions.',
+          );
+          return;
+        }
+
+        _openAscentHistory(peak);
         return;
     }
   }
@@ -114,6 +148,19 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
     }
 
     await controller.refreshLastAscentDate();
+  }
+
+  // Aquest mètode obre l’historial d’ascensions del cim actual.
+  // Reutilitza les dades ja carregades al detall per construir la capçalera.
+  Future<void> _openAscentHistory(Peak peak) async {
+    await context.router.root.push(
+      AscentHistoryRoute(
+        peakId: peak.id,
+        peakName: peak.name,
+        altitude: peak.altitude,
+        regions: peak.regions.map((region) => region.name).toList(),
+      ),
+    );
   }
 
   // Aquest mètode mostra un missatge breu a la part inferior
@@ -149,7 +196,7 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
     if (_initializationError != null || controller == null) {
       return Scaffold(
         backgroundColor: const Color(0xFFF6F7FB),
-        appBar: _buildAppBar(),
+        appBar: const PeakDetailAppBar(),
         body: PeakDetailErrorState(
           message: _initializationError ??
               'No s\'ha pogut inicialitzar la pantalla de detall.',
@@ -164,105 +211,28 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
       builder: (context, _) {
         return Scaffold(
           backgroundColor: const Color(0xFFF6F7FB),
-          appBar: _buildAppBar(),
-          body: _buildBody(controller),
-          bottomNavigationBar: PeakDetailBottomAction(
-            onPressed: controller.onRegisterAscentTap,
-          ),
-        );
-      },
-    );
-  }
-
-  // Aquest mètode construeix la barra superior comuna de la pantalla.
-  // Es manté transparent per conservar l’estil visual del detall del cim.
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      surfaceTintColor: Colors.transparent,
-    );
-  }
-
-  // Aquest mètode decideix quin contingut s’ha de mostrar
-  // segons l’estat actual de la càrrega del detall del cim.
-  Widget _buildBody(PeakDetailController controller) {
-    if (controller.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
-    if (controller.errorMessage != null) {
-      return PeakDetailErrorState(
-        message: controller.errorMessage!,
-        onRetryTap: controller.onRetryTap,
-      );
-    }
-
-    final peak = controller.peak;
-    if (peak == null) {
-      return const PeakDetailEmptyState();
-    }
-
-    // Aquest bloc construeix el contingut principal del detall,
-    // agrupant capçalera, estat, descripció i ubicació del cim.
-    return RefreshIndicator(
-      onRefresh: controller.onRetryTap,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
-        children: [
-          PeakDetailHeader(
-            peak: peak,
+          appBar: const PeakDetailAppBar(),
+          body: PeakDetailContent(
+            isLoading: controller.isLoading,
+            errorMessage: controller.errorMessage,
+            peak: controller.peak,
+            peakStatus: controller.peakStatus,
             lastAscentDate: controller.lastAscentDate,
-          ),
-          const SizedBox(height: 18),
-          PeakDetailStatusActions(
-            isTarget: controller.peakStatus?.isTarget ?? false,
-            isCompleted: controller.peakStatus?.isCompleted ?? false,
-            isFavorite: controller.peakStatus?.isFavorite ?? false,
-            areActionsEnabled: !controller.isUpdatingStatus,
+            isUpdatingStatus: controller.isUpdatingStatus,
+            statusErrorMessage: controller.statusErrorMessage,
+            ascentsErrorMessage: controller.ascentsErrorMessage,
+            onRetryTap: controller.onRetryTap,
             onTargetTap: controller.onTargetTap,
             onCompletedTap: controller.onCompletedTap,
             onFavoriteTap: controller.onFavoriteTap,
+            onMapTap: _openPeakMap,
           ),
-          if (controller.statusErrorMessage != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              controller.statusErrorMessage!,
-              style: const TextStyle(
-                color: Color(0xFFE84A4A),
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-          if (controller.ascentsErrorMessage != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              controller.ascentsErrorMessage!,
-              style: const TextStyle(
-                color: Color(0xFFE84A4A),
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-          if (peak.hasDescription) ...[
-            const SizedBox(height: 18),
-            PeakDetailDescriptionCard(
-              peak: peak,
-            ),
-          ],
-          const SizedBox(height: 18),
-          PeakDetailMapCard(
-            peak: peak,
-            onTap: controller.onMapTap,
+          bottomNavigationBar: PeakDetailBottomAction(
+            onPressed: controller.onRegisterAscentTap,
+            onHistoryPressed: controller.onAscentHistoryTap,
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

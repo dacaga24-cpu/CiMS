@@ -1,38 +1,45 @@
--- Aquest script principal prepara la base de dades de CiMS des de zero.
--- La seva funció és recrear l’estructura bàsica, carregar les dades inicials
--- i comprovar al final que la càrrega s’ha fet correctament.
-
--- Aquestes indicacions expliquen com executar l’script des del client de MySQL.
--- És important fer-ho des de la carpeta correcta perquè les rutes dels fitxers auxiliars funcionin bé.
---   mysql -u root -p
---   SOURCE bootstrap.sql;
+--  Aquest script prepara la base de dades de CiMS des de zero.
+--  És la primera fase del procés de seeding i s'encarrega de:
+--    1. Eliminar la base de dades `cims_db` si existeix.
+--    2. Crear-la de nou amb la codificació adequada (utf8mb4).
+--    3. Carregar l'estructura completa de taules (schema.sql).
+--    4. Carregar les dades base de les 43 comarques (seed_regions.sql).
 --
--- IMPORTANT:
--- 1) Aquest script elimina i recrea la base de dades `cims_db`.
--- 2) Les rutes SOURCE són relatives al directori actual del client MySQL.
--- 3) Per això has d'obrir mysql des de la carpeta `database/`.
+--  El procés complet de seeding es divideix en tres passos perquè la càrrega
+--  de cims es fa programàticament amb Node.js, i la càrrega de relacions
+--  cims–comarques requereix que ambdues taules ja estiguin poblades:
+--
+--    Pas 1)  mysql -u root -p < bootstrap.sql
+--    Pas 2)  node seeds/seed-peaks.js
+--    Pas 3)  mysql -u root -p < bootstrap_post_peaks.sql
+--
+--  IMPORTANT:
+--    - Aquest script ELIMINA la base de dades existent. Qualsevol dada
+--      manual prèvia es perdrà. Pensat per a entorns de desenvolupament.
+--    - Les rutes SOURCE són relatives al directori actual del client mysql.
+--      Cal executar-lo des de la carpeta `database/`.
+-- ─────────────────────────────────────────────────────────────────────────────
 
 SET NAMES utf8mb4;
-SET @OLD_FOREIGN_KEY_CHECKS = @@FOREIGN_KEY_CHECKS;
-SET FOREIGN_KEY_CHECKS = 0;
 
+-- ── Recreació de la base de dades ────────────────────────────────────────────
 DROP DATABASE IF EXISTS cims_db;
-
-SET FOREIGN_KEY_CHECKS = @OLD_FOREIGN_KEY_CHECKS;
-
--- Crea l'estructura base
-SOURCE schema.sql;
-
--- Carrega dades inicials
-SOURCE seeds/seed_regions.sql;
--- seed_peaks.sql eliminat: els cims es carreguen via `node seeds/seed-peaks.js`
-
--- Validacions bàsiques post-càrrega
+CREATE DATABASE cims_db
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
 USE cims_db;
 
-SELECT 'regions_count'      AS check_name, COUNT(*) AS total FROM regions;
-SELECT 'peaks_count'        AS check_name, COUNT(*) AS total FROM peaks;
-SELECT 'peak_regions_count' AS check_name, COUNT(*) AS total FROM peak_regions;
-SELECT 'users_count'        AS check_name, COUNT(*) AS total FROM users;
-SELECT 'ascents_count'      AS check_name, COUNT(*) AS total FROM ascents;
-SELECT 'peak_status_count'  AS check_name, COUNT(*) AS total FROM peak_status;
+-- ── Càrrega de l'estructura ──────────────────────────────────────────────────
+SOURCE schema.sql;
+
+-- ── Càrrega de dades base ────────────────────────────────────────────────────
+-- Només es carreguen les comarques aquí. Els cims es carreguen amb el seeder
+-- de Node.js (`seeds/seed-peaks.js`) per llegir-los del CSV i la relació
+-- cims–comarques es carrega amb `bootstrap_post_peaks.sql` un cop els pics
+-- ja hi són a la base de dades.
+SOURCE seeds/seed_regions.sql;
+
+-- ── Validació intermèdia ─────────────────────────────────────────────────────
+-- Comprovació ràpida que les comarques s'han carregat correctament.
+-- Esperem 43 files (42 comarques + Aran).
+SELECT 'regions_count' AS check_name, COUNT(*) AS total FROM regions;

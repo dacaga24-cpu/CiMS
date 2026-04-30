@@ -3,6 +3,7 @@ import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/peak_status.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:cims/core/store/peak_status_store.dart';
+import 'package:cims/core/store/user_stats_refresh_store.dart';
 import 'package:cims/core/usecase/register_ascent_usecase.dart';
 import 'package:flutter/material.dart';
 
@@ -33,22 +34,25 @@ class AscentRegisterController extends ChangeNotifier {
     DateTime? initialDate,
     RegisterAscentUseCase? registerAscentUseCase,
     PeakStatusStore? peakStatusStore,
-  })  : _selectedAscentDate =
-            DateUtils.dateOnly(initialDate ?? DateTime.now()),
+    UserStatsRefreshStore? userStatsRefreshStore,
+  })  : _selectedAscentDate = DateUtils.dateOnly(initialDate ?? DateTime.now()),
         _registerAscentUseCase = registerAscentUseCase ??
             RegisterAscentUseCase(
               ApiClientImpl(),
             ),
-        _peakStatusStore = peakStatusStore ?? AppSession.peakStatusStore;
+        _peakStatusStore = peakStatusStore ?? AppSession.peakStatusStore,
+        _userStatsRefreshStore =
+            userStatsRefreshStore ?? AppSession.userStatsRefreshStore;
 
   // Aquest identificador indica a quin cim quedarà associada l’ascensió.
   // Arriba des de la pantalla de detall del cim.
   final int peakId;
 
-  // Aquest bloc agrupa les dependències que permeten registrar l’ascensió
-  // i mantenir sincronitzat l’estat compartit dels cims.
+  // Aquest bloc agrupa les dependències que permeten registrar l’ascensió,
+  // mantenir sincronitzat l’estat compartit dels cims i avisar les estadístiques.
   final RegisterAscentUseCase _registerAscentUseCase;
   final PeakStatusStore _peakStatusStore;
+  final UserStatsRefreshStore _userStatsRefreshStore;
 
   // Aquest camp guarda el text lliure que l’usuari escriu
   // per deixar observacions sobre l’ascensió.
@@ -109,7 +113,8 @@ class AscentRegisterController extends ChangeNotifier {
   }
 
   // Aquest mètode confirma el formulari i envia l’ascensió al backend.
-  // Si el registre funciona, també marca el cim com a completat dins del store compartit.
+  // Si el registre funciona, també marca el cim com a completat i avisa
+  // que les estadístiques s’han de tornar a carregar.
   Future<void> onConfirmTap() async {
     if (isLoading) {
       return;
@@ -138,6 +143,7 @@ class AscentRegisterController extends ChangeNotifier {
       }
 
       _markPeakAsCompletedInStore();
+      _userStatsRefreshStore.notifyStatsChanged();
 
       _feedback = AscentRegisterFeedback.saved;
       _destination = AscentRegisterNavigationDestination.back;
@@ -192,7 +198,8 @@ class AscentRegisterController extends ChangeNotifier {
     }
 
     if (notesController.text.length > _maxNotesLength) {
-      errorMessage = 'Les notes no poden superar els $_maxNotesLength caràcters';
+      errorMessage =
+          'Les notes no poden superar els $_maxNotesLength caràcters';
       return false;
     }
 

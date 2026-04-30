@@ -4,6 +4,7 @@ import 'package:cims/core/entity/peak.dart';
 import 'package:cims/core/entity/peak_status.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:cims/core/store/peak_status_store.dart';
+import 'package:cims/core/store/user_stats_refresh_store.dart';
 import 'package:cims/core/usecase/get_ascents_by_peak_usecase.dart';
 import 'package:cims/core/usecase/get_peak_by_id_usecase.dart';
 import 'package:cims/core/usecase/get_peak_status_usecase.dart';
@@ -16,6 +17,7 @@ enum PeakDetailDestination {
   none,
   openMap,
   registerAscent,
+  ascentHistory,
 }
 
 // Aquest controller gestiona l’estat de la pantalla de detall del cim.
@@ -37,6 +39,7 @@ class PeakDetailController extends ChangeNotifier {
     UpdatePeakStatusUseCase? updatePeakStatusUseCase,
     GetAscentsByPeakUseCase? getAscentsByPeakUseCase,
     PeakStatusStore? peakStatusStore,
+    UserStatsRefreshStore? userStatsRefreshStore,
   }) {
     final resolvedApiClient = apiClient ?? ApiClientImpl();
 
@@ -53,6 +56,8 @@ class PeakDetailController extends ChangeNotifier {
       getAscentsByPeakUseCase:
           getAscentsByPeakUseCase ?? GetAscentsByPeakUseCase(resolvedApiClient),
       peakStatusStore: peakStatusStore ?? AppSession.peakStatusStore,
+      userStatsRefreshStore:
+          userStatsRefreshStore ?? AppSession.userStatsRefreshStore,
     );
   }
 
@@ -65,11 +70,13 @@ class PeakDetailController extends ChangeNotifier {
     required UpdatePeakStatusUseCase updatePeakStatusUseCase,
     required GetAscentsByPeakUseCase getAscentsByPeakUseCase,
     required PeakStatusStore peakStatusStore,
+    required UserStatsRefreshStore userStatsRefreshStore,
   })  : _getPeakByIdUseCase = getPeakByIdUseCase,
         _getPeakStatusUseCase = getPeakStatusUseCase,
         _updatePeakStatusUseCase = updatePeakStatusUseCase,
         _getAscentsByPeakUseCase = getAscentsByPeakUseCase,
-        _peakStatusStore = peakStatusStore {
+        _peakStatusStore = peakStatusStore,
+        _userStatsRefreshStore = userStatsRefreshStore {
     // El controller s'enganxa al store per propagar els canvis fets per
     // qualsevol altra pantalla a la vista del detall.
     _peakStatusStore.addListener(_onStoreChanged);
@@ -83,6 +90,10 @@ class PeakDetailController extends ChangeNotifier {
   final UpdatePeakStatusUseCase _updatePeakStatusUseCase;
   final GetAscentsByPeakUseCase _getAscentsByPeakUseCase;
   final PeakStatusStore _peakStatusStore;
+
+  // Aquest store avisa altres pantalles que les dades de progrés poden haver canviat.
+  // Permet que el dashboard i les estadístiques es refresquin després de modificar un estat.
+  final UserStatsRefreshStore _userStatsRefreshStore;
 
   // Aquest bloc representa l’estat visible de la pantalla.
   // La vista l’utilitza per mostrar càrregues, errors i dades del cim.
@@ -152,6 +163,12 @@ class PeakDetailController extends ChangeNotifier {
   // Aquesta acció deixa preparada la navegació cap al registre d’una ascensió.
   void onRegisterAscentTap() {
     _destination = PeakDetailDestination.registerAscent;
+    notifyListeners();
+  }
+
+  // Aquesta acció deixa preparada la navegació cap a l’historial d’ascensions del cim.
+  void onAscentHistoryTap() {
+    _destination = PeakDetailDestination.ascentHistory;
     notifyListeners();
   }
 
@@ -293,6 +310,7 @@ class PeakDetailController extends ChangeNotifier {
       // La resposta del backend és la versió canònica i substitueix
       // l'estat optimista al store compartit.
       _peakStatusStore.setStatus(updatedStatus);
+      _userStatsRefreshStore.notifyStatsChanged();
     } on ApiException catch (error) {
       if (_disposed) {
         return;

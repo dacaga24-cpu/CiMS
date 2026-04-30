@@ -10,6 +10,8 @@ import 'package:cims/core/entity/user.dart';
 import 'package:cims/core/entity/peak_status.dart';
 import 'package:cims/core/entity/ascent.dart';
 import 'package:cims/core/session/app_session.dart';
+import 'package:cims/core/entity/user_stats.dart';
+import 'package:cims/core/entity/dashboard_summary.dart';
 import 'package:http/http.dart' as http;
 
 // Aquests fitxers separen les peticions de l’API per àmbits funcionals.
@@ -20,6 +22,7 @@ part 'api_client_impl_profile.dart';
 part 'api_client_impl_regions.dart';
 part 'api_client_impl_peak_status.dart';
 part 'api_client_impl_ascents.dart';
+part 'api_client_impl_stats.dart';
 
 // Aquesta classe base centralitza la infraestructura comuna del client d’API.
 // Les operacions funcionals es reparteixen en fitxers separats per àmbit
@@ -197,7 +200,8 @@ class ApiClientImpl extends _ApiClientBase
         _PeaksApiClientImplMixin,
         _ProfileApiClientImplMixin,
         _RegionsApiClientImplMixin,
-        _PeakStatusApiClientImplMixin
+        _PeakStatusApiClientImplMixin,
+        _StatsApiClientImplMixin
     implements ApiClient {
   // Aquest constructor permet crear el client final de l’API.
   // Reutilitza la configuració comuna definida a la classe base.

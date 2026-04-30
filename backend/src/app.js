@@ -12,6 +12,8 @@ const regionRoutes = require('./routes/regionRoutes');
 const resetPasswordRoutes = require('./routes/resetPasswordRoutes');
 const peakStatusRoutes = require('./routes/peakStatusRoutes');
 const ascentRoutes = require('./routes/ascentRoutes');
+const statsRoutes = require('./routes/statsRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -95,6 +97,15 @@ app.use('/api/peak-status', peakStatusRoutes);
 // Aquest bloc registra les rutes relacionades amb les ascensions registrades
 // pels usuaris. Totes les rutes estan protegides amb autenticació JWT.
 app.use('/api/ascents', ascentRoutes);
+
+// Aquest bloc registra l'endpoint d'estadístiques personals de l'usuari.
+// La pantalla d'estadístiques en consumeix les dades amb una sola crida.
+app.use('/api/stats', statsRoutes);
+
+// Aquest bloc registra l'endpoint del dashboard. La pantalla d'inici fa una
+// única crida i rep el repte, els objectius pendents, els preferits i la
+// sèrie mensual ja preparats per pintar la UI.
+app.use('/api/dashboard', dashboardRoutes);
 
 // Aquest bloc registra les rutes de les comarques.
 // Serveix per alimentar els filtres territorials del catàleg al frontend.
