@@ -26,6 +26,8 @@ class PeakDetailScreen extends StatefulWidget {
   State<PeakDetailScreen> createState() => _PeakDetailScreenState();
 }
 
+// Aquest estat connecta la pantalla amb el controller del detall.
+// També resol les navegacions derivades de les accions de l’usuari.
 class _PeakDetailScreenState extends State<PeakDetailScreen> {
   // Aquest bloc guarda el controller real de la pantalla
   // i un possible missatge d’error si la seva creació falla d’entrada.
@@ -75,7 +77,7 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
   }
 
   // Aquest mètode resol les accions globals des de la vista.
-  // La navegació real cap al mapa o cap al registre d’ascensió
+  // La navegació real cap al mapa, cap al registre d’ascensió o cap a l’historial
   // es fa des de la pantalla per mantenir el controller separat del context visual.
   void _handleControllerChanges() {
     final controller = _controller;
@@ -113,6 +115,20 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
 
         _openAscentRegister(controller, peak);
         return;
+
+      case PeakDetailDestination.ascentHistory:
+        final peak = controller.peak;
+        controller.consumeNavigation();
+
+        if (peak == null) {
+          _showInfoMessage(
+            'No s\'ha pogut obrir l\'historial d\'ascensions.',
+          );
+          return;
+        }
+
+        _openAscentHistory(peak);
+        return;
     }
   }
 
@@ -132,6 +148,19 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
     }
 
     await controller.refreshLastAscentDate();
+  }
+
+  // Aquest mètode obre l’historial d’ascensions del cim actual.
+  // Reutilitza les dades ja carregades al detall per construir la capçalera.
+  Future<void> _openAscentHistory(Peak peak) async {
+    await context.router.root.push(
+      AscentHistoryRoute(
+        peakId: peak.id,
+        peakName: peak.name,
+        altitude: peak.altitude,
+        regions: peak.regions.map((region) => region.name).toList(),
+      ),
+    );
   }
 
   // Aquest mètode mostra un missatge breu a la part inferior
@@ -200,6 +229,7 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
           ),
           bottomNavigationBar: PeakDetailBottomAction(
             onPressed: controller.onRegisterAscentTap,
+            onHistoryPressed: controller.onAscentHistoryTap,
           ),
         );
       },

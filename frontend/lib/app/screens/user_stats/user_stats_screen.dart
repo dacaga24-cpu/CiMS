@@ -1,4 +1,5 @@
 import 'package:auto_route/auto_route.dart';
+import 'package:cims/app/router/app_router.dart';
 import 'package:cims/app/screens/user_stats/user_stats_controller.dart';
 import 'package:cims/app/screens/user_stats/widgets/stats_challenge_card.dart';
 import 'package:cims/app/screens/user_stats/widgets/stats_error_state.dart';
@@ -30,13 +31,40 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
   @override
   void initState() {
     super.initState();
-    controller = UserStatsController()..initialize();
+    controller = UserStatsController();
+    controller.addListener(_handleControllerChanges);
+    controller.initialize();
+  }
+
+  // Aquest mètode resol les navegacions pendents exposades pel controller.
+  // La ruta real es construeix aquí perquè la pantalla sí que pot accedir a AutoRoute.
+  void _handleControllerChanges() {
+    if (!mounted) return;
+
+    if (controller.destination == UserStatsDestination.ascentHistory) {
+      final ascent = controller.selectedAscent;
+      controller.consumeNavigation();
+
+      if (ascent == null) {
+        return;
+      }
+
+      context.router.root.push(
+        AscentHistoryRoute(
+          peakId: ascent.peakId,
+          peakName: ascent.peakName,
+          altitude: ascent.altitude,
+          regions: ascent.regions,
+        ),
+      );
+    }
   }
 
   // Aquest mètode allibera el controller quan la pantalla deixa d’utilitzar-se.
   // Això evita mantenir escoltes actives o actualitzacions innecessàries.
   @override
   void dispose() {
+    controller.removeListener(_handleControllerChanges);
     controller.dispose();
     super.dispose();
   }
@@ -114,6 +142,7 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
               const SizedBox(height: 28),
               StatsRecentAscentsList(
                 ascents: stats.recentAscents,
+                onAscentTap: controller.onRecentAscentTap,
               ),
             ],
           ),
