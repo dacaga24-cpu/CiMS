@@ -53,7 +53,7 @@ mixin _StatsApiClientImplMixin on _ApiClientBase implements StatsApiClient {
   Future<DashboardSummary> getDashboardSummary() async {
     try {
       final response = await _getJson(
-        ApiEndpoints.stats,
+        ApiEndpoints.dashboard,
         requiresAuth: true,
       );
 

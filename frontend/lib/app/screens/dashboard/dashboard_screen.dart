@@ -1,8 +1,10 @@
 import 'package:auto_route/auto_route.dart';
+import 'package:cims/app/router/app_router.dart';
 import 'package:cims/app/screens/dashboard/dashboard_controller.dart';
 import 'package:cims/app/screens/dashboard/widgets/dashboard_challenge_card.dart';
 import 'package:cims/app/screens/dashboard/widgets/dashboard_monthly_challenge_card.dart';
 import 'package:cims/app/screens/dashboard/widgets/dashboard_peak_section.dart';
+import 'package:cims/app/screens/main_navigation/main_bottom_navigation_tab.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta pantalla mostra el resum principal de l’usuari després d’iniciar sessió.
@@ -34,8 +36,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // Aquest mètode escolta les intencions de navegació generades pel controller.
-  // La navegació real es deixa preparada per connectar-la amb les rutes definitives del projecte.
+  // Manté la navegació fora del controller i la resol des de la pantalla.
   void _handleNavigation() {
+    if (!mounted) return;
+
     switch (_controller.destination) {
       case DashboardDestination.none:
         return;
@@ -46,17 +50,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         if (peakId == null) return;
 
-        // TODO: connectar amb la ruta real de detall de cim.
-        // Exemple quan tinguis el nom real:
-        // context.router.push(PeakDetailRoute(peakId: peakId));
+        context.router.root.push(
+          PeakDetailRoute(peakId: peakId),
+        );
         return;
 
       case DashboardDestination.stats:
         _controller.consumeNavigation();
 
-        // TODO: connectar amb la ruta real d’estadístiques si cal.
-        // Exemple quan tinguis el nom real:
-        // context.router.push(const UserStatsRoute());
+        AutoTabsRouter.of(context).setActiveIndex(
+          MainBottomNavigationTab.stats.index,
+        );
         return;
     }
   }
