@@ -5,6 +5,8 @@ const UserService = require('../services/userService');
 // mateixos valors que s'utilitzen durant el registre per mantenir coherència.
 const MAX_FIRST_NAME_LENGTH = 100;
 const MAX_LAST_NAME_LENGTH = 150;
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 128;
 
 // Aquest mètode crea un error de validació amb codi 400.
 // S'utilitza quan falten dades o quan el format rebut no és correcte.
@@ -52,6 +54,28 @@ const UserController = {
 
       const updatedUser = await UserService.updateProfile(userId, { firstName, lastName });
       res.status(200).json(updatedUser);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async changePassword(req, res, next) {
+    try {
+      const userId = req.userId;
+      const { currentPassword, newPassword } = req.body || {};
+
+      if (!currentPassword || !newPassword) {
+        throw badRequest('Missing required fields: currentPassword, newPassword');
+      }
+      if (newPassword.length < MIN_PASSWORD_LENGTH) {
+        throw badRequest(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
+      }
+      if (newPassword.length > MAX_PASSWORD_LENGTH) {
+        throw badRequest(`Password must be at most ${MAX_PASSWORD_LENGTH} characters long`);
+      }
+
+      const result = await UserService.changePassword(userId, { currentPassword, newPassword });
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }

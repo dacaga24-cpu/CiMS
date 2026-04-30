@@ -6,11 +6,15 @@ const router = express.Router();
 
 const UserController = require('../controllers/userController');
 const authMiddleware = require('../middleware/authMiddleware');
+const { changePasswordRateLimiter } = require('../middleware/rateLimiters');
 
 // Totes les rutes d'aquest fitxer requereixen autenticació.
 // El middleware es registra a nivell de router perquè s'apliqui
 // automàticament a tots els endpoints sense haver de repetir-lo.
 router.use(authMiddleware);
+
+// Ruta per canviar la contrasenya amb limitació de taxa.
+router.put('/password', changePasswordRateLimiter, UserController.changePassword);
 
 // Aquest endpoint permet a l'usuari consultar les seves dades de perfil.
 router.get('/profile', UserController.getProfile);

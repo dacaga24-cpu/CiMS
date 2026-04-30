@@ -52,9 +52,22 @@ const resetPasswordRateLimiter = rateLimit({
   message: { error: 'Too many password reset attempts. Please try again later.' },
 });
 
+// Aquest limitador protegeix el canvi de contrasenya des del perfil.
+// Requereix conèixer la contrasenya actual, però un límit d'intents
+// evita que es pugui usar com a vector de força bruta si el token JWT
+// d'una sessió quedés compromès.
+const changePasswordRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minuts
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many password change attempts. Please try again later.' },
+});
+
 module.exports = {
   loginRateLimiter,
   forgotPasswordRateLimiter,
   registerRateLimiter,
   resetPasswordRateLimiter,
+  changePasswordRateLimiter,
 };

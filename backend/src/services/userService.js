@@ -1,4 +1,6 @@
 const UserModel = require('../models/userModel');
+const bcrypt = require('bcrypt');
+const SALT_ROUNDS = 10;
 
 // Aquest servei centralitza la lògica de negoci relacionada amb el perfil d'usuari.
 // La seva funció és rebre les dades validades des del controlador, aplicar les
@@ -36,6 +38,29 @@ const UserService = {
     });
 
     return UserModel.findById(userId);
+  },
+  async changePassword(userId, { currentPassword, newPassword }) {
+    const user = await UserModel.findByIdWithPassword(userId);
+
+    if (!user) {
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Es verifica la contrasenya actual abans d'aplicar el canvi
+    // per confirmar que qui fa la petició és el titular del compte.
+    const isValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isValid) {
+      const error = new Error('Current password is incorrect');
+      error.statusCode = 401;
+      throw error;
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await UserModel.updatePassword(userId, hashedPassword);
+
+    return { message: 'Password changed successfully' };
   },
 };
 

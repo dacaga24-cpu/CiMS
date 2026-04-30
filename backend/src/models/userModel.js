@@ -77,6 +77,20 @@ const UserModel = {
     const [result] = await pool.execute(sql, [firstName, lastName, id]);
     return result.affectedRows;
   },
+  // Aquest mètode recupera l'usuari amb la contrasenya inclosa.
+  // S'utilitza exclusivament per verificar la contrasenya actual
+  // abans de permetre un canvi. No s'ha d'utilitzar per retornar
+  // dades al client.
+  async findByIdWithPassword(id) {
+    const sql = `
+      SELECT id, password
+      FROM users
+      WHERE id = ?
+      LIMIT 1
+    `;
+    const [rows] = await pool.execute(sql, [id]);
+    return rows[0] || null;
+  },
 };
 
 module.exports = UserModel;
