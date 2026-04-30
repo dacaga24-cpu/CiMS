@@ -48,6 +48,14 @@ class ApiEndpoints {
   // Permet carregar el resum de progrés amb una sola petició autenticada.
   static const String stats = '$api/stats';
 
+  // Aquest prefix agrupa les operacions relacionades amb el compte de l'usuari.
+  static const String users = '$api/users';
+
+  // Aquestes rutes permeten consultar i modificar el perfil de l'usuari autenticat.
+  static const String userProfile = '$users/profile';
+  static const String changePassword = '$users/change-password';
+  static const String deleteAccount = '$users/account';
+  }
   // Aquest endpoint permet obtenir les dades resumides del dashboard.
   // Retorna el progrés general, els reptes i els cims destacats de l’usuari autenticat.
   static const String dashboard = '$api/dashboard';

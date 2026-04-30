@@ -13,6 +13,7 @@ const resetPasswordRoutes = require('./routes/resetPasswordRoutes');
 const peakStatusRoutes = require('./routes/peakStatusRoutes');
 const ascentRoutes = require('./routes/ascentRoutes');
 const statsRoutes = require('./routes/statsRoutes');
+const userRoutes = require('./routes/userRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -114,6 +115,10 @@ app.use('/api/regions', regionRoutes);
 // Aquest bloc registra les rutes relacionades amb la recuperació de contrasenya.
 // Es manté el prefix /reset-password per diferenciar clarament aquesta funcionalitat de les altres rutes d’API.
 app.use('/reset-password', resetPasswordRoutes);
+
+// Aquest bloc registra les rutes relacionades amb la gestió d'usuaris (perfil, preferències, etc.).
+// Totes les rutes d'aquest grup estan protegides amb autenticació JWT perquè només l'usuari propietari del compte pugui accedir-hi.
+app.use('/api/users', userRoutes);
 
 // Aquest gestor s’aplica al final perquè pugui recollir qualsevol error
 // produït durant el recorregut d’una petició.
