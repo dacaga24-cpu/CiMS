@@ -54,7 +54,7 @@ const UserModel = {
   },
 
   // Aquest mètode actualitza la contrasenya d’un usuari concret.
-  // Rep l’identificador de l’usuari i la nova contrasenya ja preparada per ser guardada.  
+  // Rep l’identificador de l’usuari i la nova contrasenya ja preparada per ser guardada.
   async updatePassword(id, hashedPassword) {
   const sql = `
     UPDATE users
