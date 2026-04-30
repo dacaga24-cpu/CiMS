@@ -62,6 +62,29 @@ const UserService = {
 
     return { message: 'Password changed successfully' };
   },
+
+  // Aquest mètode desactiva el compte de l'usuari autenticat.
+  // Es demana la contrasenya actual per confirmar que l'acció
+  // és voluntària i que ningú altre no pot fer-la en nom seu.
+  async deleteAccount(userId, { password }) {
+    const user = await UserModel.findByIdWithPassword(userId);
+
+    if (!user) {
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) {
+      const error = new Error('Password is incorrect');
+      error.statusCode = 401;
+      throw error;
+    }
+
+    await UserModel.deactivateAccount(userId);
+    return { message: 'Account deleted successfully' };
+  },
 };
 
 module.exports = UserService;

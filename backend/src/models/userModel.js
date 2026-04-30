@@ -91,6 +91,19 @@ const UserModel = {
     const [rows] = await pool.execute(sql, [id]);
     return rows[0] || null;
   },
+
+  // Aquest mètode desactiva el compte d'un usuari posant is_active a false.
+  // Es fa una baixa lògica en lloc d'eliminar el registre per preservar
+  // la integritat de les dades relacionades com ascensions o estadístiques.
+  async deactivateAccount(id) {
+    const sql = `
+      UPDATE users
+      SET is_active = false
+      WHERE id = ?
+    `;
+    const [result] = await pool.execute(sql, [id]);
+    return result.affectedRows;
+  },
 };
 
 module.exports = UserModel;

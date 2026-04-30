@@ -22,4 +22,7 @@ router.get('/profile', UserController.getProfile);
 // Aquest endpoint permet a l'usuari actualitzar el nom i el cognom del seu compte.
 router.put('/profile', UserController.updateProfile);
 
+// Aquest endpoint permet a l'usuari desactivar el seu compte de manera voluntària.
+router.delete('/account', UserController.deleteAccount);
+
 module.exports = router;

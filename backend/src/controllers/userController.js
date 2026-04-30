@@ -80,6 +80,22 @@ const UserController = {
       next(error);
     }
   },
+
+  async deleteAccount(req, res, next) {
+    try {
+      const userId = req.userId;
+      const { password } = req.body || {};
+
+      if (!password) {
+        throw badRequest('Missing required field: password');
+      }
+
+      const result = await UserService.deleteAccount(userId, { password });
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
 };
 
 module.exports = UserController;
