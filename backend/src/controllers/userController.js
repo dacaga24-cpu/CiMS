@@ -31,6 +31,31 @@ const UserController = {
       next(error);
     }
   },
+
+  // Aquest mètode actualitza el nom i el cognom de l'usuari autenticat.
+  // Comprova que els camps obligatoris arribin i que la seva longitud
+  // no superi els límits definits per la base de dades.
+  async updateProfile(req, res, next) {
+    try {
+      const userId = req.userId;
+      const { firstName, lastName } = req.body || {};
+
+      if (!firstName || !lastName) {
+        throw badRequest('Missing required fields: firstName, lastName');
+      }
+      if (firstName.length > MAX_FIRST_NAME_LENGTH) {
+        throw badRequest(`First name must be at most ${MAX_FIRST_NAME_LENGTH} characters long`);
+      }
+      if (lastName.length > MAX_LAST_NAME_LENGTH) {
+        throw badRequest(`Last name must be at most ${MAX_LAST_NAME_LENGTH} characters long`);
+      }
+
+      const updatedUser = await UserService.updateProfile(userId, { firstName, lastName });
+      res.status(200).json(updatedUser);
+    } catch (error) {
+      next(error);
+    }
+  },
 };
 
 module.exports = UserController;

@@ -15,4 +15,7 @@ router.use(authMiddleware);
 // Aquest endpoint permet a l'usuari consultar les seves dades de perfil.
 router.get('/profile', UserController.getProfile);
 
+// Aquest endpoint permet a l'usuari actualitzar el nom i el cognom del seu compte.
+router.put('/profile', UserController.updateProfile);
+
 module.exports = router;
