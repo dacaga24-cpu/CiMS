@@ -47,4 +47,12 @@ class ApiEndpoints {
   // Aquesta ruta correspon a les estadístiques personals de l’usuari.
   // Permet carregar el resum de progrés amb una sola petició autenticada.
   static const String stats = '$api/stats';
-}
+
+  // Aquest prefix agrupa les operacions relacionades amb el compte de l'usuari.
+  static const String users = '$api/users';
+
+  // Aquestes rutes permeten consultar i modificar el perfil de l'usuari autenticat.
+  static const String userProfile = '$users/profile';
+  static const String changePassword = '$users/change-password';
+  static const String deleteAccount = '$users/account';
+  }

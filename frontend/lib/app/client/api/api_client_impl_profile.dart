@@ -9,7 +9,7 @@ mixin _ProfileApiClientImplMixin on _ApiClientBase {
   Future<User> getUserProfile() async {
     try {
       final response = await _getJson(
-        ApiEndpoints.profile,
+        ApiEndpoints.userProfile,
         requiresAuth: true,
       );
 
