@@ -114,16 +114,42 @@ class MonthlyAscentsStats {
     required this.total,
   });
 
-  // Aquestes dades defineixen el període mensual i el nombre d’ascensions registrades.
+  // El backend envia any i mes per separat com a enters; aquí es combinen en
+  // una cadena "YYYY-MM" perquè la UI pugui ordenar i etiquetar el gràfic
+  // sense haver de manipular dos camps independents. El nombre d'ascensions
+  // arriba al backend com a "count" i es manté com a "total" al frontend per
+  // no propagar canvis a tots els consumidors del widget.
   final String month;
   final int total;
 
   // Aquest constructor transforma cada resum mensual del backend en una entitat tipada.
+  // Si el backend canviés en el futur i tornés a enviar el camp "month" com a
+  // cadena, el fallback continua funcionant gràcies al doble accés.
   factory MonthlyAscentsStats.fromJson(Map<String, dynamic> json) {
     return MonthlyAscentsStats(
-      month: json['month']?.toString() ?? '',
-      total: _parseInt(json['total']),
+      month: _composeMonthLabel(
+        json['year'],
+        json['month'],
+      ),
+      total: _parseInt(json['count'] ?? json['total']),
     );
+  }
+
+  // Aquest mètode combina any i mes en l'etiqueta "YYYY-MM" amb dos dígits
+  // per al mes. Si el primer paràmetre ja és una cadena (perquè el backend
+  // hagués canviat el contracte), es retorna tal qual. Si no es pot
+  // interpretar res, retorna cadena buida perquè la UI la pugui filtrar.
+  static String _composeMonthLabel(dynamic year, dynamic month) {
+    if (year == null && month is String) {
+      return month;
+    }
+    final parsedYear = _parseInt(year);
+    final parsedMonth = _parseInt(month);
+    if (parsedYear == 0 || parsedMonth == 0) {
+      return '';
+    }
+    final monthLabel = parsedMonth.toString().padLeft(2, '0');
+    return '$parsedYear-$monthLabel';
   }
 
   // Aquest mètode assegura que el total mensual sempre sigui un enter vàlid.
@@ -142,14 +168,20 @@ class MostAscendedPeakStats {
     required this.peakId,
     required this.peakName,
     required this.totalAscents,
+    this.peakAltitude,
+    this.regions = const [],
     this.imageUrl,
   });
 
   // Aquest bloc conté la informació necessària per destacar el cim més repetit.
-  // La imatge és opcional perquè no tots els cims tenen per què disposar-ne.
+  // peakAltitude i regions vénen del backend (CIMS-181) i estan disponibles
+  // per a futures iteracions de la UI. La imatge és opcional perquè el
+  // backend actual no l'envia.
   final int peakId;
   final String peakName;
   final int totalAscents;
+  final int? peakAltitude;
+  final List<String> regions;
   final String? imageUrl;
 
   // Aquest constructor transforma la dada del cim més repetit en un objecte preparat per la UI.
@@ -158,6 +190,10 @@ class MostAscendedPeakStats {
       peakId: _parseInt(json['peakId'] ?? json['peak_id']),
       peakName: (json['peakName'] ?? json['peak_name'])?.toString() ?? '',
       totalAscents: _parseInt(json['totalAscents'] ?? json['count']),
+      peakAltitude: _parseNullableInt(
+        json['peakAltitude'] ?? json['peak_altitude'],
+      ),
+      regions: _parseRegions(json['regions']),
       imageUrl: _parseNullableString(json['imageUrl']),
     );
   }
@@ -178,6 +214,28 @@ class MostAscendedPeakStats {
     return 0;
   }
 
+  // Aquest mètode interpreta valors numèrics opcionals com l'altitud del cim
+  // i manté null quan el backend no els envia.
+  static int? _parseNullableInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  // Aquest mètode normalitza la llista de comarques retornada pel backend.
+  // Filtra cadenes buides perquè la UI no hagi de tractar valors espuris.
+  static List<String> _parseRegions(dynamic value) {
+    if (value is! List) {
+      return const [];
+    }
+    return value
+        .map((region) => region.toString().trim())
+        .where((region) => region.isNotEmpty)
+        .toList();
+  }
+
   // Aquest mètode valida textos opcionals com la URL de la imatge.
   // Retorna null quan el backend envia un valor buit o inexistent.
   static String? _parseNullableString(dynamic value) {
@@ -189,26 +247,41 @@ class MostAscendedPeakStats {
   }
 }
 
-// Aquesta entitat representa el progrés d’un repte concret.
-// En el disseny actual encaixa amb el repte dels 100 cims.
+// Aquesta entitat representa el progrés d'un repte concret.
+// En el disseny actual encaixa amb el repte rolling dels 100 cims, amb una
+// finestra d'un any que acaba en l'última ascensió de l'usuari.
 class ChallengeProgressStats {
   const ChallengeProgressStats({
     required this.current,
     required this.target,
-    required this.percentage,
+    this.percentage,
+    this.windowStart,
+    this.windowEnd,
   });
 
-  // Aquestes dades indiquen l’estat actual del repte, l’objectiu i el percentatge assolit.
+  // current és el nombre de cims únics dins la finestra rolling.
+  // El backend envia aquest valor com a "completed"; aquí es manté el nom
+  // "current" perquè el controller i el widget el consumeixen amb aquest nom.
+  // percentage queda nullable perquè el backend NO l'envia: el controller el
+  // calcula com a fallback. Si en el futur el backend l'afegís, aquest model
+  // ja el sap llegir.
+  // windowStart i windowEnd són les dates que delimiten la finestra rolling.
   final int current;
   final int target;
-  final int percentage;
+  final int? percentage;
+  final String? windowStart;
+  final String? windowEnd;
 
   // Aquest constructor transforma la informació del repte rebuda del backend.
+  // Accepta tant "completed" (nom actual al backend) com "current" (alias
+  // intern) per ser tolerant a un futur canvi de contracte.
   factory ChallengeProgressStats.fromJson(Map<String, dynamic> json) {
     return ChallengeProgressStats(
-      current: _parseInt(json['current']),
+      current: _parseInt(json['completed'] ?? json['current']),
       target: _parseInt(json['target']),
-      percentage: _parseInt(json['percentage']),
+      percentage: _parseNullableInt(json['percentage']),
+      windowStart: _parseNullableString(json['windowStart']),
+      windowEnd: _parseNullableString(json['windowEnd']),
     );
   }
 
@@ -227,6 +300,27 @@ class ChallengeProgressStats {
     if (value is num) return value.toInt();
     if (value is String) return int.tryParse(value) ?? 0;
     return 0;
+  }
+
+  // Aquest mètode interpreta valors numèrics opcionals (com el percentatge
+  // que el backend pot afegir en el futur) sense perdre la distinció entre
+  // "no enviat" i "zero explícit".
+  static int? _parseNullableInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  // Aquest mètode normalitza les dates ISO de la finestra del repte.
+  // Manté null si el backend no envia la dada.
+  static String? _parseNullableString(dynamic value) {
+    final text = value?.toString().trim();
+    if (text == null || text.isEmpty) {
+      return null;
+    }
+    return text;
   }
 }
 

@@ -42,6 +42,11 @@ class PeaksMapController extends ChangeNotifier {
         getUserPeakStatusesUseCase ?? GetUserPeakStatusesUseCase(apiClient);
 
     _peakStatusStore.addListener(_onStoreChanged);
+
+    // S'enganxa al filtre compartit perquè els canvis fets des del catàleg
+    // es reflecteixin també al mapa sense que l'usuari hagi de tornar a
+    // aplicar-los manualment a cada pestanya.
+    _filtersState.addListener(_onFiltersChanged);
   }
 
   // Identificador opcional del cim que s’ha de seleccionar en obrir el mapa.
@@ -70,8 +75,10 @@ class PeaksMapController extends ChangeNotifier {
   List<Region> availableRegions = const [];
 
   // Aquest objecte concentra els filtres compartits amb l’altra vista de cims.
-  // Així s’evita duplicar la mateixa lògica de resum i estat en dos controllers.
-  final _filtersState = PeaksFilterState();
+  // S'utilitza la instància global PeaksFilterState.shared perquè el filtre
+  // sigui coherent entre catàleg i mapa: quan un canvia, l'altre es refresca
+  // automàticament gràcies al listener registrat al constructor.
+  final PeaksFilterState _filtersState = PeaksFilterState.shared;
 
   // Aquest valor representa el cim seleccionat al mapa.
   // Serveix per mostrar-ne informació resumida i permetre l’accés al detall.
@@ -205,26 +212,22 @@ class PeaksMapController extends ChangeNotifier {
     int? maxAltitude,
     PeakStatusFilter statusFilter = PeakStatusFilter.none,
   }) async {
+    // El filtre compartit notifica els seus listeners (incloent-hi aquest
+    // controller via _onFiltersChanged), de manera que la recàrrega es
+    // dispara automàticament i no cal fer una segona crida a _loadPeaks.
     _filtersState.apply(
       regionId: regionId,
       minAltitude: minAltitude,
       maxAltitude: maxAltitude,
       statusFilter: statusFilter,
     );
-
-    await _loadPeaks(
-      search: currentSearch.isEmpty ? null : currentSearch,
-    );
   }
 
   // Elimina tots els filtres aplicats al mapa.
-  // Manté la cerca escrita per l’usuari i actualitza el llistat de cims.
+  // La crida a clear() notifica els listeners (si hi havia filtres actius),
+  // i la recàrrega es resol per la mateixa via que applyFilters.
   Future<void> clearFilters() async {
     _filtersState.clear();
-
-    await _loadPeaks(
-      search: currentSearch.isEmpty ? null : currentSearch,
-    );
   }
 
   // Torna a intentar carregar els cims quan s’ha produït un error.
@@ -406,6 +409,18 @@ class PeaksMapController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Quan el filtre compartit canvia (per exemple, perquè l'usuari l'ha
+  // aplicat des del catàleg), es recarreguen els cims al mapa amb els nous
+  // criteris. Així el mapa sempre reflecteix l'última selecció feta.
+  void _onFiltersChanged() {
+    if (_disposed) {
+      return;
+    }
+    _loadPeaks(
+      search: currentSearch.isEmpty ? null : currentSearch,
+    );
+  }
+
   // Allibera els recursos del controller quan la pantalla deixa d’utilitzar-lo.
   // Això evita escoltes actives, temporitzadors pendents i possibles actualitzacions innecessàries.
   @override
@@ -413,6 +428,7 @@ class PeaksMapController extends ChangeNotifier {
     _disposed = true;
     _searchDebouncer.dispose();
     _peakStatusStore.removeListener(_onStoreChanged);
+    _filtersState.removeListener(_onFiltersChanged);
     searchController.dispose();
     super.dispose();
   }

@@ -1,6 +1,7 @@
 const PeakStatusModel = require('../models/peakStatusModel');
 const AscentModel = require('../models/ascentModel');
 const StatsModel = require('../models/statsModel');
+const { fillMissingMonths } = require('../utils/statsHelpers');
 
 // Quants mesos d'historial inclou la sèrie monthlyAscents que serveix el
 // gràfic de la pantalla d'estadístiques. Es manté com a constant perquè és
@@ -149,29 +150,6 @@ function enrichWithRegions(peakObject, regionsByPeakId) {
     ...peakObject,
     regions: regionsByPeakId.get(peakObject.peakId) || [],
   };
-}
-
-// Construeix la sèrie mensual sencera per al gràfic. SQL només retorna els
-// mesos amb activitat, així que aquí es genera l'esquelet dels últims N
-// mesos i s'omplen amb zero els que falten. Així el frontend rep sempre
-// un array de mida fixa, ordenat cronològicament, sense haver de calcular
-// cap data ni omplir buits.
-function fillMissingMonths(rawData, monthsBack) {
-  const lookup = new Map();
-  for (const entry of rawData) {
-    lookup.set(`${entry.year}-${entry.month}`, entry.count);
-  }
-
-  const today = new Date();
-  const result = [];
-  for (let offset = monthsBack - 1; offset >= 0; offset -= 1) {
-    const date = new Date(today.getFullYear(), today.getMonth() - offset, 1);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const count = lookup.get(`${year}-${month}`) ?? 0;
-    result.push({ year, month, count });
-  }
-  return result;
 }
 
 module.exports = StatsService;
