@@ -89,7 +89,7 @@ class StatsChallengeCard extends StatelessWidget {
           Row(
             children: [
               const Text(
-                'INICIAT',
+                'INICI',
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w900,
@@ -107,7 +107,7 @@ class StatsChallengeCard extends StatelessWidget {
               ),
               const Spacer(),
               const Text(
-                'OBJECTIU ANUAL',
+                'OBJECTIU',
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w900,

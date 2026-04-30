@@ -1,6 +1,20 @@
 const PeakStatusModel = require('../models/peakStatusModel');
 const { badRequest, requireInteger } = require('../utils/validation');
 
+// Aquest objecte representa un estat personal "buit": l'usuari no té cap flag
+// actiu sobre el cim. S'utilitza per respondre quan el client desactiva l'últim
+// flag i el registre s'ha eliminat de la base de dades, perquè el frontend
+// pugui actualitzar la UI sense haver de fer un GET addicional.
+function emptyStatus(userId, peakId) {
+  return {
+    user_id: userId,
+    peak_id: peakId,
+    is_completed: 0,
+    is_target: 0,
+    is_favorite: 0,
+  };
+}
+
 // Aquest servei centralitza la lògica de l'estat personal dels cims per a cada usuari.
 // Aquí es validen els identificadors rebuts, es coordina la lògica d'upsert
 // i es gestionen els casos on el recurs sol·licitat no existeix.
@@ -55,6 +69,25 @@ const PeakStatusService = {
     const existing = await PeakStatusModel.findByUserAndPeak(userId, parsedPeakId);
 
     if (existing) {
+      // Es calcula com quedaran tots els flags després de l'update perquè
+      // així es pot detectar abans d'escriure si el resultat seria un
+      // registre "tot zero" — i en aquest cas, eliminar-lo enlloc de
+      // mantenir una fila buida que només acumula brossa a la taula.
+      const finalCompleted = isCompleted !== undefined
+        ? Boolean(isCompleted)
+        : existing.is_completed === 1;
+      const finalTarget = isTarget !== undefined
+        ? Boolean(isTarget)
+        : existing.is_target === 1;
+      const finalFavorite = isFavorite !== undefined
+        ? Boolean(isFavorite)
+        : existing.is_favorite === 1;
+
+      if (!finalCompleted && !finalTarget && !finalFavorite) {
+        await PeakStatusModel.deleteByUserAndPeak(userId, parsedPeakId);
+        return emptyStatus(userId, parsedPeakId);
+      }
+
       await PeakStatusModel.updateByUserAndPeak(userId, parsedPeakId, {
         isCompleted,
         isTarget,
@@ -65,6 +98,13 @@ const PeakStatusService = {
       // l'estat complet i consistent des del servei, independentment
       // de quants camps s'hagin modificat en aquesta crida.
       return PeakStatusModel.findByUserAndPeak(userId, parsedPeakId);
+    }
+
+    // No hi havia registre. Si la petició no marca cap flag a true, no té
+    // sentit crear un registre buit; es retorna directament la forma neutra
+    // perquè el client tingui una resposta consistent sense embrutar la BD.
+    if (!isCompleted && !isTarget && !isFavorite) {
+      return emptyStatus(userId, parsedPeakId);
     }
 
     return PeakStatusModel.create({

@@ -14,6 +14,7 @@ const peakStatusRoutes = require('./routes/peakStatusRoutes');
 const ascentRoutes = require('./routes/ascentRoutes');
 const statsRoutes = require('./routes/statsRoutes');
 const userRoutes = require('./routes/userRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -101,6 +102,11 @@ app.use('/api/ascents', ascentRoutes);
 // Aquest bloc registra l'endpoint d'estadístiques personals de l'usuari.
 // La pantalla d'estadístiques en consumeix les dades amb una sola crida.
 app.use('/api/stats', statsRoutes);
+
+// Aquest bloc registra l'endpoint del dashboard. La pantalla d'inici fa una
+// única crida i rep el repte, els objectius pendents, els preferits i la
+// sèrie mensual ja preparats per pintar la UI.
+app.use('/api/dashboard', dashboardRoutes);
 
 // Aquest bloc registra les rutes de les comarques.
 // Serveix per alimentar els filtres territorials del catàleg al frontend.
