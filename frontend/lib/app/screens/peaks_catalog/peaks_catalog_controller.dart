@@ -53,6 +53,12 @@ class PeaksCatalogController extends ChangeNotifier {
     // El controller s'enganxa al store per refrescar el filtre d'estat i la
     // pantalla quan algun altre punt de l'app modifiqui l'estat d'un cim.
     _peakStatusStore.addListener(_onStoreChanged);
+
+    // També s'enganxa al filtre compartit perquè quan l'usuari apliqui un
+    // canvi des del mapa, el catàleg refresqui sense necessitat de tornar a
+    // entrar a la pantalla. Sense això, cada controller mantenia una còpia
+    // pròpia del filtre i les dues pantalles es desincronitzaven.
+    _filtersState.addListener(_onFiltersChanged);
   }
 
   // Aquest bloc guarda els casos d’ús que el controller necessita
@@ -75,8 +81,10 @@ class PeaksCatalogController extends ChangeNotifier {
   List<Region> availableRegions = const [];
 
   // Aquest objecte concentra els filtres compartits amb l’altra vista de cims.
-  // Així s’evita duplicar la mateixa lògica de resum i estat en dos controllers.
-  final _filtersState = PeaksFilterState();
+  // S'utilitza la instància global PeaksFilterState.shared perquè el filtre
+  // sigui coherent entre catàleg i mapa: quan un canvia, l'altre es refresca
+  // automàticament gràcies al listener registrat al constructor.
+  final PeaksFilterState _filtersState = PeaksFilterState.shared;
 
   // Aquest bloc guarda informació interna del controller.
   // Serveix per controlar cerques, evitar respostes antigues i preparar navegacions.
@@ -203,25 +211,22 @@ class PeaksCatalogController extends ChangeNotifier {
     int? maxAltitude,
     PeakStatusFilter statusFilter = PeakStatusFilter.none,
   }) async {
+    // Apply emet notifyListeners al filtre compartit, i _onFiltersChanged
+    // s'encarrega de la recàrrega. Per això aquí no cal cridar _loadPeaks
+    // manualment, evitant així una doble petició al backend.
     _filtersState.apply(
       regionId: regionId,
       minAltitude: minAltitude,
       maxAltitude: maxAltitude,
       statusFilter: statusFilter,
     );
-
-    await _loadPeaks(
-      search: currentSearch.isEmpty ? null : currentSearch,
-    );
   }
 
   // Aquest mètode elimina els filtres actius i torna a carregar el catàleg.
+  // La crida a clear() notifica els listeners (si hi havia filtres actius),
+  // i la recàrrega es resol per la mateixa via que applyFilters.
   Future<void> clearFilters() async {
     _filtersState.clear();
-
-    await _loadPeaks(
-      search: currentSearch.isEmpty ? null : currentSearch,
-    );
   }
 
   // Aquest mètode permet tornar a carregar el catàleg amb el text actual.
@@ -327,6 +332,26 @@ class PeaksCatalogController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Quan el filtre compartit canvia (per exemple, perquè l'usuari l'ha aplicat
+  // des del mapa), recarreguem els cims al catàleg amb els nous criteris.
+  // L'usuari trobarà la mateixa selecció en tornar a aquesta pantalla, sense
+  // dependre de coordinació manual entre les dues vistes.
+  //
+  // NOTA: si tant el catàleg com el mapa estan vius alhora (cas habitual al
+  // MainNavigation amb tabs), una sola crida a apply() dispararà aquest
+  // listener als dos controllers, generant dues peticions a /api/peaks.
+  // S'accepta el cost a canvi de mantenir la coherència entre pestanyes; si
+  // en el futur cal optimitzar, es podria gating la càrrega segons la
+  // pestanya activa via TabsRouter.
+  void _onFiltersChanged() {
+    if (_disposed) {
+      return;
+    }
+    _loadPeaks(
+      search: currentSearch.isEmpty ? null : currentSearch,
+    );
+  }
+
   // Aquest mètode tanca correctament els recursos del controller quan la pantalla es destrueix.
   // També marca el controller com a inactiu per evitar actualitzacions posteriors sobre un estat ja eliminat.
   @override
@@ -334,6 +359,7 @@ class PeaksCatalogController extends ChangeNotifier {
     _disposed = true;
     _searchDebouncer.dispose();
     _peakStatusStore.removeListener(_onStoreChanged);
+    _filtersState.removeListener(_onFiltersChanged);
     searchController.dispose();
     super.dispose();
   }

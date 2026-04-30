@@ -57,6 +57,14 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
 
   bool _areMarkersReady = false;
 
+  // Marca que el state ja s'ha disposat i evita que callbacks pendents
+  // (sobretot operacions asíncrones a Google Maps Web) intentin actuar
+  // sobre un controller que ja s'ha alliberat. Sense aquesta defensa, en
+  // aplicar un filtre que deixa el mapa sense cims, el widget es desmunta
+  // mentre Google Maps Web encara té animacions de càmera o markers actius
+  // i això pot trencar la pàgina amb un error JS no capturat.
+  bool _disposed = false;
+
   // Retorna només els cims que tenen coordenades disponibles.
   // Això evita intentar crear marcadors amb dades incompletes.
   List<Peak> get _visiblePeaks =>
@@ -68,8 +76,13 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
     _loadMarkers();
   }
 
-  // Detecta si ha canviat el cim seleccionat des de fora del widget.
-  // Quan això passa, centra la càmera perquè el mapa mostri clarament el nou cim.
+  // Detecta si ha canviat el cim seleccionat o la llista de cims des de fora
+  // del widget. Quan canvia el seleccionat, centra la càmera. Quan la llista
+  // de cims passa de buida a amb dades (cas habitual: el mapa es munta abans
+  // que arribi la primera resposta del backend) o canvia de manera
+  // significativa, refà el fit perquè els cims quedin tots visibles. Sense
+  // aquest segon cas, el centrat inicial es perdia si el mapa s'inicialitzava
+  // més ràpid que la primera petició HTTP.
   @override
   void didUpdateWidget(covariant PeaksGoogleMap oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -80,6 +93,15 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
     if (previousSelectedId != currentSelectedId &&
         widget.selectedPeak != null) {
       _centerSelectedPeak();
+      return;
+    }
+
+    final previousVisibleCount =
+        oldWidget.peaks.where((peak) => peak.hasMapPosition).length;
+    final currentVisibleCount = _visiblePeaks.length;
+
+    if (previousVisibleCount == 0 && currentVisibleCount > 0) {
+      _fitVisiblePeaks();
     }
   }
 
@@ -108,17 +130,22 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
 
   // Guarda el controller del mapa quan Google Maps ja està carregat.
   // Després ajusta la càmera perquè els cims visibles quedin dins de la vista.
+  // L'ajust es fa de manera síncrona en lloc d'esperar el següent frame:
+  // el postFrameCallback podia executar-se DESPRÉS d'un dispose si el filtre
+  // canviava ràpidament, deixant una crida penjada sobre un controller mort.
   void _onMapCreated(GoogleMapController controller) {
+    if (_disposed) return;
     _mapController = controller;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _fitVisiblePeaks();
-    });
+    _fitVisiblePeaks();
   }
 
   // Centra la càmera sobre el cim seleccionat.
   // Això fa que tocar un marcador tingui una resposta visual clara.
+  // El check de _disposed evita propagar errors si el widget s'ha desmuntat
+  // entre que es va programar la crida i ara, cosa habitual quan un filtre
+  // canvia el set de peaks just després de seleccionar-ne un.
   Future<void> _centerSelectedPeak() async {
+    if (_disposed) return;
     final controller = _mapController;
     final peak = widget.selectedPeak;
 
@@ -126,17 +153,26 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
       return;
     }
 
-    await controller.animateCamera(
-      CameraUpdate.newLatLngZoom(
-        LatLng(peak.latitude!, peak.longitude!),
-        12,
-      ),
-    );
+    try {
+      await controller.animateCamera(
+        CameraUpdate.newLatLngZoom(
+          LatLng(peak.latitude!, peak.longitude!),
+          12,
+        ),
+      );
+    } catch (_) {
+      // Si el controller s'ha alliberat o l'animació falla, no es propaga
+      // l'error perquè la pantalla principal pugui continuar funcionant.
+    }
   }
 
   // Ajusta la càmera perquè els cims carregats siguin visibles al mapa.
   // Si només hi ha un cim, centra directament sobre aquell punt.
+  // Els try/catch al voltant de animateCamera defensen contra el cas en què
+  // el controller ja estigui alliberat per Google Maps Web abans que la
+  // crida arribi al canal de plataforma.
   Future<void> _fitVisiblePeaks() async {
+    if (_disposed) return;
     final controller = _mapController;
     final peaks = _visiblePeaks;
 
@@ -147,12 +183,21 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
     if (peaks.length == 1) {
       final peak = peaks.first;
 
-      await controller.animateCamera(
-        CameraUpdate.newLatLngZoom(
-          LatLng(peak.latitude!, peak.longitude!),
-          11,
-        ),
-      );
+      try {
+        await controller.animateCamera(
+          CameraUpdate.newLatLngZoom(
+            LatLng(peak.latitude!, peak.longitude!),
+            11,
+          ),
+        );
+      } catch (_) {
+        // Mateix tractament que al cas múltiple: no propaga errors si el
+        // controller ja no és accessible.
+      }
+      // Si el widget s'ha desmuntat durant l'animació, qualsevol acció
+      // posterior sobre l'estat seria innecessària. Aquesta segona guarda
+      // protegeix futures extensions del mètode que podrien tocar el state.
+      if (_disposed) return;
       return;
     }
 
@@ -167,6 +212,7 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
       // Si el mapa encara no està preparat per ajustar límits,
       // es manté la posició inicial sense trencar la pantalla.
     }
+    if (_disposed) return;
   }
 
   // Calcula els límits geogràfics dels cims visibles.
@@ -254,9 +300,23 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
 
   // Allibera el controller intern de Google Maps quan el widget es destrueix.
   // Això evita mantenir recursos del mapa actius fora de la pantalla.
+  // El flag _disposed es marca abans del super.dispose() perquè qualsevol
+  // future asíncron que estigui en cua i s'executi entre la marca i el
+  // dispose real del controller pugui sortir aviat sense tocar el canal de
+  // plataforma de Google Maps Web.
+  // El dispose del controller s'envolta amb try/catch per coherència amb la
+  // resta de protector defenses: si el canal de plataforma ja s'ha tancat
+  // (cas habitual a Google Maps Web quan hi ha animacions pendents), la
+  // pantalla pot continuar tancant-se sense propagar l'excepció.
   @override
   void dispose() {
-    _mapController?.dispose();
+    _disposed = true;
+    try {
+      _mapController?.dispose();
+    } catch (_) {
+      // El controller ja no està accessible; no hi ha res més a netejar
+      // per la nostra banda.
+    }
     super.dispose();
   }
 
