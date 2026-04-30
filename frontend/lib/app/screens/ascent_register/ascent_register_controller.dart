@@ -4,7 +4,7 @@ import 'package:cims/core/entity/peak_status.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:cims/core/store/peak_status_store.dart';
 import 'package:cims/core/store/user_stats_refresh_store.dart';
-import 'package:cims/core/usecase/register_ascent_usecase.dart';
+import 'package:cims/core/usecase/ascents/register_ascent_usecase.dart';
 import 'package:flutter/material.dart';
 
 // Aquest límit coincideix amb la validació del backend.

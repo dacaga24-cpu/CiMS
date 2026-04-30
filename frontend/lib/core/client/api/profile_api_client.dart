@@ -5,4 +5,18 @@ abstract class ProfileApiClient {
   // Aquest mètode recupera la informació del perfil de l’usuari
   // que té la sessió iniciada a l’aplicació.
   Future<User> getUserProfile();
+
+  // Aquest mètode actualitza les dades bàsiques del perfil de l’usuari autenticat.
+  // Retorna l’usuari actualitzat perquè la pantalla pugui refrescar la informació.
+  Future<User> updateUserProfile({
+    required String firstName,
+    required String lastName,
+  });
+
+  // Aquest mètode permet canviar la contrasenya del compte autenticat.
+  // Necessita la contrasenya actual i la nova per validar el canvi al backend.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
 }

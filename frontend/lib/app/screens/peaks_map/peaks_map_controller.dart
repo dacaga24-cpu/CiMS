@@ -8,9 +8,9 @@ import 'package:cims/core/entity/peak_status.dart';
 import 'package:cims/core/entity/region.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:cims/core/store/peak_status_store.dart';
-import 'package:cims/core/usecase/get_peaks_usecase.dart';
+import 'package:cims/core/usecase/peaks/get_peaks_usecase.dart';
 import 'package:cims/core/usecase/get_regions_usecase.dart';
-import 'package:cims/core/usecase/get_user_peak_statuses_usecase.dart';
+import 'package:cims/core/usecase/peak_status/get_user_peak_statuses_usecase.dart';
 import 'package:flutter/material.dart';
 
 // Aquest enum defineix les navegacions possibles des de la pantalla del mapa.
