@@ -55,11 +55,16 @@ const DashboardService = {
       ? await StatsModel.getRegionsForPeaks([...peakIdsForRegions])
       : new Map();
 
+    const monthlyAscents = fillMissingMonths(
+      monthlyAscentsRaw,
+      MONTHLY_ASCENTS_WINDOW
+    );
+
     return {
-      challenge: composeChallenge(challengeRaw),
+      challengeProgress: composeChallenge(challengeRaw),
       pendingPeaks: enrichListWithRegions(pendingPeaksRaw, regionsByPeakId),
       favoritePeaks: enrichListWithRegions(favoritePeaksRaw, regionsByPeakId),
-      monthlyAscents: fillMissingMonths(monthlyAscentsRaw, MONTHLY_ASCENTS_WINDOW),
+      monthlyAscents,
     };
   },
 };

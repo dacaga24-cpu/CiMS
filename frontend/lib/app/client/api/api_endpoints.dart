@@ -47,4 +47,8 @@ class ApiEndpoints {
   // Aquesta ruta correspon a les estadístiques personals de l’usuari.
   // Permet carregar el resum de progrés amb una sola petició autenticada.
   static const String stats = '$api/stats';
+
+  // Aquest endpoint permet obtenir les dades resumides del dashboard.
+  // Retorna el progrés general, els reptes i els cims destacats de l’usuari autenticat.
+  static const String dashboard = '$api/dashboard';
 }
