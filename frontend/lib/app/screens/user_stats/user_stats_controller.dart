@@ -6,6 +6,13 @@ import 'package:cims/core/store/user_stats_refresh_store.dart';
 import 'package:cims/core/usecase/get_user_stats_usecase.dart';
 import 'package:flutter/material.dart';
 
+// Aquest enum defineix les navegacions que poden sortir de la pantalla d’estadístiques.
+// La pantalla consumeix aquest valor i executa la navegació real sense que el controller conegui AutoRoute.
+enum UserStatsDestination {
+  none,
+  ascentHistory,
+}
+
 // Aquest controller gestiona l’estat de la pantalla d’estadístiques.
 // Carrega les dades reals del backend i prepara la informació perquè la UI
 // només hagi de representar càrrega, error o contingut.
@@ -38,6 +45,14 @@ class UserStatsController extends ChangeNotifier {
 
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
+
+  // Aquest bloc guarda la navegació pendent i l’ascensió seleccionada.
+  // Permet obrir l’historial del cim des de la pantalla sense acoblar el controller a la navegació.
+  UserStatsDestination _destination = UserStatsDestination.none;
+  UserStatsDestination get destination => _destination;
+
+  RecentAscentStats? _selectedAscent;
+  RecentAscentStats? get selectedAscent => _selectedAscent;
 
   // Aquestes banderes internes eviten actualitzacions insegures i càrregues repetides.
   // Són importants perquè la pantalla pot reconstruir-se sense haver de repetir la petició inicial.
@@ -159,6 +174,20 @@ class UserStatsController extends ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  // Aquest mètode prepara la navegació cap a l’historial del cim seleccionat.
+  // La screen serà qui obrirà la ruta real amb les dades d’aquest cim.
+  void onRecentAscentTap(RecentAscentStats ascent) {
+    _selectedAscent = ascent;
+    _destination = UserStatsDestination.ascentHistory;
+    notifyListeners();
+  }
+
+  // Aquest mètode neteja la navegació pendent després que la screen l’hagi executat.
+  void consumeNavigation() {
+    _destination = UserStatsDestination.none;
+    _selectedAscent = null;
   }
 
   // Aquest mètode permet refrescar les dades manualment des de la pantalla.

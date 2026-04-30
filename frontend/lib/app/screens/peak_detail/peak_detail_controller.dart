@@ -16,6 +16,7 @@ enum PeakDetailDestination {
   none,
   openMap,
   registerAscent,
+  ascentHistory,
 }
 
 // Aquest controller gestiona l’estat de la pantalla de detall del cim.
@@ -154,6 +155,12 @@ class PeakDetailController extends ChangeNotifier {
     _destination = PeakDetailDestination.registerAscent;
     notifyListeners();
   }
+
+  // Aquesta acció deixa preparada la navegació cap a l’historial d’ascensions del cim.
+void onAscentHistoryTap() {
+  _destination = PeakDetailDestination.ascentHistory;
+  notifyListeners();
+}
 
   // Aquest mètode reinicia el destí un cop la vista ja l’ha consumit.
   void consumeNavigation() {

@@ -33,14 +33,6 @@ class PeakDetailStatusActions extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Estat del cim',
-          style: TextStyle(
-            fontSize: 19,
-            fontWeight: FontWeight.w800,
-            color: Color(0xFF17212B),
-          ),
-        ),
         const SizedBox(height: 14),
         _PeakStatusButton(
           label: 'Objectiu',
