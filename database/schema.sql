@@ -123,4 +123,61 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
   CONSTRAINT fk_password_reset_tokens_user
     FOREIGN KEY (user_id) REFERENCES users(id)
     ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4; 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 8. Plantilla del repte mensual del sistema. Hi ha una sola fila per (any, mes)
+-- perquè el repte és global: tots els usuaris veuen el mateix repte el mateix mes.
+-- El tipus s'escull aleatòriament la primera vegada que es genera la plantilla
+-- (creació "lazy" des del servei) i defineix com es comptarà el progrés.
+-- Els tres targets són els llindars dels nivells 1, 2 i 3, sempre creixents.
+-- Les marques starts_at/ends_at s'expressen en hora local de Madrid i es passen
+-- al driver com a string 'YYYY-MM-DD HH:MM:SS' per evitar conversions implícites
+-- de timezone, ja que la finestra del repte és sempre el mes natural (dia 1
+-- 00:00:00 fins l'últim dia 23:59:59) i ha de ser estable amb independència
+-- de la zona on corri el servidor.
+CREATE TABLE IF NOT EXISTS monthly_challenges (
+  id         INT          NOT NULL AUTO_INCREMENT,
+  `year`     SMALLINT     NOT NULL,
+  `month`    TINYINT      NOT NULL,
+  type       ENUM('peaks_completed', 'distinct_regions') NOT NULL,
+  target_1   INT          NOT NULL,
+  target_2   INT          NOT NULL,
+  target_3   INT          NOT NULL,
+  starts_at  DATETIME     NOT NULL,
+  ends_at    DATETIME     NOT NULL,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_monthly_challenges_period (`year`, `month`),
+  INDEX idx_monthly_challenges_period (`year`, `month`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 9. Progrés de cada usuari sobre cada repte mensual. El progrés es manté com
+-- a cache derivat de la taula ascents per no haver de recalcular-lo a cada
+-- lectura, però sempre es pot reconstruir amb un recompute des del servei.
+-- Els camps level_X_completed_at sellen l'instant exacte (hora Madrid) en què
+-- l'usuari va superar cada nivell. Per decisió de producte, si l'usuari elimina
+-- ascensions i el progrés baixa per sota d'un llindar ja superat, el segell
+-- corresponent es torna a NULL i el nivell es desbloqueja.
+CREATE TABLE IF NOT EXISTS monthly_challenge_progress (
+  id                    INT      NOT NULL AUTO_INCREMENT,
+  user_id               INT      NOT NULL,
+  monthly_challenge_id  INT      NOT NULL,
+  current_progress      INT      NOT NULL DEFAULT 0,
+  current_level         TINYINT  NOT NULL DEFAULT 0,
+  level_1_completed_at  DATETIME NULL,
+  level_2_completed_at  DATETIME NULL,
+  level_3_completed_at  DATETIME NULL,
+  created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_monthly_progress_user_challenge (user_id, monthly_challenge_id),
+  INDEX idx_monthly_progress_user (user_id),
+  INDEX idx_monthly_progress_challenge (monthly_challenge_id),
+  CONSTRAINT fk_monthly_progress_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_monthly_progress_challenge
+    FOREIGN KEY (monthly_challenge_id) REFERENCES monthly_challenges(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
