@@ -67,8 +67,8 @@ class ProfilePasswordForm extends StatelessWidget {
             onChanged: (_) => onChanged(),
             decoration: InputDecoration(
               labelText: 'Nova contrasenya',
-              errorText: showValidation && newPassword.length < 6
-                  ? 'La nova contrasenya ha de tenir mínim 6 caràcters'
+              errorText: showValidation && newPassword.length < 8
+                  ? 'La nova contrasenya ha de tenir mínim 8 caràcters'
                   : null,
             ),
           ),
