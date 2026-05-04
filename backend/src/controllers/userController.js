@@ -1,4 +1,5 @@
 const UserService = require('../services/userService');
+const Validation = require('../utils/validation');
 
 // Aquestes constants defineixen els límits de longitud acceptats als camps editables
 // del perfil. Coincideixen amb els tipus definits a la base de dades i amb els
@@ -8,13 +9,6 @@ const MAX_LAST_NAME_LENGTH = 150;
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 128;
 
-// Aquest mètode crea un error de validació amb codi 400.
-// S'utilitza quan falten dades o quan el format rebut no és correcte.
-function badRequest(message) {
-  const error = new Error(message);
-  error.statusCode = 400;
-  return error;
-}
 
 // Aquest controlador gestiona les peticions relacionades amb el perfil de l'usuari.
 // La seva funció és rebre les dades de la petició, validar les més bàsiques,
@@ -43,13 +37,13 @@ const UserController = {
       const { firstName, lastName } = req.body || {};
 
       if (!firstName || !lastName) {
-        throw badRequest('Missing required fields: firstName, lastName');
+        throw Validation.badRequest('Missing required fields: firstName, lastName');
       }
       if (firstName.length > MAX_FIRST_NAME_LENGTH) {
-        throw badRequest(`First name must be at most ${MAX_FIRST_NAME_LENGTH} characters long`);
+        throw Validation.badRequest(`First name must be at most ${MAX_FIRST_NAME_LENGTH} characters long`);
       }
       if (lastName.length > MAX_LAST_NAME_LENGTH) {
-        throw badRequest(`Last name must be at most ${MAX_LAST_NAME_LENGTH} characters long`);
+        throw Validation.badRequest(`Last name must be at most ${MAX_LAST_NAME_LENGTH} characters long`);
       }
 
       const updatedUser = await UserService.updateProfile(userId, { firstName, lastName });
@@ -65,13 +59,13 @@ const UserController = {
       const { currentPassword, newPassword } = req.body || {};
 
       if (!currentPassword || !newPassword) {
-        throw badRequest('Missing required fields: currentPassword, newPassword');
+        throw Validation.badRequest('Missing required fields: currentPassword, newPassword');
       }
       if (newPassword.length < MIN_PASSWORD_LENGTH) {
-        throw badRequest(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
+        throw Validation.badRequest(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
       }
       if (newPassword.length > MAX_PASSWORD_LENGTH) {
-        throw badRequest(`Password must be at most ${MAX_PASSWORD_LENGTH} characters long`);
+        throw Validation.badRequest(`Password must be at most ${MAX_PASSWORD_LENGTH} characters long`);
       }
 
       const result = await UserService.changePassword(userId, { currentPassword, newPassword });
@@ -87,7 +81,7 @@ const UserController = {
       const { password } = req.body || {};
 
       if (!password) {
-        throw badRequest('Missing required field: password');
+        throw Validation.badRequest('Missing required field: password');
       }
 
       const result = await UserService.deleteAccount(userId, { password });
