@@ -1,7 +1,7 @@
 import 'package:cims/app/client/api/api_client_impl.dart';
 import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/ascent.dart';
-import 'package:cims/core/usecase/get_ascents_by_peak_usecase.dart';
+import 'package:cims/core/usecase/ascents/get_ascents_by_peak_usecase.dart';
 import 'package:flutter/material.dart';
 
 // Aquest controller gestiona l’estat de la pantalla d’historial d’ascensions.

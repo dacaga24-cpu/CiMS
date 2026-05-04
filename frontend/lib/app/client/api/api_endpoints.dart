@@ -53,7 +53,7 @@ class ApiEndpoints {
 
   // Aquestes rutes permeten consultar i modificar el perfil de l'usuari autenticat.
   static const String userProfile = '$users/profile';
-  static const String changePassword = '$users/change-password';
+  static const String changePassword = '$users/password';
   static const String deleteAccount = '$users/account';
 
   // Aquest endpoint permet obtenir les dades resumides del dashboard.

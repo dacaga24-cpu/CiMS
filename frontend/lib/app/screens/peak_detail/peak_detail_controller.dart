@@ -5,10 +5,10 @@ import 'package:cims/core/entity/peak_status.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:cims/core/store/peak_status_store.dart';
 import 'package:cims/core/store/user_stats_refresh_store.dart';
-import 'package:cims/core/usecase/get_ascents_by_peak_usecase.dart';
-import 'package:cims/core/usecase/get_peak_by_id_usecase.dart';
-import 'package:cims/core/usecase/get_peak_status_usecase.dart';
-import 'package:cims/core/usecase/update_peak_status_usecase.dart';
+import 'package:cims/core/usecase/ascents/get_ascents_by_peak_usecase.dart';
+import 'package:cims/core/usecase/peaks/get_peak_by_id_usecase.dart';
+import 'package:cims/core/usecase/peaks/get_peak_status_usecase.dart';
+import 'package:cims/core/usecase/peak_status/update_peak_status_usecase.dart';
 import 'package:flutter/material.dart';
 
 // Aquest enum defineix les accions globals que la vista resoldrà des de fora.
