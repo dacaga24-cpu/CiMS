@@ -7,12 +7,14 @@ class ProfileSettingsOptionsCard extends StatelessWidget {
     super.key,
     required this.onEditProfileTap,
     required this.onChangePasswordTap,
+    required this.onDeleteAccountTap,
   });
 
   // Aquestes accions permeten obrir els formularis associats al perfil.
   // La targeta no decideix què passa, només comunica la interacció de l’usuari.
   final VoidCallback onEditProfileTap;
   final VoidCallback onChangePasswordTap;
+  final VoidCallback onDeleteAccountTap;
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +47,14 @@ class ProfileSettingsOptionsCard extends StatelessWidget {
             subtitle: 'Actualitza la contrasenya del compte',
             onTap: onChangePasswordTap,
           ),
+          const Divider(height: 1),
+          _ProfileSettingsOptionTile(
+            icon: Icons.delete_outline,
+            title: 'Desactivar compte',
+            subtitle: 'Desactiva el teu compte de CiMS',
+            onTap: onDeleteAccountTap,
+            isDestructive: true,
+          ),
         ],
       ),
     );
@@ -59,22 +69,28 @@ class _ProfileSettingsOptionTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.isDestructive = false,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
+  final bool isDestructive;
 
   @override
   Widget build(BuildContext context) {
+    final color =
+        isDestructive ? const Color(0xFFD84C4C) : const Color(0xFF2E7D32);
+
     return ListTile(
       onTap: onTap,
-      leading: Icon(icon, color: const Color(0xFF2E7D32)),
+      leading: Icon(icon, color: color),
       title: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontWeight: FontWeight.w700,
+          color: isDestructive ? color : null,
         ),
       ),
       subtitle: Text(subtitle),

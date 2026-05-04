@@ -189,6 +189,29 @@ abstract class _ApiClientBase {
       return null;
     }
   }
+
+  // Aquest mètode permet fer peticions DELETE JSON sobre endpoints autenticats.
+  // S’utilitza per accions destructives com la desactivació del compte.
+  Future<http.Response> _deleteJson(
+    String endpoint, {
+    required Map<String, dynamic> body,
+    bool requiresAuth = false,
+  }) async {
+    final response = await _client
+        .delete(
+          Uri.parse('$_baseUrl$endpoint'),
+          headers: await _buildHeaders(requiresAuth: requiresAuth),
+          body: jsonEncode(body),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    await _handleUnauthorizedIfNeeded(
+      response,
+      requiresAuth: requiresAuth,
+    );
+
+    return response;
+  }
 }
 
 // Aquesta classe exposa un únic punt d’entrada cap al client d’API,

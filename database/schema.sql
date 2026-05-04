@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS peak_status (
     ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 7. Taula per gestionar tokens de recuperació de contrassenya
+-- 7. Taula per gestionar tokens de recuperació de contrasenya
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
   id          INT          NOT NULL AUTO_INCREMENT,
   user_id     INT          NOT NULL,

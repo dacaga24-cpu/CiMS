@@ -160,6 +160,43 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     ).whenComplete(controller.clearPasswordForm);
   }
 
+  // Aquest mètode obre la confirmació per desactivar el compte.
+// L’acció és destructiva i per això es demana confirmació abans d’executar-la.
+  void _openDeleteAccountDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Desactivar compte'),
+          content: const Text(
+            'Aquesta acció desactivarà el teu compte. Vols continuar?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel·lar'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+
+                // Aquí després connectarem el formulari amb contrasenya
+                // i el cas d’ús real de desactivació.
+              },
+              child: const Text(
+                'Desactivar',
+                style: TextStyle(
+                  color: Color(0xFFD84C4C),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   // Aquest mètode allibera el controller quan la pantalla deixa d’utilitzar-se.
   @override
   void dispose() {
@@ -189,6 +226,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   const SizedBox(height: 28),
                   ProfileSettingsHeader(
                     displayName: controller.displayName,
+                    displayEmail: controller.displayEmail,
                   ),
                   const Spacer(),
                   const ProfileSettingsSectionTitle(),
@@ -196,6 +234,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   ProfileSettingsOptionsCard(
                     onEditProfileTap: _openEditProfileForm,
                     onChangePasswordTap: _openPasswordForm,
+                    onDeleteAccountTap: _openDeleteAccountDialog,
                   ),
                   const SizedBox(height: 28),
                   ProfileSettingsLogoutButton(
