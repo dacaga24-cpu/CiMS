@@ -123,7 +123,7 @@ class ProfileSettingsController extends ChangeNotifier {
     final confirmPassword = confirmPasswordController.text.trim();
 
     return currentPassword.isNotEmpty &&
-        newPassword.length >= 6 &&
+        newPassword.length >= 8 &&
         newPassword == confirmPassword;
   }
 
