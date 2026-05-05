@@ -158,12 +158,20 @@ async function recomputeProgress(userId, year, month) {
   const challenge = await ensureMonthlyChallenge(year, month);
   const counter = CHALLENGE_TYPES[challenge.type].counter;
   const { startDate, endDate } = getMonthDateBoundaryStrings(year, month);
-  const currentProgress = await counter(userId, startDate, endDate);
+  const realProgress = await counter(userId, startDate, endDate);
+
+  const targets = [challenge.target_1, challenge.target_2, challenge.target_3];
+
+  // El progrés es capa al llindar màxim del repte. Sense aquest cap, un
+  // usuari que faci més cims dels necessaris veuria valors com "8 de 6" a
+  // la UI, que no aporten res un cop el repte ja està completat. La info
+  // "real" (8 cims aquell mes) segueix sent derivable de la taula ascents
+  // si algun dia es vol mostrar de manera separada.
+  const currentProgress = Math.min(realProgress, targets[targets.length - 1]);
 
   const existing = await MonthlyChallengeModel.findProgress(userId, challenge.id);
   const now = getCurrentMadridDateTimeString();
 
-  const targets = [challenge.target_1, challenge.target_2, challenge.target_3];
   const stamps = [
     existing?.level_1_completed_at ?? null,
     existing?.level_2_completed_at ?? null,
