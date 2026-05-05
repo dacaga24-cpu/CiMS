@@ -23,6 +23,7 @@ part 'api_client_impl_regions.dart';
 part 'api_client_impl_peak_status.dart';
 part 'api_client_impl_ascents.dart';
 part 'api_client_impl_stats.dart';
+part 'api_client_impl_monthly_challenge.dart';
 
 // Aquesta classe base centralitza la infraestructura comuna del client d’API.
 // Les operacions funcionals es reparteixen en fitxers separats per àmbit
@@ -201,7 +202,8 @@ class ApiClientImpl extends _ApiClientBase
         _ProfileApiClientImplMixin,
         _RegionsApiClientImplMixin,
         _PeakStatusApiClientImplMixin,
-        _StatsApiClientImplMixin
+        _StatsApiClientImplMixin,
+        _MonthlyChallengeApiClientImplMixin
     implements ApiClient {
   // Aquest constructor permet crear el client final de l’API.
   // Reutilitza la configuració comuna definida a la classe base.

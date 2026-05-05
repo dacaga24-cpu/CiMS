@@ -71,13 +71,53 @@ class DashboardSummary {
           : DashboardRecentAscent.fromJson(_asMap(json['lastAscent'])),
       highestCompletedAltitude: json['highestCompletedAltitude'] == null
           ? null
-          : DashboardPeakItem.fromJson(_asMap(json['highestCompletedAltitude'])),
+          : DashboardPeakItem.fromJson(
+              _asMap(json['highestCompletedAltitude'])),
       mostAscendedPeak: json['mostAscendedPeak'] == null
           ? null
           : DashboardPeakItem.fromJson(_asMap(json['mostAscendedPeak'])),
       monthlyAscents: _asList(json['monthlyAscents'])
           .map((item) => MonthlyAscentsItem.fromJson(item))
           .toList(),
+    );
+  }
+
+  // Aquest mètode crea una nova versió del resum mantenint les dades existents.
+  // És útil quan el dashboard i el repte mensual arriben des d'endpoints diferents.
+  DashboardSummary copyWith({
+    int? completedPeaks,
+    int? activeTargets,
+    int? favorites,
+    int? totalAscents,
+    int? uniquePeaksAscended,
+    int? totalAltitudeMeters,
+    ChallengeProgress? challengeProgress,
+    List<DashboardPeakItem>? pendingPeaks,
+    List<DashboardPeakItem>? favoritePeaks,
+    MonthlyChallenge? monthlyChallenge,
+    List<DashboardRecentAscent>? recentAscents,
+    DashboardRecentAscent? lastAscent,
+    DashboardPeakItem? highestCompletedAltitude,
+    DashboardPeakItem? mostAscendedPeak,
+    List<MonthlyAscentsItem>? monthlyAscents,
+  }) {
+    return DashboardSummary(
+      completedPeaks: completedPeaks ?? this.completedPeaks,
+      activeTargets: activeTargets ?? this.activeTargets,
+      favorites: favorites ?? this.favorites,
+      totalAscents: totalAscents ?? this.totalAscents,
+      uniquePeaksAscended: uniquePeaksAscended ?? this.uniquePeaksAscended,
+      totalAltitudeMeters: totalAltitudeMeters ?? this.totalAltitudeMeters,
+      challengeProgress: challengeProgress ?? this.challengeProgress,
+      pendingPeaks: pendingPeaks ?? this.pendingPeaks,
+      favoritePeaks: favoritePeaks ?? this.favoritePeaks,
+      monthlyChallenge: monthlyChallenge ?? this.monthlyChallenge,
+      recentAscents: recentAscents ?? this.recentAscents,
+      lastAscent: lastAscent ?? this.lastAscent,
+      highestCompletedAltitude:
+          highestCompletedAltitude ?? this.highestCompletedAltitude,
+      mostAscendedPeak: mostAscendedPeak ?? this.mostAscendedPeak,
+      monthlyAscents: monthlyAscents ?? this.monthlyAscents,
     );
   }
 }
@@ -104,7 +144,8 @@ class ChallengeProgress {
   factory ChallengeProgress.fromCompleted(int completed) {
     const target = 100;
     final remaining = (target - completed).clamp(0, target).toInt();
-    final percentage = ((completed / target) * 100).round().clamp(0, 100).toInt();
+    final percentage =
+        ((completed / target) * 100).round().clamp(0, 100).toInt();
 
     return ChallengeProgress(
       completed: completed,
@@ -195,6 +236,9 @@ class MonthlyChallenge {
     required this.unit,
     this.title,
     this.description,
+    this.currentLevel = 0,
+    this.totalLevels = 0,
+    this.isFullyCompleted = false,
   });
 
   // Aquestes dades defineixen l’estat i la presentació del repte mensual.
@@ -205,25 +249,47 @@ class MonthlyChallenge {
   final String unit;
   final String? title;
   final String? description;
+  final int currentLevel;
+  final int totalLevels;
+  final bool isFullyCompleted;
 
   // Aquest constructor crea el repte mensual a partir de la resposta del backend.
-  // Si el percentatge no arriba calculat, es genera a partir del valor actual i l’objectiu.
+  // Accepta tant el format simple del dashboard com el format complet de /monthly-challenges/current.
   factory MonthlyChallenge.fromJson(Map<String, dynamic> json) {
-    final current = _asInt(json['current']);
-    final target = _asInt(json['target']);
+    final targets = _asIntList(json['targets']);
+    final current = _asInt(json['current'] ?? json['currentProgress']);
+    final target = json.containsKey('target')
+        ? _asInt(json['target'])
+        : targets.isEmpty
+            ? 0
+            : targets.last;
     final percentage = json.containsKey('percentage')
         ? _asInt(json['percentage'])
         : target == 0
             ? 0
             : ((current / target) * 100).round().clamp(0, 100).toInt();
+    final type = _asString(json['type']);
+    final unit = _monthlyChallengeUnit(type, json['unit']);
+    final currentLevel = _asInt(json['currentLevel']);
+    final totalLevels = targets.length;
 
     return MonthlyChallenge(
       current: current,
       target: target,
       percentage: percentage,
-      unit: _asString(json['unit'], defaultValue: 'ascensions'),
-      title: _asNullableString(json['title']),
-      description: _asNullableString(json['description']),
+      unit: unit,
+      title: _asNullableString(json['title']) ?? _monthlyChallengeTitle(type),
+      description: _asNullableString(json['description']) ??
+          _monthlyChallengeDescription(
+            current: current,
+            target: target,
+            unit: unit,
+            currentLevel: currentLevel,
+            totalLevels: totalLevels,
+          ),
+      currentLevel: currentLevel,
+      totalLevels: totalLevels,
+      isFullyCompleted: _asBool(json['isFullyCompleted']),
     );
   }
 }
@@ -257,7 +323,8 @@ class DashboardRecentAscent {
     return DashboardRecentAscent(
       id: _asInt(json['id']),
       peakId: _asInt(json['peakId'] ?? json['peak_id']),
-      peakName: _asString(json['peakName'] ?? json['peak_name'] ?? json['name']),
+      peakName:
+          _asString(json['peakName'] ?? json['peak_name'] ?? json['name']),
       ascentDate: _asString(json['ascentDate'] ?? json['ascent_date']),
       altitude: json['altitude'] == null &&
               json['peakAltitude'] == null &&
@@ -355,4 +422,68 @@ String? _asRegionsText(dynamic value) {
 
   if (regions.isEmpty) return null;
   return regions.join(', ');
+}
+
+// Aquesta funció transforma una llista de valors numèrics en enters.
+// S'utilitza per adaptar els nivells del repte mensual enviats pel backend.
+List<int> _asIntList(dynamic value) {
+  if (value is! List) return <int>[];
+
+  return value.map(_asInt).where((item) => item > 0).toList();
+}
+
+// Aquesta funció transforma valors simples en booleans.
+// Permet llegir respostes del backend encara que el valor arribi amb formats diferents.
+bool _asBool(dynamic value) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) return value.toLowerCase() == 'true' || value == '1';
+  return false;
+}
+
+// Aquesta funció adapta el tipus intern del repte mensual a una unitat llegible.
+// Manté la targeta independent dels noms tècnics que utilitza el backend.
+String _monthlyChallengeUnit(String type, dynamic fallback) {
+  final provided = _asNullableString(fallback);
+  if (provided != null) return provided;
+
+  switch (type) {
+    case 'distinct_regions':
+      return 'comarques';
+    case 'peaks_completed':
+      return 'cims';
+    default:
+      return 'ascensions';
+  }
+}
+
+// Aquesta funció genera un títol entenedor quan el backend només envia el tipus del repte.
+// Això permet mostrar el repte mensual sense exposar noms interns a l'usuari.
+String _monthlyChallengeTitle(String type) {
+  switch (type) {
+    case 'distinct_regions':
+      return 'Repte mensual de comarques';
+    case 'peaks_completed':
+      return 'Repte mensual de cims';
+    default:
+      return 'Repte mensual';
+  }
+}
+
+// Aquesta funció prepara el text resum del repte mensual.
+// Inclou el nivell desbloquejat i el progrés total sobre l'objectiu final.
+String _monthlyChallengeDescription({
+  required int current,
+  required int target,
+  required String unit,
+  required int currentLevel,
+  required int totalLevels,
+}) {
+  final progressText = '$current/$target $unit';
+
+  if (totalLevels == 0) {
+    return progressText;
+  }
+
+  return 'Nivell $currentLevel/$totalLevels · $progressText';
 }
