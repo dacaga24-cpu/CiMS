@@ -1,0 +1,14 @@
+info:
+  name: no token
+  type: http
+
+http:
+  method: PUT
+  url: "{{base_url}}/api/peak-status/1"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

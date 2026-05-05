@@ -1,0 +1,10 @@
+name: local
+variables:
+  - name: base_url
+    value: http://localhost:3000
+  - name: token_valid
+    value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImlhdCI6MTc3Nzk4MjI5MiwiZXhwIjoxNzc4NTg3MDkyfQ.3nmnOaJEYnL_fxf6j4jXGm-OLSA4yMVhELLrddYaJgU
+  - name: token_invalid
+    value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjF9.signaturainvalida
+  - name: token_expired
+    value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImlhdCI6MTc3Nzk4MzA1NiwiZXhwIjoxNzc3OTgzMDU1fQ.zXBssM8e9fe2B5OBcj6Wpcg73EyAbQleDthfGM86qik
