@@ -181,3 +181,34 @@ CREATE TABLE IF NOT EXISTS monthly_challenge_progress (
     FOREIGN KEY (monthly_challenge_id) REFERENCES monthly_challenges(id)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 10. Fotos associades a una ascensió. La relació és 1-N: una mateixa
+-- ascensió pot tenir una foto principal i diverses fotos addicionals que
+-- l'usuari afegeix com a record de la sortida.
+--
+-- storage_path guarda únicament la ruta relativa dins del bucket de Google
+-- Cloud Storage (ex: 'ascents/123/abc123.jpg'). No es desa cap URL completa
+-- perquè el bucket o el domini poden canviar entre entorns sense necessitat
+-- de migrar dades; les URLs públiques o signades es generen al backend
+-- quan cal servir-les al frontend.
+--
+-- is_primary distingeix la foto principal de l'ascensió (1) de les fotos
+-- de memòria addicionals (0). En el flux verificat futur, la foto principal
+-- serà la que aporta les metadades EXIF (GPS + timestamp) que validen
+-- l'ascens i passarà a ser immutable.
+-- L'ON DELETE CASCADE garanteix que en eliminar una ascensió també
+-- desapareguin les seves fotos a la BD; els blobs corresponents al bucket
+-- s'esborren des del servei abans de la fila d'ascents per evitar orfes.
+CREATE TABLE IF NOT EXISTS ascent_photos (
+  id           INT          NOT NULL AUTO_INCREMENT,
+  ascent_id    INT          NOT NULL,
+  storage_path VARCHAR(500) NOT NULL,
+  is_primary   TINYINT      NOT NULL DEFAULT 0,
+  created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX idx_ascent_photos_ascent_id (ascent_id),
+  INDEX idx_ascent_photos_created_at (created_at),
+  CONSTRAINT fk_ascent_photos_ascent
+    FOREIGN KEY (ascent_id) REFERENCES ascents(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

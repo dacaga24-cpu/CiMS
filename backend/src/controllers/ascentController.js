@@ -38,12 +38,13 @@ const AscentController = {
   // com a 404 des del model.
   async create(req, res, next) {
     try {
-      const { peakId, ascentDate, notes } = req.body || {};
+      const { peakId, ascentDate, notes, photos } = req.body || {};
 
       const ascent = await AscentService.create(req.userId, {
         peakId,
         ascentDate,
         notes,
+        photos,
       });
 
       res.status(201).json(ascent);

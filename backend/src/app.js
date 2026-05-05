@@ -16,6 +16,7 @@ const statsRoutes = require('./routes/statsRoutes');
 const userRoutes = require('./routes/userRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const monthlyChallengeRoutes = require('./routes/monthlyChallengeRoutes');
+const ascentPhotoRoutes = require('./routes/ascentPhotoRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -113,6 +114,11 @@ app.use('/api/dashboard', dashboardRoutes);
 // es genera de manera "lazy" la primera vegada que es consulta o quan un
 // usuari registra una ascensió dins del mes en curs.
 app.use('/api/monthly-challenges', monthlyChallengeRoutes);
+
+// Aquest bloc registra el recurs ascent-photos. Exposa la generació de
+// signed URLs perquè el frontend pugui pujar fotos directament al bucket
+// de GCS abans de confirmar la creació de l'ascens.
+app.use('/api/ascent-photos', ascentPhotoRoutes);
 
 // Aquest bloc registra les rutes de les comarques.
 // Serveix per alimentar els filtres territorials del catàleg al frontend.
