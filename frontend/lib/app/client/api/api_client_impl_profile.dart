@@ -139,4 +139,43 @@ mixin _ProfileApiClientImplMixin on _ApiClientBase implements ProfileApiClient {
       );
     }
   }
+
+  // Aquest mètode envia la petició de desactivació del compte al backend.
+  // Si la contrasenya és correcta, el compte queda desactivat i la sessió es podrà tancar.
+  @override
+  Future<void> deleteAccount({
+    required String password,
+  }) async {
+    try {
+      final response = await _deleteJson(
+        ApiEndpoints.deleteAccount,
+        body: {
+          'password': password,
+        },
+        requiresAuth: true,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return;
+      }
+
+      final Map<String, dynamic>? data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'ha pogut desactivar el compte';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
 }

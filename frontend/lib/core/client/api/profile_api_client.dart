@@ -19,4 +19,10 @@ abstract class ProfileApiClient {
     required String currentPassword,
     required String newPassword,
   });
+
+  // Aquest mètode permet desactivar el compte de l’usuari autenticat.
+  // Requereix la contrasenya actual per confirmar que l’acció és voluntària.
+  Future<void> deleteAccount({
+    required String password,
+  });
 }

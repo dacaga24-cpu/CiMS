@@ -6,6 +6,7 @@ import 'package:cims/core/usecase/profile/change_password_usecase.dart';
 import 'package:cims/core/usecase/profile/get_user_profile_usecase.dart';
 import 'package:cims/core/usecase/session/clear_session_usecase.dart';
 import 'package:cims/core/usecase/profile/update_user_profile_usecase.dart';
+import 'package:cims/core/usecase/profile/delete_account_usecase.dart';
 import 'package:flutter/material.dart';
 
 // Aquest enum representa les possibles navegacions que la pantalla pot executar.
@@ -26,6 +27,7 @@ class ProfileSettingsController extends ChangeNotifier {
     GetUserProfileUseCase? getUserProfileUseCase,
     UpdateUserProfileUseCase? updateUserProfileUseCase,
     ChangePasswordUseCase? changePasswordUseCase,
+    DeleteAccountUseCase? deleteAccountUseCase,
   })  : _logoutAction = logoutAction,
         _clearSessionUseCase =
             clearSessionUseCase ?? AppSession.clearSessionUseCase,
@@ -36,7 +38,9 @@ class ProfileSettingsController extends ChangeNotifier {
         _updateUserProfileUseCase = updateUserProfileUseCase ??
             UpdateUserProfileUseCase(ApiClientImpl()),
         _changePasswordUseCase =
-            changePasswordUseCase ?? ChangePasswordUseCase(ApiClientImpl());
+            changePasswordUseCase ?? ChangePasswordUseCase(ApiClientImpl()),
+        _deleteAccountUseCase =
+            deleteAccountUseCase ?? DeleteAccountUseCase(ApiClientImpl());
 
   // Aquest bloc agrupa les dependències principals del controller.
   // Permet consultar i modificar el perfil real de l’usuari autenticat.
@@ -45,6 +49,7 @@ class ProfileSettingsController extends ChangeNotifier {
   final GetUserProfileUseCase _getUserProfileUseCase;
   final UpdateUserProfileUseCase _updateUserProfileUseCase;
   final ChangePasswordUseCase _changePasswordUseCase;
+  final DeleteAccountUseCase _deleteAccountUseCase;
 
   // Aquests controladors guarden temporalment les dades del formulari de perfil.
   // La pantalla els utilitza per editar el nom i cognoms sense gestionar lògica.
@@ -57,6 +62,11 @@ class ProfileSettingsController extends ChangeNotifier {
       TextEditingController();
   final TextEditingController newPasswordController = TextEditingController();
   final TextEditingController confirmPasswordController =
+      TextEditingController();
+
+  // Aquest controlador guarda temporalment la contrasenya actual.
+  // Es fa servir només per confirmar la desactivació del compte.
+  final TextEditingController deleteAccountPasswordController =
       TextEditingController();
 
   // Aquest bloc manté l’estat principal de la pantalla:
@@ -73,6 +83,9 @@ class ProfileSettingsController extends ChangeNotifier {
   bool _isChangingPassword = false;
   bool get isChangingPassword => _isChangingPassword;
 
+  bool _isDeletingAccount = false;
+  bool get isDeletingAccount => _isDeletingAccount;
+
   bool _isLoggingOut = false;
   bool get isLoggingOut => _isLoggingOut;
 
@@ -81,6 +94,9 @@ class ProfileSettingsController extends ChangeNotifier {
 
   bool _showPasswordValidation = false;
   bool get showPasswordValidation => _showPasswordValidation;
+
+  bool _showDeleteAccountValidation = false;
+  bool get showDeleteAccountValidation => _showDeleteAccountValidation;
 
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
@@ -125,6 +141,11 @@ class ProfileSettingsController extends ChangeNotifier {
     return currentPassword.isNotEmpty &&
         newPassword.length >= 8 &&
         newPassword == confirmPassword;
+  }
+
+  // Aquest getter comprova si el formulari de desactivació té la contrasenya necessària.
+  bool get isDeleteAccountFormValid {
+    return deleteAccountPasswordController.text.trim().isNotEmpty;
   }
 
   // Aquest mètode carrega les dades del perfil autenticat.
@@ -180,6 +201,14 @@ class ProfileSettingsController extends ChangeNotifier {
   // Aquest mètode notifica canvis en el formulari de contrasenya.
   // Permet validar coincidència i longitud abans d’enviar les dades.
   void onPasswordFieldChanged() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
+
+  // Aquest mètode notifica canvis al formulari de desactivació.
+  // Permet mostrar la validació mentre l’usuari escriu la contrasenya.
+  void onDeleteAccountFieldChanged() {
     if (!_disposed) {
       notifyListeners();
     }
@@ -281,6 +310,55 @@ class ProfileSettingsController extends ChangeNotifier {
     }
   }
 
+  // Aquest mètode envia al backend la petició de desactivació del compte.
+  // Si la contrasenya és correcta, neteja la sessió i envia l’usuari al login.
+  Future<bool> deleteAccount() async {
+    if (_isDeletingAccount) return false;
+
+    _showDeleteAccountValidation = true;
+    _errorMessage = null;
+    _successMessage = null;
+
+    if (!isDeleteAccountFormValid) {
+      notifyListeners();
+      return false;
+    }
+
+    _isDeletingAccount = true;
+
+    if (!_disposed) {
+      notifyListeners();
+    }
+
+    try {
+      await _deleteAccountUseCase(
+        password: deleteAccountPasswordController.text.trim(),
+      );
+
+      clearDeleteAccountForm();
+      await _clearSessionUseCase.execute();
+      _successMessage = 'Compte desactivat correctament';
+      _destination = ProfileSettingsDestination.login;
+      return true;
+    } on ApiUnauthorizedException {
+      await _clearSessionUseCase.execute();
+      _destination = ProfileSettingsDestination.login;
+      return false;
+    } on ApiException catch (error) {
+      _errorMessage = error.message;
+      return false;
+    } catch (_) {
+      _errorMessage = 'No s\'ha pogut desactivar el compte';
+      return false;
+    } finally {
+      _isDeletingAccount = false;
+
+      if (!_disposed) {
+        notifyListeners();
+      }
+    }
+  }
+
   // Aquest mètode neteja els camps del formulari de contrasenya.
   // És important per no mantenir dades sensibles a la pantalla després de l’operació.
   void clearPasswordForm() {
@@ -288,6 +366,13 @@ class ProfileSettingsController extends ChangeNotifier {
     newPasswordController.clear();
     confirmPasswordController.clear();
     _showPasswordValidation = false;
+  }
+
+  // Aquest mètode neteja el formulari de desactivació.
+  // Evita conservar la contrasenya després de tancar el formulari.
+  void clearDeleteAccountForm() {
+    deleteAccountPasswordController.clear();
+    _showDeleteAccountValidation = false;
   }
 
   // Aquest mètode prepara el retorn a la pantalla anterior.
@@ -353,6 +438,7 @@ class ProfileSettingsController extends ChangeNotifier {
     currentPasswordController.dispose();
     newPasswordController.dispose();
     confirmPasswordController.dispose();
+    deleteAccountPasswordController.dispose();
     super.dispose();
   }
 }

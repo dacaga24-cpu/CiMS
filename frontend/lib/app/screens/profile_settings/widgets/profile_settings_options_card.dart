@@ -7,12 +7,14 @@ class ProfileSettingsOptionsCard extends StatelessWidget {
     super.key,
     required this.onEditProfileTap,
     required this.onChangePasswordTap,
+    required this.onDeleteAccountTap,
   });
 
   // Aquestes accions permeten obrir els formularis associats al perfil.
   // La targeta no decideix què passa, només comunica la interacció de l’usuari.
   final VoidCallback onEditProfileTap;
   final VoidCallback onChangePasswordTap;
+  final VoidCallback onDeleteAccountTap;
 
   @override
   Widget build(BuildContext context) {
@@ -33,17 +35,19 @@ class ProfileSettingsOptionsCard extends StatelessWidget {
       child: Column(
         children: [
           _ProfileSettingsOptionTile(
-            icon: Icons.person_outline,
             title: 'Dades personals',
-            subtitle: 'Actualitza el teu nom i cognoms',
             onTap: onEditProfileTap,
           ),
           const Divider(height: 1),
           _ProfileSettingsOptionTile(
-            icon: Icons.lock_outline,
             title: 'Canviar contrasenya',
-            subtitle: 'Actualitza la contrasenya del compte',
             onTap: onChangePasswordTap,
+          ),
+          const Divider(height: 1),
+          _ProfileSettingsOptionTile(
+            title: 'Desactivar compte',
+            onTap: onDeleteAccountTap,
+            isDestructive: true,
           ),
         ],
       ),
@@ -55,29 +59,29 @@ class ProfileSettingsOptionsCard extends StatelessWidget {
 // Centralitza l’estil de cada fila perquè totes les opcions siguin coherents.
 class _ProfileSettingsOptionTile extends StatelessWidget {
   const _ProfileSettingsOptionTile({
-    required this.icon,
     required this.title,
-    required this.subtitle,
     required this.onTap,
+    this.isDestructive = false,
   });
 
-  final IconData icon;
   final String title;
-  final String subtitle;
   final VoidCallback onTap;
+  final bool isDestructive;
 
   @override
   Widget build(BuildContext context) {
+    final color =
+        isDestructive ? const Color(0xFFD84C4C) : const Color(0xFF0047C7);
+
     return ListTile(
       onTap: onTap,
-      leading: Icon(icon, color: const Color(0xFF2E7D32)),
       title: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontWeight: FontWeight.w700,
+          color: isDestructive ? color : null,
         ),
       ),
-      subtitle: Text(subtitle),
       trailing: const Icon(Icons.chevron_right),
     );
   }

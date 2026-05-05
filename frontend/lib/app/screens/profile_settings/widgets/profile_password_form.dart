@@ -1,3 +1,5 @@
+import 'package:cims/app/widgets/buttons/primary_gradient_button.dart';
+import 'package:cims/app/widgets/buttons/secondary_pill_button.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget mostra el formulari de canvi de contrasenya.
@@ -12,6 +14,7 @@ class ProfilePasswordForm extends StatelessWidget {
     required this.isLoading,
     required this.onChanged,
     required this.onSave,
+    required this.onCancel,
   });
 
   final TextEditingController currentPasswordController;
@@ -21,6 +24,7 @@ class ProfilePasswordForm extends StatelessWidget {
   final bool isLoading;
   final VoidCallback onChanged;
   final Future<void> Function() onSave;
+  final VoidCallback onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -86,19 +90,16 @@ class ProfilePasswordForm extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: isLoading ? null : onSave,
-              child: isLoading
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Actualitzar contrasenya'),
-            ),
+          PrimaryGradientButton(
+            label: 'Actualitzar contrasenya',
+            isLoading: isLoading,
+            onPressed: isLoading ? null : onSave,
+          ),
+          const SizedBox(height: 12),
+          SecondaryPillButton(
+            label: 'Cancel·lar',
+            enabled: !isLoading,
+            onPressed: onCancel,
           ),
         ],
       ),
