@@ -2,27 +2,25 @@ import 'package:cims/app/widgets/buttons/primary_gradient_button.dart';
 import 'package:cims/app/widgets/buttons/secondary_pill_button.dart';
 import 'package:flutter/material.dart';
 
-// Aquest widget mostra el formulari d’edició de dades personals.
-// Rep els controladors i accions des de fora per mantenir separada la UI de la lògica.
-class ProfileEditForm extends StatelessWidget {
-  const ProfileEditForm({
+// Aquest formulari demana la contrasenya actual abans de desactivar el compte.
+// Serveix per confirmar una acció sensible i evitar desactivacions accidentals.
+class ProfileDeleteAccountForm extends StatelessWidget {
+  const ProfileDeleteAccountForm({
     super.key,
-    required this.firstNameController,
-    required this.lastNameController,
+    required this.passwordController,
     required this.showValidation,
     required this.isLoading,
     required this.onChanged,
-    required this.onSave,
     required this.onCancel,
+    required this.onDelete,
   });
 
-  final TextEditingController firstNameController;
-  final TextEditingController lastNameController;
+  final TextEditingController passwordController;
   final bool showValidation;
   final bool isLoading;
   final VoidCallback onChanged;
-  final Future<void> Function() onSave;
   final VoidCallback onCancel;
+  final Future<void> Function() onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -38,43 +36,44 @@ class ProfileEditForm extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Dades personals',
+            'Desactivar compte',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 18),
-          TextField(
-            controller: firstNameController,
-            enabled: !isLoading,
-            onChanged: (_) => onChanged(),
-            decoration: InputDecoration(
-              labelText: 'Nom',
-              errorText:
-                  showValidation && firstNameController.text.trim().isEmpty
-                      ? 'El nom és obligatori'
-                      : null,
+          const SizedBox(height: 10),
+          const Text(
+            'Introdueix la teva contrasenya actual per confirmar aquesta acció.',
+            style: TextStyle(
+              fontSize: 15,
+              color: Color(0xFF5F6368),
+              height: 1.35,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 18),
           TextField(
-            controller: lastNameController,
+            controller: passwordController,
             enabled: !isLoading,
+            obscureText: true,
             onChanged: (_) => onChanged(),
             decoration: InputDecoration(
-              labelText: 'Cognoms',
+              labelText: 'Contrasenya actual',
               errorText:
-                  showValidation && lastNameController.text.trim().isEmpty
-                      ? 'Els cognoms són obligatoris'
+                  showValidation && passwordController.text.trim().isEmpty
+                      ? 'La contrasenya és obligatòria'
                       : null,
             ),
           ),
           const SizedBox(height: 24),
           PrimaryGradientButton(
-            label: 'Desar canvis',
+            label: 'Desactivar compte',
             isLoading: isLoading,
-            onPressed: isLoading ? null : onSave,
+            onPressed: isLoading
+                ? null
+                : () {
+                    onDelete();
+                  },
           ),
           const SizedBox(height: 12),
           SecondaryPillButton(
