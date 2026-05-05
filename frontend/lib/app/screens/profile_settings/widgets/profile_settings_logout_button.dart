@@ -1,3 +1,4 @@
+import 'package:cims/app/widgets/buttons/secondary_pill_button.dart';
 import 'package:flutter/material.dart';
 
 // Aquest botó és l’acció funcional principal de la pantalla en aquest sprint.
@@ -9,51 +10,18 @@ class ProfileSettingsLogoutButton extends StatelessWidget {
   });
 
   // Indica si el tancament de sessió està en curs.
-  // Mentre està carregant, el botó queda desactivat i mostra un indicador.
+  // Mentre està carregant, el botó queda desactivat i mostra un text de procés.
   final bool isLoggingOut;
   final VoidCallback onLogoutTap;
 
   // Aquest mètode construeix el botó de tancament de sessió.
-  // Adapta el seu estat visual perquè l’usuari vegi quan l’acció està en procés.
+  // Utilitza el botó secundari reutilitzable per mantenir coherència visual amb la resta de l’app.
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 58,
-      child: OutlinedButton.icon(
-        onPressed: isLoggingOut ? null : onLogoutTap,
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(
-            color: Color(0xFFF0CACA),
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(32),
-          ),
-          backgroundColor: Colors.transparent,
-        ),
-        // Aquest bloc adapta el contingut del botó segons l’estat actual,
-        // mostrant càrrega mentre s’està tancant la sessió.
-        icon: isLoggingOut
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                ),
-              )
-            : const Icon(
-                Icons.logout_rounded,
-                color: Color(0xFFD84C4C),
-                size: 20,
-              ),
-        label: const Text(
-          'Tancar sessió',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFFD84C4C),
-          ),
-        ),
-      ),
+    return SecondaryPillButton(
+      label: isLoggingOut ? 'Tancant sessió...' : 'Tancar sessió',
+      enabled: !isLoggingOut,
+      onPressed: onLogoutTap,
     );
   }
 }

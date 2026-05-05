@@ -59,4 +59,9 @@ class ApiEndpoints {
   // Aquest endpoint permet obtenir les dades resumides del dashboard.
   // Retorna el progrés general, els reptes i els cims destacats de l’usuari autenticat.
   static const String dashboard = '$api/dashboard';
+
+  // Aquestes rutes corresponen al repte mensual de l'usuari autenticat.
+  // Permeten consultar el repte actiu i el progrés calculat pel backend.
+  static const String monthlyChallenges = '$api/monthly-challenges';
+  static const String currentMonthlyChallenge = '$monthlyChallenges/current';
 }

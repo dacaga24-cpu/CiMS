@@ -5,6 +5,27 @@ const AscentModel = require('../models/ascentModel');
 // com a assolit dins del seu estat personal.
 const PeakStatusService = require('./peakStatusService');
 
+// Cada modificació d'ascensions pot afectar el progrés del repte mensual
+// de l'usuari. El servei recalcula el progrés a partir de la taula ascents,
+// així que invocar-lo després de qualsevol create/update/remove garanteix
+// que el cache (monthly_challenge_progress) sempre reflecteixi la realitat.
+// Les crides es fan dins de safeRecompute per evitar que un error al cache
+// faci fracassar l'operació principal d'ascents, que ja s'ha confirmat.
+const MonthlyChallengeService = require('./monthlyChallengeService');
+
+// El recompute del repte mensual és un efecte derivat: si peta no s'ha de
+// propagar a la resposta de l'endpoint d'ascents, perquè la dada principal
+// (l'ascensió) ja està persistida i la pròxima crida tornarà a recalcular
+// el cache des de zero. Es loguen els errors perquè es puguin diagnosticar
+// sense bloquejar el flux de l'usuari.
+async function safeRecompute(promise) {
+  try {
+    await promise;
+  } catch (err) {
+    console.error('[monthlyChallenge] recompute failed:', err);
+  }
+}
+
 const {
   badRequest,
   requireInteger,
@@ -75,6 +96,11 @@ const AscentService = {
       isCompleted: true,
     });
 
+    // Si la nova ascensió pertany al mes en curs, pot fer pujar el progrés
+    // del repte mensual de l'usuari. El servei filtra internament per data,
+    // així que enviar-li sempre la ascentDate és segur.
+    await safeRecompute(MonthlyChallengeService.recomputeForUser(userId, parsedDate));
+
     return ascent;
   },
 
@@ -127,6 +153,12 @@ const AscentService = {
       });
     }
 
+    // Una edició pot canviar la data o el cim de l'ascensió, i tant la data
+    // antiga com la nova podrien caure dins del mes en curs. És més segur
+    // demanar un recompute del mes actual sencer que comprovar dues dates
+    // per separat: el cost és una sola query agregada sobre ascents.
+    await safeRecompute(MonthlyChallengeService.recomputeCurrentMonthForUser(userId));
+
     return AscentModel.findByIdAndUserId(userId, parsedAscentId);
   },
 
@@ -141,6 +173,12 @@ const AscentService = {
       error.statusCode = 404;
       throw error;
     }
+
+    // L'eliminació pot fer baixar el progrés del repte mensual si l'ascensió
+    // esborrada era del mes en curs. Es recalcula sempre perquè aquí ja no
+    // tenim accés a la data original, i el cost és el mateix recompute
+    // agregat que ja s'usa des d'update.
+    await safeRecompute(MonthlyChallengeService.recomputeCurrentMonthForUser(userId));
   },
 };
 

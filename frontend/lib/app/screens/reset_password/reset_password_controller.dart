@@ -125,7 +125,7 @@ class ResetPasswordController extends ChangeNotifier {
     if (!canSubmit) return;
 
     if (token.isEmpty) {
-      errorMessage = 'L’enllaç de recuperació no és vàlid o ha caducat';
+      errorMessage = 'L\'enllaç de recuperació no és vàlid o ha caducat';
       notifyListeners();
       return;
     }
@@ -142,7 +142,7 @@ class ResetPasswordController extends ChangeNotifier {
       _destination = ResetPasswordNavigationDestination.login;
     } on ApiException catch (error) {
       if (error.statusCode == 400) {
-        errorMessage = 'L’enllaç de recuperació no és vàlid o ha caducat';
+        errorMessage = 'L\'enllaç de recuperació no és vàlid o ha caducat';
       } else {
         errorMessage = error.message;
       }

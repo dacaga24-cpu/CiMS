@@ -9,6 +9,7 @@ import 'widgets/profile_settings_logout_button.dart';
 import 'widgets/profile_settings_options_card.dart';
 import 'widgets/profile_settings_section_title.dart';
 import 'widgets/profile_settings_top_bar.dart';
+import 'widgets/profile_delete_account_form.dart';
 
 // Aquesta pantalla mostra la configuració bàsica del compte.
 // Permet consultar el perfil real, editar dades personals, canviar la contrasenya
@@ -112,6 +113,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               showValidation: controller.showProfileValidation,
               isLoading: controller.isSavingProfile,
               onChanged: controller.onProfileFieldChanged,
+              onCancel: () => Navigator.of(sheetContext).pop(),
               onSave: () async {
                 final success = await controller.saveProfileChanges();
 
@@ -146,6 +148,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               showValidation: controller.showPasswordValidation,
               isLoading: controller.isChangingPassword,
               onChanged: controller.onPasswordFieldChanged,
+              onCancel: () => Navigator.of(sheetContext).pop(),
               onSave: () async {
                 final success = await controller.changePassword();
 
@@ -158,6 +161,39 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         );
       },
     ).whenComplete(controller.clearPasswordForm);
+  }
+
+// Aquest mètode obre el formulari de desactivació del compte.
+// La contrasenya es demana abans d’executar l’acció al backend.
+  void _openDeleteAccountForm() {
+    controller.clearDeleteAccountForm();
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) {
+        return AnimatedBuilder(
+          animation: controller,
+          builder: (context, _) {
+            return ProfileDeleteAccountForm(
+              passwordController: controller.deleteAccountPasswordController,
+              showValidation: controller.showDeleteAccountValidation,
+              isLoading: controller.isDeletingAccount,
+              onChanged: controller.onDeleteAccountFieldChanged,
+              onCancel: () => Navigator.of(sheetContext).pop(),
+              onDelete: () async {
+                final success = await controller.deleteAccount();
+
+                if (success && sheetContext.mounted) {
+                  Navigator.of(sheetContext).pop();
+                }
+              },
+            );
+          },
+        );
+      },
+    ).whenComplete(controller.clearDeleteAccountForm);
   }
 
   // Aquest mètode allibera el controller quan la pantalla deixa d’utilitzar-se.
@@ -189,6 +225,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   const SizedBox(height: 28),
                   ProfileSettingsHeader(
                     displayName: controller.displayName,
+                    displayEmail: controller.displayEmail,
                   ),
                   const Spacer(),
                   const ProfileSettingsSectionTitle(),
@@ -196,6 +233,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   ProfileSettingsOptionsCard(
                     onEditProfileTap: _openEditProfileForm,
                     onChangePasswordTap: _openPasswordForm,
+                    onDeleteAccountTap: _openDeleteAccountForm,
                   ),
                   const SizedBox(height: 28),
                   ProfileSettingsLogoutButton(

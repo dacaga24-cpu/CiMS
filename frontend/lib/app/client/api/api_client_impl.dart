@@ -23,6 +23,7 @@ part 'api_client_impl_regions.dart';
 part 'api_client_impl_peak_status.dart';
 part 'api_client_impl_ascents.dart';
 part 'api_client_impl_stats.dart';
+part 'api_client_impl_monthly_challenge.dart';
 
 // Aquesta classe base centralitza la infraestructura comuna del client d’API.
 // Les operacions funcionals es reparteixen en fitxers separats per àmbit
@@ -189,6 +190,29 @@ abstract class _ApiClientBase {
       return null;
     }
   }
+
+  // Aquest mètode permet fer peticions DELETE JSON sobre endpoints autenticats.
+  // S’utilitza per accions destructives com la desactivació del compte.
+  Future<http.Response> _deleteJson(
+    String endpoint, {
+    required Map<String, dynamic> body,
+    bool requiresAuth = false,
+  }) async {
+    final response = await _client
+        .delete(
+          Uri.parse('$_baseUrl$endpoint'),
+          headers: await _buildHeaders(requiresAuth: requiresAuth),
+          body: jsonEncode(body),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    await _handleUnauthorizedIfNeeded(
+      response,
+      requiresAuth: requiresAuth,
+    );
+
+    return response;
+  }
 }
 
 // Aquesta classe exposa un únic punt d’entrada cap al client d’API,
@@ -201,7 +225,8 @@ class ApiClientImpl extends _ApiClientBase
         _ProfileApiClientImplMixin,
         _RegionsApiClientImplMixin,
         _PeakStatusApiClientImplMixin,
-        _StatsApiClientImplMixin
+        _StatsApiClientImplMixin,
+        _MonthlyChallengeApiClientImplMixin
     implements ApiClient {
   // Aquest constructor permet crear el client final de l’API.
   // Reutilitza la configuració comuna definida a la classe base.
