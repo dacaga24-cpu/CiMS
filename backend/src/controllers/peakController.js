@@ -1,7 +1,5 @@
 const PeakService = require('../services/peakService');
 
-// Aquest mètode crea un error de validació amb codi 400.
-// S'utilitza quan l'identificador rebut a la URL no té un format vàlid.
 function badRequest(message) {
   const error = new Error(message);
   error.statusCode = 400;
@@ -13,14 +11,37 @@ function badRequest(message) {
 // i enviar la resposta HTTP amb el codi i el format adequats.
 const PeakController = {
 
-  // Aquest mètode retorna la llista de cims que compleixen els filtres rebuts.
-  // Els filtres arriben per query string i són tots opcionals,
-  // de manera que sense filtres es retorna el catàleg complet.
+  // Aquest mètode retorna una pàgina del catàleg de cims que compleixen
+  // els filtres rebuts. Els filtres i la paginació arriben per query string
+  // i tots són opcionals; sense paràmetres es retorna la primera pàgina
+  // del catàleg complet amb la mida per defecte definida al servei.
   async list(req, res, next) {
+    try {
+      const { regionId, minAltitude, maxAltitude, search, page, pageSize } = req.query;
+
+      const result = await PeakService.getPage({
+        regionId,
+        minAltitude,
+        maxAltitude,
+        search,
+        page,
+        pageSize,
+      });
+
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // Aquest mètode retorna tots els cims per al mapa, amb camps mínims i
+  // sense paginació. La justificació de quins camps i per què viu al servei
+  // i al model; aquí només es delega.
+  async listForMap(req, res, next) {
     try {
       const { regionId, minAltitude, maxAltitude, search } = req.query;
 
-      const peaks = await PeakService.getAll({
+      const peaks = await PeakService.getForMap({
         regionId,
         minAltitude,
         maxAltitude,
