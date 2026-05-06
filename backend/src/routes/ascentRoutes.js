@@ -15,7 +15,10 @@ router.use(authMiddleware);
 // La ruta més específica (/peak/:peakId) ha d'anar abans que les que
 // reben paràmetres genèrics, per garantir que Express l'identifica
 // correctament en lloc d'intentar interpretar "peak" com un ascentId.
+// La ruta /:ascentId/photos s'agrupa amb les altres rutes de lectura
+// per claredat de l'estructura del fitxer.
 router.get('/peak/:peakId', AscentController.getByUserAndPeak);
+router.get('/:ascentId/photos', AscentController.getPhotosForAscent);
 router.get('/', AscentController.getByUser);
 router.post('/', AscentController.create);
 router.put('/:ascentId', AscentController.update);

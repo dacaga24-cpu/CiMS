@@ -90,6 +90,42 @@ const UserController = {
       next(error);
     }
   },
+
+  // Genera una signed URL perquè el frontend pugui pujar la foto de perfil
+  // directament al bucket de GCS sense passar pel backend.
+  async createProfilePhotoUploadUrl(req, res, next) {
+    try {
+      const { mimeType } = req.body || {};
+      const result = await UserService.generateProfilePhotoUploadUrl(req.userId, { mimeType });
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // Confirma una pujada de foto de perfil un cop el client l'ha completada
+  // contra GCS. Retorna el perfil actualitzat amb la signed URL ja
+  // disponible per visualitzar.
+  async setProfilePhoto(req, res, next) {
+    try {
+      const { storagePath } = req.body || {};
+      const updated = await UserService.setProfilePhoto(req.userId, { storagePath });
+      res.status(200).json(updated);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // Esborra la foto de perfil. Idempotent: respon 200 amb el perfil tal
+  // com queda fins i tot si l'usuari no en tenia cap.
+  async deleteProfilePhoto(req, res, next) {
+    try {
+      const updated = await UserService.removeProfilePhoto(req.userId);
+      res.status(200).json(updated);
+    } catch (error) {
+      next(error);
+    }
+  },
 };
 
 module.exports = UserController;

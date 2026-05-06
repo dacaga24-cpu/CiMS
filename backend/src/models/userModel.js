@@ -28,7 +28,7 @@ const UserModel = {
   // És rellevant quan cal recuperar el perfil d'un usuari concret dins de l'aplicació.
   async findById(id) {
     const sql = `
-      SELECT id, first_name, last_name, email, is_active, created_at, updated_at
+      SELECT id, first_name, last_name, email, is_active, profile_photo_path, created_at, updated_at
       FROM users
       WHERE id = ?
       LIMIT 1
@@ -43,7 +43,7 @@ const UserModel = {
   // i per recuperar les dades necessàries durant l'inici de sessió.
   async findByEmail(email) {
     const sql = `
-      SELECT id, first_name, last_name, email, password, is_active, created_at, updated_at
+      SELECT id, first_name, last_name, email, password, is_active, profile_photo_path, created_at, updated_at
       FROM users
       WHERE email = ?
       LIMIT 1
@@ -75,6 +75,20 @@ const UserModel = {
       WHERE id = ?
     `;
     const [result] = await pool.execute(sql, [firstName, lastName, id]);
+    return result.affectedRows;
+  },
+
+  // Aquest mètode actualitza el path de la foto de perfil. Acceptar NULL
+  // permet usar el mateix mètode tant per assignar una foto nova com per
+  // esborrar-la, així el servei no necessita dos mètodes diferents per
+  // operacions que toquen la mateixa columna.
+  async updateProfilePhoto(id, storagePathOrNull) {
+    const sql = `
+      UPDATE users
+      SET profile_photo_path = ?
+      WHERE id = ?
+    `;
+    const [result] = await pool.execute(sql, [storagePathOrNull, id]);
     return result.affectedRows;
   },
   // Aquest mètode recupera l'usuari amb la contrasenya inclosa.

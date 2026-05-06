@@ -18,15 +18,21 @@ CREATE TABLE IF NOT EXISTS regions (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 2. Taula d'usuaris
+-- profile_photo_path guarda la ruta relativa al bucket GCS de la foto de
+-- perfil (format `profile-photos/{userId}/{uuid}.{ext}`), o NULL si l'usuari
+-- no n'ha pujat cap. No es desa cap URL completa perquè el bucket o el
+-- domini poden canviar entre entorns sense necessitat de migrar dades; les
+-- URLs signades de visualització es generen al backend quan cal servir-les.
 CREATE TABLE IF NOT EXISTS users (
-  id         INT          NOT NULL AUTO_INCREMENT,
-  first_name VARCHAR(100) NOT NULL,
-  last_name  VARCHAR(150) NOT NULL,
-  email      VARCHAR(255) NOT NULL,
-  password   VARCHAR(255) NOT NULL,
-  is_active  TINYINT      NOT NULL DEFAULT 1,
-  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  id                 INT          NOT NULL AUTO_INCREMENT,
+  first_name         VARCHAR(100) NOT NULL,
+  last_name          VARCHAR(150) NOT NULL,
+  email              VARCHAR(255) NOT NULL,
+  password           VARCHAR(255) NOT NULL,
+  is_active          TINYINT      NOT NULL DEFAULT 1,
+  profile_photo_path VARCHAR(500) NULL,
+  created_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_users_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

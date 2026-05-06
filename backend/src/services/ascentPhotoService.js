@@ -15,7 +15,7 @@ const AscentPhotoService = {
       throw badRequest('Missing required field: mimeType');
     }
 
-    return StorageService.generateSignedUploadUrl(userId, mimeType);
+    return StorageService.generateSignedUploadUrl(userId, mimeType, 'ascents');
   },
 };
 

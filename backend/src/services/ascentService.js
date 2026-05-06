@@ -67,7 +67,7 @@ function ensureValidPhotosPayload(userId, photos) {
     throw badRequest(`Invalid photos: at most ${MAX_PHOTOS_PER_ASCENT} per ascent`);
   }
 
-  const pathPattern = buildUserPathPattern(userId);
+  const pathPattern = buildUserPathPattern(userId, 'ascents');
   let primaryCount = 0;
   const normalized = [];
 
@@ -140,6 +140,58 @@ async function safeDeletePhotoBlobs(storagePaths, context = {}) {
   );
 }
 
+// Aquest helper enriqueix una llista d'ascens amb el camp primaryPhoto
+// (la foto principal amb signed download URL ja generada) o null si
+// l'ascens no en té. Es fa una sola query per recuperar totes les
+// principals dels ascens donats (evita N+1) i les signed URLs es generen
+// en paral·lel per minimitzar la latència total. Es retorna només la
+// principal i no totes les fotos perquè els llistats poden tenir desenes
+// d'ascens i emetre signed URLs per a totes les memòries inflaria
+// innecessàriament la resposta i el cost de signing.
+//
+// Si una signatura concreta falla (problema transitori de GCS), es
+// degrada aquella foto a downloadUrl null i es loga l'error: el llistat
+// d'ascens és navegació primària de l'app i no ha de caure perquè una
+// foto no es pugui mostrar puntualment.
+async function attachPrimaryPhotoToAscents(ascents) {
+  if (ascents.length === 0) {
+    return ascents;
+  }
+
+  const ascentIds = ascents.map((ascent) => ascent.id);
+  const primariesById = await AscentPhotoModel.findPrimaryByAscentIds(ascentIds);
+
+  const photosToSign = [...primariesById.values()];
+  const signedUrlByPath = new Map();
+  await Promise.all(
+    photosToSign.map(async (photo) => {
+      try {
+        const url = await StorageService.generateSignedDownloadUrl(photo.storage_path);
+        signedUrlByPath.set(photo.storage_path, url);
+      } catch (err) {
+        console.error(
+          `[ascentPhotos] sign download URL failed (ascentId=${photo.ascent_id} path=${photo.storage_path}):`,
+          err
+        );
+        signedUrlByPath.set(photo.storage_path, null);
+      }
+    })
+  );
+
+  for (const ascent of ascents) {
+    const primary = primariesById.get(ascent.id);
+    ascent.primaryPhoto = primary
+      ? {
+          id: primary.id,
+          storagePath: primary.storage_path,
+          downloadUrl: signedUrlByPath.get(primary.storage_path),
+        }
+      : null;
+  }
+
+  return ascents;
+}
+
 // Aquest mètode valida el camp opcional notes. Si s'ha enviat ha de ser una
 // cadena dins del límit acceptat, però es permet enviar null o cadena buida
 // per netejar les notes existents.
@@ -162,18 +214,67 @@ function ensureValidNotes(value) {
 // de comprovar que els recursos sol·licitats pertanyen a l'usuari autenticat.
 const AscentService = {
 
-  // Retorna totes les ascensions de l'usuari autenticat.
-  // Una llista buida és un resultat vàlid (200) per a un usuari nou.
+  // Retorna totes les ascensions de l'usuari autenticat amb la seva foto
+  // principal enriquida amb signed URL de descàrrega. Una llista buida és
+  // un resultat vàlid (200) per a un usuari nou.
   async getByUser(userId) {
-    return AscentModel.findAllByUserId(userId);
+    const ascents = await AscentModel.findAllByUserId(userId);
+    return attachPrimaryPhotoToAscents(ascents);
   },
 
-  // Retorna les ascensions de l'usuari autenticat sobre un cim concret.
-  // El peakId es valida com a enter positiu. No es comprova prèviament que el
-  // cim existeixi: si no hi ha cap ascensió, simplement retorna llista buida.
+  // Retorna les ascensions de l'usuari autenticat sobre un cim concret amb
+  // la seva foto principal enriquida amb signed URL de descàrrega. El peakId
+  // es valida com a enter positiu. No es comprova prèviament que el cim
+  // existeixi: si no hi ha cap ascensió, simplement retorna llista buida.
   async getByUserAndPeak(userId, peakId) {
     const parsedPeakId = requireInteger(peakId, 'peakId');
-    return AscentModel.findAllByUserAndPeak(userId, parsedPeakId);
+    const ascents = await AscentModel.findAllByUserAndPeak(userId, parsedPeakId);
+    return attachPrimaryPhotoToAscents(ascents);
+  },
+
+  // Retorna totes les fotos d'un ascens concret amb signed URL de
+  // descàrrega per a cadascuna. La validació d'ownership es fa primer amb
+  // findByIdAndUserId perquè el cas "ascens d'un altre usuari" respongui
+  // 404 abans de fer cap query addicional ni consultar el bucket. Si
+  // l'usuari té l'ascens però sense fotos, retorna una llista buida.
+  //
+  // Si la signatura d'una URL concreta falla per un problema transitori
+  // de GCS, aquella foto es retorna amb downloadUrl null i es loga
+  // l'error: la pantalla de detall ha de poder mostrar-se encara que
+  // alguna foto no es pugui carregar puntualment.
+  async getPhotosForAscent(userId, ascentId) {
+    const parsedAscentId = requireInteger(ascentId, 'ascentId');
+
+    const existing = await AscentModel.findByIdAndUserId(userId, parsedAscentId);
+    if (!existing) {
+      const error = new Error('Ascent not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const photos = await AscentPhotoModel.findAllByAscentIdAndUserId(parsedAscentId, userId);
+
+    return Promise.all(
+      photos.map(async (photo) => {
+        let downloadUrl = null;
+        try {
+          downloadUrl = await StorageService.generateSignedDownloadUrl(photo.storage_path);
+        } catch (err) {
+          console.error(
+            `[ascentPhotos] sign download URL failed (ascentId=${photo.ascent_id} path=${photo.storage_path}):`,
+            err
+          );
+        }
+        return {
+          id: photo.id,
+          ascentId: photo.ascent_id,
+          storagePath: photo.storage_path,
+          isPrimary: photo.is_primary === 1,
+          downloadUrl,
+          createdAt: photo.created_at,
+        };
+      })
+    );
   },
 
   // Crea una nova ascensió per a l'usuari autenticat. peakId i ascentDate són
@@ -222,7 +323,7 @@ const AscentService = {
       await connection.commit();
     } catch (err) {
       // El rollback es fa dins del seu propi try/catch perquè un error al
-      // rollback (per exemple, connexió ja morta) no enmascari l'error
+      // rollback (per exemple, connexió ja morta) no emmascari l'error
       // original que ha provocat l'avortament de la transacció.
       try {
         await connection.rollback();

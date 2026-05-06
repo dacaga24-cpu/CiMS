@@ -66,6 +66,43 @@ const AscentPhotoModel = {
     const [rows] = await pool.execute(sql, [ascentId, userId]);
     return rows;
   },
+
+  // Retorna les fotos principals d'un conjunt d'ascens en una sola query.
+  // S'utilitza des de l'enriquiment del llistat d'ascens per evitar el
+  // patró N+1 que faria una consulta per cada ascens. La filtració per
+  // is_primary = 1 garanteix com a màxim una fila per ascens; en cas
+  // d'una incoherència històrica amb múltiples principals (que el servei
+  // ja no permet però podria existir a dades antigues), el bucle de
+  // construcció del Map manté només la primera fila trobada i descarta
+  // la resta sense que la consulta hagi de fer DISTINCT.
+  //
+  // No filtra per user_id perquè el caller ja ha consultat els ascens
+  // amb la seva pròpia query d'ownership; els ascentIds passats aquí ja
+  // són de l'usuari autenticat i fer un nou JOIN seria redundant.
+  async findPrimaryByAscentIds(ascentIds) {
+    if (!Array.isArray(ascentIds) || ascentIds.length === 0) {
+      return new Map();
+    }
+
+    const placeholders = ascentIds.map(() => '?').join(', ');
+    const sql = `
+      SELECT id, ascent_id, storage_path, is_primary, created_at
+      FROM ascent_photos
+      WHERE ascent_id IN (${placeholders}) AND is_primary = 1
+    `;
+    const [rows] = await pool.execute(sql, ascentIds);
+
+    // El resultat es retorna com a Map<ascentId, photo> perquè el caller
+    // pugui assignar la principal a cada ascens en una sola passada sense
+    // fer recerca lineal dins una llista plana.
+    const byAscentId = new Map();
+    for (const row of rows) {
+      if (!byAscentId.has(row.ascent_id)) {
+        byAscentId.set(row.ascent_id, row);
+      }
+    }
+    return byAscentId;
+  },
 };
 
 module.exports = AscentPhotoModel;
