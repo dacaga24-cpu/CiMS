@@ -131,13 +131,25 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
     }
   }
 
-  // Aquest mètode recupera els cims destinats al mapa.
-  // Utilitza l’endpoint específic del backend perquè el mapa pugui carregar els marcadors
-  // sense dependre de la paginació del catàleg.
-  Future<List<Peak>> getMapPeaks() async {
+    // Aquest mètode recupera els cims destinats al mapa.
+  // Utilitza l’endpoint específic del backend i envia els filtres principals
+  // perquè comarca, cerca i altitud es resolguin amb dades completes.
+  Future<List<Peak>> getMapPeaks({
+    String? search,
+    int? regionId,
+    int? minAltitude,
+    int? maxAltitude,
+  }) async {
     try {
       final response = await _getJson(
         ApiEndpoints.peaksMap,
+        queryParameters: {
+          if (search != null && search.trim().isNotEmpty)
+            'search': search.trim(),
+          if (regionId != null) 'regionId': regionId.toString(),
+          if (minAltitude != null) 'minAltitude': minAltitude.toString(),
+          if (maxAltitude != null) 'maxAltitude': maxAltitude.toString(),
+        },
       );
 
       if (response.statusCode == 200) {

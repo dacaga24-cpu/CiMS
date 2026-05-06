@@ -193,7 +193,7 @@ class PeaksMapController extends ChangeNotifier {
   }
 
   // Gestiona els canvis en el camp de cerca.
-  // Utilitza un debounce compartit i recalcula els resultats sobre els cims ja carregats.
+  // Utilitza un debounce compartit per evitar una petició al backend a cada tecla.
   void onSearchChanged(String value) {
     errorMessage = null;
 
@@ -201,21 +201,15 @@ class PeaksMapController extends ChangeNotifier {
       notifyListeners();
     }
 
-    _searchDebouncer.run(value, (_) async {
-      if (_disposed) {
-        return;
-      }
-
-      _applyLocalFilters();
-
-      if (!_disposed) {
-        notifyListeners();
-      }
+    _searchDebouncer.run(value, (search) {
+      return _loadPeaks(
+        search: search,
+      );
     });
   }
 
   // Aplica els filtres seleccionats per l’usuari.
-  // Després de guardar-los, el listener compartit recalcula els cims visibles al mapa.
+  // Després de guardar-los, el listener compartit torna a carregar el mapa.
   Future<void> applyFilters({
     int? regionId,
     int? minAltitude,
@@ -237,9 +231,11 @@ class PeaksMapController extends ChangeNotifier {
   }
 
   // Torna a intentar carregar els cims quan s’ha produït un error.
-  // Recarrega l’endpoint específic del mapa i torna a aplicar els filtres locals.
+  // Manté la cerca i els filtres actuals per respectar el context de l’usuari.
   Future<void> onRetryTap() {
-    return _loadPeaks();
+    return _loadPeaks(
+      search: currentSearch.isEmpty ? null : currentSearch,
+    );
   }
 
   // Desa el cim seleccionat per l’usuari dins del mapa.
@@ -270,8 +266,10 @@ class PeaksMapController extends ChangeNotifier {
   }
 
   // Carrega els cims pensats per al mapa.
-  // Aquest flux utilitza l’endpoint específic /api/peaks/map i després aplica els filtres al frontend.
-  Future<void> _loadPeaks() async {
+  // Envia cerca, comarca i altitud al backend perquè aquests filtres es resolguin amb dades completes.
+  Future<void> _loadPeaks({
+    String? search,
+  }) async {
     final requestId = ++_loadRequestId;
 
     isLoading = true;
@@ -282,7 +280,12 @@ class PeaksMapController extends ChangeNotifier {
     }
 
     try {
-      final loadedPeaks = await _getMapPeaksUseCase.execute();
+      final loadedPeaks = await _getMapPeaksUseCase.execute(
+        search: search,
+        regionId: selectedRegionId,
+        minAltitude: minAltitude,
+        maxAltitude: maxAltitude,
+      );
 
       if (_disposed || requestId != _loadRequestId) {
         return;
@@ -317,41 +320,11 @@ class PeaksMapController extends ChangeNotifier {
     }
   }
 
-  // Aplica els filtres que es poden resoldre dins del frontend.
-  // També descarta els cims sense coordenades, ja que no es poden representar al mapa.
+  // Aplica només els filtres que depenen del frontend.
+  // La cerca, la comarca i l’altitud ja venen resoltes pel backend.
   void _applyLocalFilters() {
-    final searchText = currentSearch.toLowerCase();
-    final regionId = selectedRegionId;
-    final min = minAltitude;
-    final max = maxAltitude;
-
     final filteredPeaks = _loadedPeaks
         .where((peak) => peak.hasMapPosition)
-        .where((peak) {
-          if (searchText.isEmpty) {
-            return true;
-          }
-
-          return peak.name.toLowerCase().contains(searchText);
-        })
-        .where((peak) {
-          if (regionId == null) {
-            return true;
-          }
-
-          return peak.regions.any((region) => region.id == regionId);
-        })
-        .where((peak) {
-          if (min != null && peak.altitude < min) {
-            return false;
-          }
-
-          if (max != null && peak.altitude > max) {
-            return false;
-          }
-
-          return true;
-        })
         .where(_matchesStatusFilter)
         .toList();
 
@@ -436,15 +409,16 @@ class PeaksMapController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Quan el filtre compartit canvia, es recalculen els cims visibles al mapa.
-  // Com que el mapa ja té els cims carregats, no cal tornar a demanar-los al backend.
+  // Quan el filtre compartit canvia, es tornen a carregar els cims del mapa.
+  // Això és necessari perquè comarca, cerca i altitud es resolguin al backend.
   void _onFiltersChanged() {
     if (_disposed) {
       return;
     }
 
-    _applyLocalFilters();
-    notifyListeners();
+    _loadPeaks(
+      search: currentSearch.isEmpty ? null : currentSearch,
+    );
   }
 
   // Allibera els recursos del controller quan la pantalla deixa d’utilitzar-lo.
