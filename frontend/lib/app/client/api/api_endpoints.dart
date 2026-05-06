@@ -24,6 +24,10 @@ class ApiEndpoints {
   static const String peaks = '$api/peaks';
   static const String regions = '$api/regions';
 
+  // Aquesta ruta recupera els cims pensats per pintar-los al mapa.
+  // A diferència del catàleg, no utilitza la resposta paginada amb "items".
+  static const String peaksMap = '$peaks/map';
+
   // Aquesta ajuda construeix la ruta d’un cim concret.
   // Permet consultar el detall d’un cim a partir del seu identificador.
   static String peakById(int peakId) => '$peaks/$peakId';
@@ -64,4 +68,10 @@ class ApiEndpoints {
   // Permeten consultar el repte actiu i el progrés calculat pel backend.
   static const String monthlyChallenges = '$api/monthly-challenges';
   static const String currentMonthlyChallenge = '$monthlyChallenges/current';
+
+  // Aquestes rutes permeten preparar la pujada de fotos associades a una ascensió.
+  // El backend retorna una URL temporal perquè el frontend pugui pujar la imatge directament.
+  static const String ascentPhotos = '$api/ascent-photos';
+  static const String ascentPhotoSignedUploadUrl =
+      '$ascentPhotos/signed-upload-url';
 }

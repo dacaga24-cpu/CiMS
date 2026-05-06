@@ -8,9 +8,9 @@ import 'package:cims/core/entity/peak_status.dart';
 import 'package:cims/core/entity/region.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:cims/core/store/peak_status_store.dart';
-import 'package:cims/core/usecase/peaks/get_peaks_usecase.dart';
 import 'package:cims/core/usecase/get_regions_usecase.dart';
 import 'package:cims/core/usecase/peak_status/get_user_peak_statuses_usecase.dart';
+import 'package:cims/core/usecase/peaks/get_map_peaks_usecase.dart';
 import 'package:flutter/material.dart';
 
 // Aquest enum defineix les navegacions possibles des de la pantalla del mapa.
@@ -28,14 +28,15 @@ class PeaksMapController extends ChangeNotifier {
   // També permet rebre un cim inicial quan la pantalla s’obre des del detall.
   PeaksMapController({
     this.initialPeakId,
-    GetPeaksUseCase? getPeaksUseCase,
+    GetMapPeaksUseCase? getMapPeaksUseCase,
     GetRegionsUseCase? getRegionsUseCase,
     GetUserPeakStatusesUseCase? getUserPeakStatusesUseCase,
     PeakStatusStore? peakStatusStore,
   }) : _peakStatusStore = peakStatusStore ?? AppSession.peakStatusStore {
     final apiClient = ApiClientImpl();
 
-    _getPeaksUseCase = getPeaksUseCase ?? GetPeaksUseCase(apiClient: apiClient);
+    _getMapPeaksUseCase =
+        getMapPeaksUseCase ?? GetMapPeaksUseCase(apiClient: apiClient);
     _getRegionsUseCase =
         getRegionsUseCase ?? GetRegionsUseCase(apiClient: apiClient);
     _getUserPeakStatusesUseCase =
@@ -55,7 +56,7 @@ class PeaksMapController extends ChangeNotifier {
   // Aquests casos d’ús concentren les operacions de dades que necessita el mapa.
   // El controller els utilitza per obtenir cims, regions i estats personals
   // sense comunicar-se directament amb l’API.
-  late final GetPeaksUseCase _getPeaksUseCase;
+  late final GetMapPeaksUseCase _getMapPeaksUseCase;
   late final GetRegionsUseCase _getRegionsUseCase;
   late final GetUserPeakStatusesUseCase _getUserPeakStatusesUseCase;
   final PeakStatusStore _peakStatusStore;
@@ -68,6 +69,7 @@ class PeaksMapController extends ChangeNotifier {
   // i les regions disponibles per aplicar filtres.
   bool isLoading = false;
   String? errorMessage;
+
   // peaks conté els cims finals que es poden mostrar al mapa.
   // _loadedPeaks conserva els cims retornats pel backend abans d’aplicar filtres locals.
   List<Peak> peaks = const [];
@@ -191,7 +193,7 @@ class PeaksMapController extends ChangeNotifier {
   }
 
   // Gestiona els canvis en el camp de cerca.
-  // Utilitza un debounce compartit per evitar una petició al backend a cada tecla.
+  // Utilitza un debounce compartit i recalcula els resultats sobre els cims ja carregats.
   void onSearchChanged(String value) {
     errorMessage = null;
 
@@ -199,22 +201,27 @@ class PeaksMapController extends ChangeNotifier {
       notifyListeners();
     }
 
-    _searchDebouncer.run(value, (search) {
-      return _loadPeaks(search: search);
+    _searchDebouncer.run(value, (_) async {
+      if (_disposed) {
+        return;
+      }
+
+      _applyLocalFilters();
+
+      if (!_disposed) {
+        notifyListeners();
+      }
     });
   }
 
   // Aplica els filtres seleccionats per l’usuari.
-  // Després de guardar-los, torna a carregar els cims mantenint la cerca actual.
+  // Després de guardar-los, el listener compartit recalcula els cims visibles al mapa.
   Future<void> applyFilters({
     int? regionId,
     int? minAltitude,
     int? maxAltitude,
     PeakStatusFilter statusFilter = PeakStatusFilter.none,
   }) async {
-    // El filtre compartit notifica els seus listeners (incloent-hi aquest
-    // controller via _onFiltersChanged), de manera que la recàrrega es
-    // dispara automàticament i no cal fer una segona crida a _loadPeaks.
     _filtersState.apply(
       regionId: regionId,
       minAltitude: minAltitude,
@@ -224,18 +231,15 @@ class PeaksMapController extends ChangeNotifier {
   }
 
   // Elimina tots els filtres aplicats al mapa.
-  // La crida a clear() notifica els listeners (si hi havia filtres actius),
-  // i la recàrrega es resol per la mateixa via que applyFilters.
+  // La crida a clear() notifica els listeners si hi havia filtres actius.
   Future<void> clearFilters() async {
     _filtersState.clear();
   }
 
   // Torna a intentar carregar els cims quan s’ha produït un error.
-  // Manté la cerca actual per respectar el context de l’usuari.
+  // Recarrega l’endpoint específic del mapa i torna a aplicar els filtres locals.
   Future<void> onRetryTap() {
-    return _loadPeaks(
-      search: currentSearch.isEmpty ? null : currentSearch,
-    );
+    return _loadPeaks();
   }
 
   // Desa el cim seleccionat per l’usuari dins del mapa.
@@ -265,11 +269,9 @@ class PeaksMapController extends ChangeNotifier {
     _selectedPeakId = null;
   }
 
-  // Carrega els cims segons la cerca i els filtres actuals.
-  // També controla els errors i evita que una resposta antiga sobreescrigui dades més recents.
-  Future<void> _loadPeaks({
-    String? search,
-  }) async {
+  // Carrega els cims pensats per al mapa.
+  // Aquest flux utilitza l’endpoint específic /api/peaks/map i després aplica els filtres al frontend.
+  Future<void> _loadPeaks() async {
     final requestId = ++_loadRequestId;
 
     isLoading = true;
@@ -280,12 +282,7 @@ class PeaksMapController extends ChangeNotifier {
     }
 
     try {
-      final loadedPeaks = await _getPeaksUseCase.execute(
-        search: search,
-        regionId: selectedRegionId,
-        minAltitude: minAltitude,
-        maxAltitude: maxAltitude,
-      );
+      final loadedPeaks = await _getMapPeaksUseCase.execute();
 
       if (_disposed || requestId != _loadRequestId) {
         return;
@@ -323,8 +320,38 @@ class PeaksMapController extends ChangeNotifier {
   // Aplica els filtres que es poden resoldre dins del frontend.
   // També descarta els cims sense coordenades, ja que no es poden representar al mapa.
   void _applyLocalFilters() {
+    final searchText = currentSearch.toLowerCase();
+    final regionId = selectedRegionId;
+    final min = minAltitude;
+    final max = maxAltitude;
+
     final filteredPeaks = _loadedPeaks
         .where((peak) => peak.hasMapPosition)
+        .where((peak) {
+          if (searchText.isEmpty) {
+            return true;
+          }
+
+          return peak.name.toLowerCase().contains(searchText);
+        })
+        .where((peak) {
+          if (regionId == null) {
+            return true;
+          }
+
+          return peak.regions.any((region) => region.id == regionId);
+        })
+        .where((peak) {
+          if (min != null && peak.altitude < min) {
+            return false;
+          }
+
+          if (max != null && peak.altitude > max) {
+            return false;
+          }
+
+          return true;
+        })
         .where(_matchesStatusFilter)
         .toList();
 
@@ -409,16 +436,15 @@ class PeaksMapController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Quan el filtre compartit canvia (per exemple, perquè l'usuari l'ha
-  // aplicat des del catàleg), es recarreguen els cims al mapa amb els nous
-  // criteris. Així el mapa sempre reflecteix l'última selecció feta.
+  // Quan el filtre compartit canvia, es recalculen els cims visibles al mapa.
+  // Com que el mapa ja té els cims carregats, no cal tornar a demanar-los al backend.
   void _onFiltersChanged() {
     if (_disposed) {
       return;
     }
-    _loadPeaks(
-      search: currentSearch.isEmpty ? null : currentSearch,
-    );
+
+    _applyLocalFilters();
+    notifyListeners();
   }
 
   // Allibera els recursos del controller quan la pantalla deixa d’utilitzar-lo.

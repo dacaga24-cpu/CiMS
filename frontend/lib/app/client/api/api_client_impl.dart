@@ -12,6 +12,8 @@ import 'package:cims/core/entity/ascent.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:cims/core/entity/user_stats.dart';
 import 'package:cims/core/entity/dashboard_summary.dart';
+import 'package:cims/core/entity/ascent_upload_photo.dart';
+import 'package:cims/core/entity/peaks_page.dart';
 import 'package:http/http.dart' as http;
 
 // Aquests fitxers separen les peticions de l’API per àmbits funcionals.

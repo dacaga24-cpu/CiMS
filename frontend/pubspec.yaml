@@ -21,6 +21,8 @@ dependencies:
   flutter_secure_storage: ^10.0.0
   google_maps_flutter: ^2.14.2
   collection: ^1.19.1
+  image_picker: ^1.2.2
+  flutter_image_compress: ^2.4.0
 
 dev_dependencies:
   flutter_test:
