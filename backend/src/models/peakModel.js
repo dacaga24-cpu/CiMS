@@ -135,11 +135,6 @@ const PeakModel = {
     // S'usa SELECT COUNT(DISTINCT p.id) perquè el JOIN amb peak_regions pot
     // duplicar files quan un cim pertany a més d'una comarca i això inflaria
     // el comptador respecte als resultats reals que retorna findAll.
-    //
-    // Si en el futur cal afegir més joins, s'han d'incorporar a
-    // buildPeakFilters per garantir que count() i findAll() apliquen
-    // exactament el mateix conjunt; afegir un join només aquí faria
-    // divergir el comptador respecte als resultats paginats.
     async count({ regionId, minAltitude, maxAltitude, search } = {}) {
         const { join, where, params } = buildPeakFilters({
             regionId, minAltitude, maxAltitude, search,
