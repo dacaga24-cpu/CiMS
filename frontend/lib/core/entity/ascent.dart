@@ -1,6 +1,8 @@
+import 'package:cims/core/entity/ascent_photo.dart';
+
 // Aquesta entitat representa una ascensió registrada per l’usuari.
-// Guarda la relació entre un cim, una data concreta i les notes personals
-// que l’usuari vulgui conservar dins del seu historial.
+// Guarda la relació entre un cim, una data concreta, les notes personals
+// i les fotos associades que formen part del seu historial.
 class Ascent {
   const Ascent({
     required this.id,
@@ -8,6 +10,8 @@ class Ascent {
     required this.peakId,
     required this.ascentDate,
     this.notes,
+    this.primaryPhoto,
+    this.photos = const [],
     required this.createdAt,
     required this.updatedAt,
   });
@@ -17,11 +21,14 @@ class Ascent {
   final int peakId;
   final DateTime ascentDate;
   final String? notes;
+  final AscentPhoto? primaryPhoto;
+  final List<AscentPhoto> photos;
   final DateTime createdAt;
   final DateTime updatedAt;
 
   // Aquest constructor transforma la resposta del backend en un objecte Ascent.
-  // El backend retorna els camps en snake_case, seguint els noms de la base de dades.
+  // Accepta tant la foto principal dels llistats com la llista completa de fotos
+  // quan el backend la retorna en operacions concretes.
   factory Ascent.fromJson(Map<String, dynamic> json) {
     return Ascent(
       id: _parseInt(json['id'], 'id'),
@@ -29,6 +36,8 @@ class Ascent {
       peakId: _parseInt(json['peak_id'], 'peak_id'),
       ascentDate: _parseDateOnly(json['ascent_date'], 'ascent_date'),
       notes: _parseNullableString(json['notes']),
+      primaryPhoto: _parseOptionalPhoto(json['primaryPhoto']),
+      photos: _parsePhotos(json['photos']),
       createdAt: _parseDateTime(json['created_at'], 'created_at'),
       updatedAt: _parseDateTime(json['updated_at'], 'updated_at'),
     );
@@ -36,6 +45,29 @@ class Ascent {
 
   // Aquest getter indica si l’ascensió té notes útils per mostrar a la interfície.
   bool get hasNotes => notes != null && notes!.trim().isNotEmpty;
+
+  // Aquest getter indica si l’ascensió té alguna imatge associada.
+  bool get hasPhotos => photos.isNotEmpty || primaryPhoto != null;
+
+  static AscentPhoto? _parseOptionalPhoto(dynamic value) {
+    if (value is Map) {
+      return AscentPhoto.fromJson(
+        Map<String, dynamic>.from(value),
+      );
+    }
+    return null;
+  }
+
+  static List<AscentPhoto> _parsePhotos(dynamic value) {
+    if (value is! List) {
+      return const [];
+    }
+
+    return value
+        .whereType<Map>()
+        .map((item) => AscentPhoto.fromJson(Map<String, dynamic>.from(item)))
+        .toList();
+  }
 
   static int _parseInt(dynamic value, String fieldName) {
     if (value is int) return value;

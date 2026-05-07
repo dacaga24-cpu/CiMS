@@ -46,6 +46,9 @@ class AscentRegisterFormCard extends StatelessWidget {
           AscentRegisterPhotoCard(
             previewBytes: controller.selectedPhotoPreviewBytes,
             isLoading: controller.isUploadingPhoto,
+            canAddMorePhotos: controller.canAddMorePhotos,
+            selectedPhotosCount: controller.selectedPhotosCount,
+            maxPhotos: controller.maxAscentPhotos,
             errorMessage: controller.photoErrorMessage,
             onTap: controller.onPhotoTap,
             onRemoveTap: controller.onRemovePhotoTap,

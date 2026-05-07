@@ -27,6 +27,89 @@ class AppStartRoute extends PageRouteInfo<void> {
 }
 
 /// generated route for
+/// [AscentEditScreen]
+class AscentEditRoute extends PageRouteInfo<AscentEditRouteArgs> {
+  AscentEditRoute({
+    Key? key,
+    required Ascent ascent,
+    required String peakName,
+    required int altitude,
+    required List<String> regions,
+    List<PageRouteInfo>? children,
+  }) : super(
+          AscentEditRoute.name,
+          args: AscentEditRouteArgs(
+            key: key,
+            ascent: ascent,
+            peakName: peakName,
+            altitude: altitude,
+            regions: regions,
+          ),
+          initialChildren: children,
+        );
+
+  static const String name = 'AscentEditRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      final args = data.argsAs<AscentEditRouteArgs>();
+      return AscentEditScreen(
+        key: args.key,
+        ascent: args.ascent,
+        peakName: args.peakName,
+        altitude: args.altitude,
+        regions: args.regions,
+      );
+    },
+  );
+}
+
+class AscentEditRouteArgs {
+  const AscentEditRouteArgs({
+    this.key,
+    required this.ascent,
+    required this.peakName,
+    required this.altitude,
+    required this.regions,
+  });
+
+  final Key? key;
+
+  final Ascent ascent;
+
+  final String peakName;
+
+  final int altitude;
+
+  final List<String> regions;
+
+  @override
+  String toString() {
+    return 'AscentEditRouteArgs{key: $key, ascent: $ascent, peakName: $peakName, altitude: $altitude, regions: $regions}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! AscentEditRouteArgs) return false;
+    return key == other.key &&
+        ascent == other.ascent &&
+        peakName == other.peakName &&
+        altitude == other.altitude &&
+        const ListEquality<String>().equals(regions, other.regions);
+  }
+
+  @override
+  int get hashCode =>
+      key.hashCode ^
+      ascent.hashCode ^
+      peakName.hashCode ^
+      altitude.hashCode ^
+      const ListEquality<String>().hash(regions);
+}
+
+/// generated route for
 /// [AscentHistoryScreen]
 class AscentHistoryRoute extends PageRouteInfo<AscentHistoryRouteArgs> {
   AscentHistoryRoute({
