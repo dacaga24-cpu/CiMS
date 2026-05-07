@@ -111,20 +111,22 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
   }
 
   // Aquest mètode puja els bytes de la imatge directament a la URL temporal de GCS.
-  // Aquesta petició no fa servir el backend ni el token, perquè la URL ja incorpora el permís temporal.
+  // Aquesta petició no fa servir el backend ni el token, perquè la URL ja
+  // incorpora el permís temporal. Els headers han de coincidir exactament
+  // amb els que el backend va incloure en signar la URL: Content-Type sempre
+  // i, si la signatura porta extensionHeaders (x-goog-content-length-range),
+  // també aquests. Si en falta cap, GCS retorna 403 SignatureDoesNotMatch.
   @override
   Future<void> uploadAscentPhotoBytes({
     required String uploadUrl,
     required List<int> bytes,
-    required String mimeType,
+    required Map<String, String> headers,
   }) async {
     try {
       final response = await _client
           .put(
             Uri.parse(uploadUrl),
-            headers: {
-              'Content-Type': mimeType,
-            },
+            headers: headers,
             body: bytes,
           )
           .timeout(const Duration(seconds: 30));

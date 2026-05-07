@@ -61,6 +61,13 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
   // intentin actuar sobre un controller que ja s'ha alliberat.
   bool _disposed = false;
 
+  // Identifica la petició de fit més recent. Quan l'usuari canvia de filtre
+  // o de cerca diverses vegades seguides més ràpid del que dura una animació
+  // de càmera, només la última petició s'ha d'aplicar: les anteriors es
+  // queden amb un id diferent i ja no fan res quan finalment s'executa el
+  // postFrameCallback que tenien programat.
+  int _fitRequestId = 0;
+
   // Retorna només els cims que tenen coordenades disponibles.
   // Això evita intentar crear marcadors amb dades incompletes.
   List<Peak> get _visiblePeaks =>
@@ -165,46 +172,54 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
 
   // Ajusta la càmera perquè els cims carregats siguin visibles al mapa.
   // Si només hi ha un cim, centra directament sobre aquell punt.
-  Future<void> _fitVisiblePeaks() async {
+  //
+  // L'animació es programa per al següent frame perquè animateCamera al web
+  // pot ignorar la crida silenciosament si el div del mapa encara està
+  // recalculant mides (just després de tancar el bottom sheet de filtres,
+  // per exemple) o si Flutter encara no ha completat la reconstrucció
+  // actual. Esperar a postFrame dóna garanties que el mapa està llest i
+  // resol que el reajust no sempre s'aplicava al canviar filtre o cerca.
+  // El requestId descarta callbacks obsolets si l'usuari encadena canvis.
+  void _fitVisiblePeaks() {
     if (_disposed) return;
-    final controller = _mapController;
-    final peaks = _visiblePeaks;
+    final requestId = ++_fitRequestId;
 
-    if (controller == null || peaks.isEmpty) {
-      return;
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _disposed || requestId != _fitRequestId) return;
 
-    if (peaks.length == 1) {
-      final peak = peaks.first;
+      final controller = _mapController;
+      final peaks = _visiblePeaks;
+
+      if (controller == null || peaks.isEmpty) return;
+
+      if (peaks.length == 1) {
+        final peak = peaks.first;
+
+        try {
+          await controller.animateCamera(
+            CameraUpdate.newLatLngZoom(
+              LatLng(peak.latitude!, peak.longitude!),
+              11,
+            ),
+          );
+        } catch (_) {
+          // Si el controller ja no és accessible o l'animació falla,
+          // es manté la vista actual sense propagar l'error.
+        }
+        return;
+      }
 
       try {
         await controller.animateCamera(
-          CameraUpdate.newLatLngZoom(
-            LatLng(peak.latitude!, peak.longitude!),
-            11,
+          CameraUpdate.newLatLngBounds(
+            _boundsForPeaks(peaks),
+            48,
           ),
         );
       } catch (_) {
-        // Si el controller ja no és accessible, es manté la vista actual.
+        // Mateix raonament que al cas d'un sol cim.
       }
-
-      if (_disposed) return;
-      return;
-    }
-
-    try {
-      await controller.animateCamera(
-        CameraUpdate.newLatLngBounds(
-          _boundsForPeaks(peaks),
-          48,
-        ),
-      );
-    } catch (_) {
-      // Si el mapa encara no està preparat per ajustar límits,
-      // es manté la posició inicial sense trencar la pantalla.
-    }
-
-    if (_disposed) return;
+    });
   }
 
   // Calcula els límits geogràfics dels cims visibles.

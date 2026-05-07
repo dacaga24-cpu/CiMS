@@ -22,10 +22,14 @@ class UploadAscentPhotoUseCase {
       isPrimary: isPrimary,
     );
 
+    // Es passen els headers tal com els ha retornat el backend perquè
+    // formen part de la signatura v4: el Content-Type i qualsevol
+    // extensionHeader (per exemple x-goog-content-length-range) han de
+    // coincidir exactament al PUT o GCS rebutja la pujada amb 403.
     await _apiClient.uploadAscentPhotoBytes(
       uploadUrl: signedUpload.uploadUrl,
       bytes: bytes,
-      mimeType: mimeType,
+      headers: signedUpload.requiredHeaders,
     );
 
     return AscentUploadPhoto(

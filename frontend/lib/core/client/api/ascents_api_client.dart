@@ -20,11 +20,14 @@ abstract class AscentsApiClient {
     bool isPrimary = false,
   });
 
-  // Aquest mètode puja el contingut binari de la imatge a la URL temporal retornada pel backend.
+  // Aquest mètode puja el contingut binari de la imatge a la URL temporal
+  // retornada pel backend. Els headers els decideix el backend en signar la
+  // URL (Content-Type i, si escau, extensionHeaders com x-goog-content-length-range)
+  // i s'han d'enviar tal qual al PUT, perquè formen part de la signatura.
   Future<void> uploadAscentPhotoBytes({
     required String uploadUrl,
     required List<int> bytes,
-    required String mimeType,
+    required Map<String, String> headers,
   });
 
   // Aquest mètode recupera les ascensions de l’usuari autenticat
