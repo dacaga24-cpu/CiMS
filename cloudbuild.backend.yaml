@@ -41,7 +41,6 @@ steps:
         SENDGRID_API_KEY=SENDGRID_API_KEY:latest,
         CORS_DEV_ORIGINS=CORS_DEV_ORIGINS:latest,
         GCS_BUCKET_NAME=GCS_BUCKET_NAME:latest,
-        GOOGLE_APPLICATION_CREDENTIALS=GOOGLE_APPLICATION_CREDENTIALS:latest'
 
 images:
   - 'europe-southwest1-docker.pkg.dev/$PROJECT_ID/cims/cims-backend:$COMMIT_SHA'
