@@ -4,26 +4,17 @@ const StorageService = require('./storageService');
 const { buildUserPathPattern } = require('./storageService');
 const pool = require('../config/db');
 
-// Aquest servei permet mantenir sincronitzat l'estat personal del cim.
-// Quan un usuari registra una ascensió, el cim també ha de quedar marcat
-// com a assolit dins del seu estat personal.
+// Sincronitza l'estat personal del cim quan l'usuari registra una ascensió.
 const PeakStatusService = require('./peakStatusService');
 
-// Cada modificació d'ascensions pot afectar el progrés del repte mensual
-// de l'usuari. El servei recalcula el progrés a partir de la taula ascents,
-// així que invocar-lo després de qualsevol create/update/remove garanteix
-// que el cache (monthly_challenge_progress) sempre reflecteixi la realitat.
-// Les crides es fan dins de safeRecompute per evitar que un error al cache
-// faci fracassar l'operació principal d'ascents, que ja s'ha confirmat.
+// Recalcula el progrés del repte mensual des de la taula ascents per mantenir
+// sincronitzat el cache (monthly_challenge_progress). Es crida dins
+// safeSideEffect perquè un error al cache no enderroqui l'operació principal.
 const MonthlyChallengeService = require('./monthlyChallengeService');
 
-// Els efectes derivats que disparem després de confirmar un ascens
-// (sincronitzar peak_status, recalcular el repte mensual) no s'han de
-// propagar com a errors a l'endpoint d'ascents: la dada principal ja està
-// persistida i, si l'usuari rebés un 500, podria reintentar i crear un
-// duplicat. Per això s'envolten en aquest helper, que loga el problema
-// sense bloquejar el flux. Es passa un label per identificar quin efecte
-// ha fallat als logs i facilitar la diagnosi.
+// Envolta els efectes derivats després de confirmar un ascens (peak_status,
+// repte mensual). Si en propaguéssim els errors l'usuari rebria un 500 després
+// del commit i podria reintentar creant un duplicat.
 async function safeSideEffect(label, promise) {
   try {
     await promise;
@@ -39,23 +30,16 @@ const {
   parseOptionalIsoDate,
 } = require('../utils/validation');
 
-// Límit de longitud de les notes d'una ascensió. La columna a la base de
-// dades és TEXT (fins a 65535 caràcters), però aquest límit més estricte
-// protegeix l'API d'usos abusius i manté la mida de les respostes raonable.
+// Límit més estricte que la columna TEXT de la BD per acotar la mida de la
+// resposta i evitar usos abusius.
 const MAX_NOTES_LENGTH = 2000;
 
-// Sostre total de fotos per ascensió. La validació no obliga que cap sigui
-// principal, però com a màxim una pot estar marcada com a tal. El límit
-// serveix per acotar la mida de les respostes i el cost del bucket.
+// Sostre total de fotos per ascensió per acotar la resposta i el cost del bucket.
 const MAX_PHOTOS_PER_ASCENT = 11;
 
-// Aquest mètode valida l'array opcional de fotos del payload de creació
-// d'ascens. Comprova que sigui un array, que no superi el sostre, que com
-// a màxim una sigui marcada com a principal i que cada storagePath
-// segueixi exactament el patró que produeix el StorageService per a aquest
-// usuari concret. El patró estricte (UUID v4 + extensió de la whitelist)
-// tanca la porta a path traversal i evita que un client pugui reclamar
-// fotos pujades per altres usuaris.
+// Valida l'array opcional de fotos del payload de creació. El patró estricte
+// (UUID v4 + extensió whitelist + namespace de l'usuari) tanca path traversal
+// i evita que un client reclami fotos pujades per altres usuaris.
 function ensureValidPhotosPayload(userId, photos) {
   if (photos === undefined || photos === null) {
     return [];
@@ -93,10 +77,9 @@ function ensureValidPhotosPayload(userId, photos) {
   return normalized;
 }
 
-// Aquest mètode comprova que tots els blobs declarats pel client existeixen
-// realment al bucket. Sense aquesta validació, un client podria registrar
-// paths inexistents i deixar files orfes a ascent_photos. Les comprovacions
-// es fan en paral·lel per minimitzar la latència total.
+// Verifica en paral·lel que els blobs declarats pel client existeixen al
+// bucket. Sense això, un client podria registrar paths inexistents i deixar
+// files orfes a ascent_photos.
 async function ensurePhotosExistInBucket(photos) {
   if (photos.length === 0) {
     return;
@@ -112,16 +95,10 @@ async function ensurePhotosExistInBucket(photos) {
   }
 }
 
-// Aquest helper esborra una llista de blobs del bucket sense aturar el flux
-// si algun esborrat falla. S'usa quan s'elimina un ascens: ON DELETE CASCADE
-// neteja les files de la BD, però els blobs s'han d'esborrar explícitament
-// del bucket. Que un blob no es pugui esborrar (per exemple per un error
-// transitori de GCS) no ha de bloquejar l'eliminació, ja es podran netejar
-// orfes amb un job posterior.
-//
-// El context (userId, ascentId) s'inclou al log perquè el responsable de
-// la neteja d'orfes pugui correlacionar el path al bucket amb l'ascens
-// eliminat sense haver de creuar logs amb consultes a la BD.
+// Esborra blobs sense aturar el flux si algun esborrat falla. ON DELETE
+// CASCADE neteja la BD però els blobs s'han d'esborrar explícitament del
+// bucket; un blob no esborrable es recuperarà amb un job d'orfes posterior.
+// El log inclou userId+ascentId per correlacionar amb l'ascens eliminat.
 async function safeDeletePhotoBlobs(storagePaths, context = {}) {
   if (storagePaths.length === 0) {
     return;
@@ -140,19 +117,11 @@ async function safeDeletePhotoBlobs(storagePaths, context = {}) {
   );
 }
 
-// Aquest helper enriqueix una llista d'ascens amb el camp primaryPhoto
-// (la foto principal amb signed download URL ja generada) o null si
-// l'ascens no en té. Es fa una sola query per recuperar totes les
-// principals dels ascens donats (evita N+1) i les signed URLs es generen
-// en paral·lel per minimitzar la latència total. Es retorna només la
-// principal i no totes les fotos perquè els llistats poden tenir desenes
-// d'ascens i emetre signed URLs per a totes les memòries inflaria
-// innecessàriament la resposta i el cost de signing.
-//
-// Si una signatura concreta falla (problema transitori de GCS), es
-// degrada aquella foto a downloadUrl null i es loga l'error: el llistat
-// d'ascens és navegació primària de l'app i no ha de caure perquè una
-// foto no es pugui mostrar puntualment.
+// Enriqueix una llista d'ascens amb la primaryPhoto signada. Una sola query
+// agrupada evita N+1 i les signatures es generen en paral·lel. Només es
+// retorna la principal per no inflar el llistat amb signatures de totes les
+// fotos. Una signatura fallida degrada a downloadUrl null perquè el llistat
+// no caigui per una foto puntual.
 async function attachPrimaryPhotoToAscents(ascents) {
   if (ascents.length === 0) {
     return ascents;
@@ -192,9 +161,8 @@ async function attachPrimaryPhotoToAscents(ascents) {
   return ascents;
 }
 
-// Aquest mètode valida el camp opcional notes. Si s'ha enviat ha de ser una
-// cadena dins del límit acceptat, però es permet enviar null o cadena buida
-// per netejar les notes existents.
+// Valida el camp opcional notes. null o cadena buida són vàlids per netejar
+// les notes existents.
 function ensureValidNotes(value) {
   if (value === undefined || value === null) {
     return value;
@@ -208,40 +176,27 @@ function ensureValidNotes(value) {
   return value;
 }
 
-// Aquest servei centralitza la lògica de les ascensions. Aquí es valida el
-// payload, s'aplica la coerció dels camps i es delega a la capa de model
-// l'accés real a la base de dades. La capa de servei és l'única responsable
-// de comprovar que els recursos sol·licitats pertanyen a l'usuari autenticat.
+// Lògica de les ascensions: valida el payload, coerciona els camps i delega
+// al model. Garanteix que els recursos pertanyen a l'usuari autenticat.
 const AscentService = {
 
-  // Retorna totes les ascensions de l'usuari autenticat amb la seva foto
-  // principal enriquida amb signed URL de descàrrega. Una llista buida és
-  // un resultat vàlid (200) per a un usuari nou.
+  // Llista les ascensions de l'usuari amb la primaryPhoto signada.
   async getByUser(userId) {
     const ascents = await AscentModel.findAllByUserId(userId);
     return attachPrimaryPhotoToAscents(ascents);
   },
 
-  // Retorna les ascensions de l'usuari autenticat sobre un cim concret amb
-  // la seva foto principal enriquida amb signed URL de descàrrega. El peakId
-  // es valida com a enter positiu. No es comprova prèviament que el cim
-  // existeixi: si no hi ha cap ascensió, simplement retorna llista buida.
+  // Llista les ascensions de l'usuari sobre un cim concret amb la primaryPhoto
+  // signada. peakId es valida; si no hi ha cap ascensió, retorna llista buida.
   async getByUserAndPeak(userId, peakId) {
     const parsedPeakId = requireInteger(peakId, 'peakId');
     const ascents = await AscentModel.findAllByUserAndPeak(userId, parsedPeakId);
     return attachPrimaryPhotoToAscents(ascents);
   },
 
-  // Retorna totes les fotos d'un ascens concret amb signed URL de
-  // descàrrega per a cadascuna. La validació d'ownership es fa primer amb
-  // findByIdAndUserId perquè el cas "ascens d'un altre usuari" respongui
-  // 404 abans de fer cap query addicional ni consultar el bucket. Si
-  // l'usuari té l'ascens però sense fotos, retorna una llista buida.
-  //
-  // Si la signatura d'una URL concreta falla per un problema transitori
-  // de GCS, aquella foto es retorna amb downloadUrl null i es loga
-  // l'error: la pantalla de detall ha de poder mostrar-se encara que
-  // alguna foto no es pugui carregar puntualment.
+  // Retorna totes les fotos d'un ascens amb signed URL. L'ownership es valida
+  // amb findByIdAndUserId primer per respondre 404 abans de tocar el bucket.
+  // Si una signatura falla, aquella foto es retorna amb downloadUrl null.
   async getPhotosForAscent(userId, ascentId) {
     const parsedAscentId = requireInteger(ascentId, 'ascentId');
 
@@ -277,28 +232,18 @@ const AscentService = {
     );
   },
 
-  // Crea una nova ascensió per a l'usuari autenticat. peakId i ascentDate són
-  // obligatoris; notes i photos són opcionals. La validació de l'existència
-  // del cim la fa la foreign key al model, que torna un 404 clar si el cim
-  // no existeix.
-  //
-  // Si arriba l'array photos, cada entrada ha de portar un storagePath que
-  // ja apunta a un blob pujat al bucket via signed URL. La inserció de
-  // l'ascens i les seves fotos es fa en una sola transacció: si la inserció
-  // de qualsevol foto falla després de crear l'ascens, es fa rollback i el
-  // client rep l'error sense que quedi mig-ascens a la BD. Els blobs ja
-  // pujats no s'esborren automàticament (queden com a orfes que es
-  // netejaran amb una política de cicle de vida del bucket o un job futur).
+  // Crea una ascensió. peakId i ascentDate són obligatoris; notes i photos
+  // opcionals. L'ascens i les fotos s'insereixen en una sola transacció: si
+  // una foto falla, rollback i no queda mig-ascens a la BD. Els blobs ja
+  // pujats queden com a orfes per a un job de neteja posterior.
   async create(userId, { peakId, ascentDate, notes, photos } = {}) {
     const parsedPeakId = requireInteger(peakId, 'peakId');
     const parsedDate = requireIsoDate(ascentDate, 'ascentDate');
     const validatedNotes = ensureValidNotes(notes);
     const validatedPhotos = ensureValidPhotosPayload(userId, photos);
 
-    // El check d'existència dels blobs es fa abans d'obrir la transacció
-    // per no mantenir cap connection bloquejada mentre s'esperen les
-    // peticions HEAD a GCS. Si algun blob falta, es respon 400 sense haver
-    // tocat la base de dades.
+    // Comprovar blobs abans d'obrir transacció: així no bloquegem cap
+    // connection mentre s'esperen els HEAD a GCS.
     await ensurePhotosExistInBucket(validatedPhotos);
 
     const connection = await pool.getConnection();
@@ -322,9 +267,8 @@ const AscentService = {
       }
       await connection.commit();
     } catch (err) {
-      // El rollback es fa dins del seu propi try/catch perquè un error al
-      // rollback (per exemple, connexió ja morta) no emmascari l'error
-      // original que ha provocat l'avortament de la transacció.
+      // Rollback dins de try/catch perquè un error al rollback no emmascari
+      // l'error original.
       try {
         await connection.rollback();
       } catch (rollbackErr) {
@@ -335,10 +279,8 @@ const AscentService = {
       connection.release();
     }
 
-    // Registrar una ascensió implica que l'usuari ha assolit aquell cim.
-    // L'actualització de peak_status és un efecte derivat: si peta després
-    // del commit, l'ascens ja existeix i no volem que el client rebi un 500
-    // que el faria reintentar i crear un duplicat.
+    // Marcar el cim com a assolit. Efecte derivat: si peta després del commit,
+    // l'ascens ja existeix i no volem que el client rebi un 500 i reintenti.
     await safeSideEffect(
       'peakStatus.upsert',
       PeakStatusService.upsertPeakStatus(userId, parsedPeakId, {
@@ -346,9 +288,8 @@ const AscentService = {
       })
     );
 
-    // Si la nova ascensió pertany al mes en curs, pot fer pujar el progrés
-    // del repte mensual de l'usuari. El servei filtra internament per data,
-    // així que enviar-li sempre la ascentDate és segur.
+    // Si la nova ascensió cau al mes en curs, pot fer pujar el repte mensual.
+    // El servei filtra per data internament.
     await safeSideEffect(
       'monthlyChallenge.recompute',
       MonthlyChallengeService.recomputeForUser(userId, parsedDate)
@@ -357,12 +298,8 @@ const AscentService = {
     return { ...createdAscent, photos: createdPhotos };
   },
 
-  // Actualitza els camps indicats d'una ascensió existent. Cal que l'ascensió
-  // pertanyi a l'usuari autenticat: si no existeix o és d'un altre usuari, es
-  // respon 404 sense distingir els dos casos per no filtrar informació.
-  // Es valida primer que existeixi i després s'apliquen les actualitzacions
-  // perquè el missatge d'error d'una ascensió inexistent sempre sigui el mateix
-  // independentment del format dels camps enviats.
+  // Actualitza camps d'una ascensió. 404 si no existeix o és d'un altre
+  // usuari, sense distingir per no filtrar informació.
   async update(userId, ascentId, { peakId, ascentDate, notes } = {}) {
     const parsedAscentId = requireInteger(ascentId, 'ascentId');
 
@@ -373,9 +310,8 @@ const AscentService = {
       throw error;
     }
 
-    // Cada camp s'analitza només si el client l'ha enviat. Això permet
-    // actualitzacions parcials (per exemple, només les notes) sense haver
-    // de reenviar la resta de l'ascensió.
+    // Cada camp s'analitza només si el client l'ha enviat: permet
+    // actualitzacions parcials.
     const payload = {};
 
     if (peakId !== undefined) {
@@ -390,17 +326,12 @@ const AscentService = {
       payload.notes = ensureValidNotes(notes);
     }
 
-    // Si el cos de la petició ha arribat sense cap camp modificable es retorna
-    // l'ascensió tal com està, perquè un PUT sense canvis no és un error sinó
-    // una idempotència trivial.
+    // PUT sense canvis: idempotència trivial, no és error.
     if (Object.keys(payload).length > 0) {
       await AscentModel.updateByIdAndUserId(userId, parsedAscentId, payload);
     }
 
-    // Si una ascensió es reassigna a un altre cim, el nou cim també ha de
-    // quedar marcat com a assolit per mantenir coherent l'historial de
-    // l'usuari amb l'estat personal dels seus cims. És efecte derivat: si
-    // peta no s'ha de propagar, perquè l'ascens ja s'ha actualitzat.
+    // Si es reassigna a un altre cim, marcar-lo com a assolit. Efecte derivat.
     if (payload.peakId !== undefined) {
       await safeSideEffect(
         'peakStatus.upsert',
@@ -410,10 +341,8 @@ const AscentService = {
       );
     }
 
-    // Una edició pot canviar la data o el cim de l'ascensió, i tant la data
-    // antiga com la nova podrien caure dins del mes en curs. És més segur
-    // demanar un recompute del mes actual sencer que comprovar dues dates
-    // per separat: el cost és una sola query agregada sobre ascents.
+    // Una edició pot canviar la data o el cim, així que es recalcula sempre
+    // el mes en curs.
     await safeSideEffect(
       'monthlyChallenge.recompute',
       MonthlyChallengeService.recomputeCurrentMonthForUser(userId)
@@ -422,16 +351,9 @@ const AscentService = {
     return AscentModel.findByIdAndUserId(userId, parsedAscentId);
   },
 
-  // Elimina una ascensió de l'usuari autenticat. Si no existeix o és d'un
-  // altre usuari, es respon 404 (mateix criteri que update).
-  //
-  // Abans d'esborrar la fila d'ascents, es recuperen els paths de les fotos
-  // associades (filtrant per ownership a la mateixa query, no només pel
-  // findByIdAndUserId previ) i s'esborren els blobs corresponents del
-  // bucket. Les files d'ascent_photos s'esborren soles via ON DELETE
-  // CASCADE; els blobs no, perquè CASCADE només viu a la BD. L'esborrat
-  // dels blobs es fa amb safeDeletePhotoBlobs perquè un fallo de GCS no
-  // bloquegi l'eliminació de l'ascens.
+  // Elimina una ascensió. 404 si no existeix o és d'un altre usuari. Es
+  // recuperen els paths abans del DELETE i s'esborren els blobs després,
+  // perquè ON DELETE CASCADE viu només a la BD i no toca el bucket.
   async remove(userId, ascentId) {
     const parsedAscentId = requireInteger(ascentId, 'ascentId');
 
@@ -444,19 +366,14 @@ const AscentService = {
       throw error;
     }
 
-    // En cas de carrera amb un altre delete concurrent, els dos processos
-    // poden intentar esborrar els mateixos blobs. ignoreNotFound al
-    // StorageService fa que el segon esborrat no llanci, així que és
-    // segur tornar a esborrar.
+    // Carrera amb un altre delete concurrent: ignoreNotFound al StorageService
+    // fa segur el doble esborrat.
     await safeDeletePhotoBlobs(
       photos.map((photo) => photo.storage_path),
       { userId, ascentId: parsedAscentId }
     );
 
-    // L'eliminació pot fer baixar el progrés del repte mensual si l'ascensió
-    // esborrada era del mes en curs. Es recalcula sempre perquè aquí ja no
-    // tenim accés a la data original, i el cost és el mateix recompute
-    // agregat que ja s'usa des d'update.
+    // Pot fer baixar el repte mensual si l'ascensió era del mes en curs.
     await safeSideEffect(
       'monthlyChallenge.recompute',
       MonthlyChallengeService.recomputeCurrentMonthForUser(userId)

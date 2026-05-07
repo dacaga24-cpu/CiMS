@@ -7,6 +7,14 @@ flutter_*.png
 pubspec.lock
 .flutter-plugins-dependencies
 
+# Flutter platform-generated (Flutter els regenera a cada build, no han d'anar al repo)
+**/flutter/ephemeral/
+**/Flutter/ephemeral/
+**/flutter/generated_plugin_registrant.cc
+**/flutter/generated_plugin_registrant.h
+**/flutter/generated_plugins.cmake
+**/Flutter/GeneratedPluginRegistrant.swift
+
 # Android
 **/android/**/local.properties
 **/android/**/gradle.properties

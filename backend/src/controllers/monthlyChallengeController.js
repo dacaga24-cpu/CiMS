@@ -1,9 +1,7 @@
 const MonthlyChallengeService = require('../services/monthlyChallengeService');
 
-// Aquest controlador exposa les rutes del repte mensual. La seva
-// responsabilitat es limita a delegar al servei i retornar la resposta
-// HTTP. L'identificador de l'usuari s'obté sempre de req.userId perquè
-// el progrés del repte és sempre personal.
+// Repte mensual. L'identificador d'usuari surt sempre de req.userId perquè
+// el progrés és sempre personal.
 const MonthlyChallengeController = {
 
   async getCurrent(req, res, next) {

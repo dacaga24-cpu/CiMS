@@ -1,14 +1,10 @@
 const pool = require('../config/db');
 
 
-// Aquest model centralitza l'accés a les dades de les comarques.
-// La seva funció és recuperar les regions disponibles al sistema
-// perquè es puguin fer servir als filtres del catàleg de cims.
+// Accés a la taula regions per alimentar els filtres del catàleg.
 const RegionModel = {
 
-    // Aquest mètode retorna totes les comarques del sistema.
-    // És rellevant perquè alimenta els desplegables i filtres del front
-    // on l'usuari pot escollir una regió concreta.
+    // Totes les comarques ordenades per nom.
     async findAll() {
         const sql = `
         SELECT id, name
@@ -20,9 +16,7 @@ const RegionModel = {
         return rows;
     },
 
-    // Aquest mètode busca una comarca pel seu identificador.
-    // Es fa servir per validar que una regió existeix abans d'aplicar-la
-    // com a filtre en les consultes de cims.
+    // Comarca per id, per validar que existeix abans d'aplicar com a filtre.
     async findById(id) {
         const sql = `
         SELECT id, name

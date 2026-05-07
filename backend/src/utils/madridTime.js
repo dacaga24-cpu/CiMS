@@ -1,16 +1,11 @@
-// Aquest fitxer agrupa utilitats per treballar amb dates en hora local de
-// Madrid. La timezone es fixa explícitament perquè la finestra del repte
-// mensual s'ha de definir des del primer dia del mes a les 00:00 fins
-// l'últim a les 23:59:59 amb independència de la timezone del servidor
-// (Cloud Run corre en UTC). Tot el que s'escriu a la base de dades es
-// guarda com a string 'YYYY-MM-DD HH:MM:SS' en hora Madrid, així evitem
-// qualsevol conversió implícita del driver mysql2.
+// Utilitats per treballar amb dates en hora local de Madrid. La finestra del
+// repte mensual s'ha de definir des del primer dia 00:00 fins l'últim 23:59:59
+// independentment de la timezone del servidor (Cloud Run corre en UTC). Les
+// dates es guarden a la BD com a string 'YYYY-MM-DD HH:MM:SS' per evitar
+// conversions implícites del driver mysql2.
 
 const MADRID_TIMEZONE = 'Europe/Madrid';
 
-// Aquest formatador retorna les parts d'una data ja en hora Madrid. S'usa
-// com a base per saber quin any/mes/dia i hora estem segons el calendari
-// que veu l'usuari final, no el del servidor.
 const madridFormatter = new Intl.DateTimeFormat('en-CA', {
   timeZone: MADRID_TIMEZONE,
   year: 'numeric',
@@ -22,14 +17,11 @@ const madridFormatter = new Intl.DateTimeFormat('en-CA', {
   hour12: false,
 });
 
-// Aquesta funció extreu les parts d'un Date interpretat en hora Madrid.
-// El resultat sempre conté any, mes, dia, hora, minut i segon com a
-// nombres, llestos per compondre un string per a la base de dades.
+// Extreu les parts d'un Date interpretat en hora Madrid.
 //
-// El "% 24" sobre l'hora cobreix una particularitat històrica d'algunes
-// implementacions d'Intl amb hour12: false que retornen "24" en comptes
-// de "00" per a la mitjanit. Sense aquesta normalització una mitjanit
-// es convertiria en una cadena DATETIME invàlida.
+// El "% 24" sobre l'hora cobreix una particularitat d'algunes implementacions
+// d'Intl amb hour12: false que retornen "24" enlloc de "00" a mitjanit; sense
+// la normalització una mitjanit es convertiria en una cadena DATETIME invàlida.
 function madridParts(date) {
   const parts = Object.fromEntries(
     madridFormatter.formatToParts(date).map((part) => [part.type, part.value])
@@ -44,37 +36,29 @@ function madridParts(date) {
   };
 }
 
-// Retorna l'any i el mes actuals segons l'hora local de Madrid. És el
-// punt d'entrada principal per saber a quin repte estem associats ara
-// mateix, ja que el "mes en curs" sempre es defineix des del calendari
-// que veu l'usuari final.
+// Any i mes actuals segons l'hora local de Madrid: el "mes en curs" sempre
+// es defineix des del calendari que veu l'usuari final.
 function getCurrentMadridYearMonth() {
   const { year, month } = madridParts(new Date());
   return { year, month };
 }
 
-// Retorna l'instant actual en hora Madrid com a string 'YYYY-MM-DD HH:MM:SS'
-// apte per a una columna DATETIME de MySQL. S'utilitza per segellar els
-// camps level_X_completed_at en el moment exacte en què l'usuari supera
-// un nivell del repte.
+// Instant actual en hora Madrid com a 'YYYY-MM-DD HH:MM:SS' apte per a una
+// columna DATETIME. S'usa per segellar level_X_completed_at.
 function getCurrentMadridDateTimeString() {
   const { year, month, day, hour, minute, second } = madridParts(new Date());
   return formatDateTime(year, month, day, hour, minute, second);
 }
 
-// Calcula l'últim dia d'un mes donat. La construcció `new Date(year, month, 0)`
-// retorna l'últim dia del mes anterior al "month" indicat (1-indexed pel
-// segon paràmetre del constructor), de manera que passant el mes en base 1
-// obtenim directament el nombre de dies del mes desitjat.
+// Últim dia d'un mes donat. `new Date(year, month, 0)` retorna l'últim dia
+// del mes anterior al "month" (1-indexed pel constructor), de manera que
+// passant el mes en base 1 obtenim directament el nombre de dies desitjat.
 function lastDayOfMonth(year, month) {
   return new Date(year, month, 0).getDate();
 }
 
-// Retorna les fronteres d'un mes natural en hora Madrid com a strings
-// llestos per ser desats a una columna DATETIME. El primer instant és
-// el dia 1 a les 00:00:00 i l'últim és el dia final a les 23:59:59,
-// inclusiu. Aquest format coincideix exactament amb el que el frontend
-// rebrà a la resposta, sense haver de fer cap conversió addicional.
+// Fronteres d'un mes natural en hora Madrid llestes per a una columna DATETIME:
+// del dia 1 a 00:00:00 fins l'últim dia a 23:59:59 (inclusiu).
 function getMonthBoundaryStrings(year, month) {
   const lastDay = lastDayOfMonth(year, month);
   return {
@@ -83,11 +67,9 @@ function getMonthBoundaryStrings(year, month) {
   };
 }
 
-// Retorna les fronteres d'un mes natural com a strings 'YYYY-MM-DD' sense
-// hora. S'utilitza per filtrar la columna ascent_date (de tipus DATE), que
-// no porta hora i per tant s'ha de comparar amb un BETWEEN només de dates.
-// Mantenir aquest helper separat de getMonthBoundaryStrings deixa explícit
-// que els dos formats responen a tipus de columna diferents.
+// Fronteres com a 'YYYY-MM-DD' sense hora, per filtrar la columna ascent_date
+// (de tipus DATE). Helper separat de getMonthBoundaryStrings per deixar
+// explícit que cada format respon a un tipus de columna diferent.
 function getMonthDateBoundaryStrings(year, month) {
   const lastDay = lastDayOfMonth(year, month);
   return {
@@ -96,9 +78,8 @@ function getMonthDateBoundaryStrings(year, month) {
   };
 }
 
-// Retorna els límits del mes anterior al donat. S'utilitza per consultar
-// la plantilla del mes passat i evitar repetir el mateix tipus de repte
-// dos mesos seguits quan hi ha més d'un tipus disponible.
+// Mes anterior al donat. S'usa per evitar repetir el tipus de repte dos
+// mesos seguits quan hi ha més d'un tipus disponible.
 function getPreviousYearMonth(year, month) {
   if (month === 1) {
     return { year: year - 1, month: 12 };
@@ -106,9 +87,8 @@ function getPreviousYearMonth(year, month) {
   return { year, month: month - 1 };
 }
 
-// Composa una cadena 'YYYY-MM-DD HH:MM:SS' amb els camps zero-padded.
-// És l'únic format que s'envia a MySQL per a DATETIME des d'aquest mòdul,
-// així garantim que mai depenem de la representació local d'un Date.
+// 'YYYY-MM-DD HH:MM:SS' amb camps zero-padded. Únic format que enviem a
+// MySQL per a DATETIME des d'aquest mòdul.
 function formatDateTime(year, month, day, hour, minute, second) {
   return (
     `${pad4(year)}-${pad2(month)}-${pad2(day)} ` +

@@ -1,21 +1,19 @@
-// Aquest fitxer agrupa utilitats compartides per validar i normalitzar paràmetres
-// rebuts en peticions HTTP. Centralitzar aquesta lògica evita que cada servei
-// dupliqui el seu propi parser amb petites variacions, cosa que abans feia que
-// el contracte de retorn (null, undefined, número) no fos coherent entre fitxers.
+// Utilitats compartides per validar i normalitzar paràmetres rebuts en
+// peticions HTTP. Centralitzat per garantir un contracte de retorn coherent
+// (null, undefined, número) entre serveis.
 
-// Aquest mètode crea un error de validació amb codi 400.
-// El gestor d'errors centralitzat el convertirà en una resposta HTTP coherent.
+// Crea un error de validació amb codi 400. El gestor d'errors centralitzat
+// el convertirà en una resposta HTTP coherent.
 function badRequest(message) {
   const error = new Error(message);
   error.statusCode = 400;
   return error;
 }
 
-// Aquest mètode interpreta un valor opcional com un enter dins d'un mínim donat.
-// Si el valor no s'ha enviat (undefined, null o cadena buida) retorna undefined,
-// cosa que els crida poden interpretar com "sense filtre". Si el valor s'ha
-// enviat però no es pot interpretar com un enter vàlid, llança un error 400 amb
-// un missatge que inclou el nom del camp per facilitar el diagnòstic des del client.
+// Interpreta un valor opcional com a enter dins d'un mínim donat. undefined
+// quan el valor no s'ha enviat, perquè el caller ho llegeixi com a "sense
+// filtre". Llança 400 si arriba però no és un enter vàlid; el missatge
+// inclou el nom del camp per facilitar el diagnòstic des del client.
 function parseOptionalInteger(value, fieldName, { min = 1 } = {}) {
   if (value === undefined || value === null || value === '') {
     return undefined;
@@ -29,10 +27,8 @@ function parseOptionalInteger(value, fieldName, { min = 1 } = {}) {
   return parsed;
 }
 
-// Aquest mètode interpreta un valor obligatori com un enter dins d'un mínim donat.
-// A diferència de parseOptionalInteger, aquí l'absència del valor també és un error,
-// perquè el cridant l'utilitza per a paràmetres que mai poden faltar (per exemple,
-// l'identificador d'un recurs a la URL).
+// Versió obligatòria: l'absència és error. S'usa per a paràmetres que mai
+// poden faltar (per exemple, l'identificador d'un recurs a la URL).
 function requireInteger(value, fieldName, { min = 1 } = {}) {
   if (value === undefined || value === null || value === '') {
     throw badRequest(`Missing required field: ${fieldName}`);
@@ -40,12 +36,10 @@ function requireInteger(value, fieldName, { min = 1 } = {}) {
   return parseOptionalInteger(value, fieldName, { min });
 }
 
-// Aquest mètode interpreta una data en format ISO YYYY-MM-DD i la retorna
-// normalitzada com a string. Si el valor no s'ha enviat retorna undefined,
-// cosa que els crida poden interpretar com "no actualitzar aquest camp".
-// Es rebutgen les dates futures perquè una ascensió només pot ser passada o
-// d'avui. Es valida tant el format amb regex com la coherència del calendari
-// (per exemple, 2026-02-31 no existeix encara que el regex el doni per bo).
+// Interpreta una data ISO YYYY-MM-DD. Es valida tant el format (regex) com
+// la coherència del calendari (2026-02-31 no existeix tot i passar el regex)
+// reconstruint la cadena des del Date i comparant. Per defecte rebutja dates
+// futures: una ascensió només pot ser passada o d'avui.
 function parseOptionalIsoDate(value, fieldName, { allowFuture = false } = {}) {
   if (value === undefined || value === null || value === '') {
     return undefined;
@@ -60,9 +54,8 @@ function parseOptionalIsoDate(value, fieldName, { allowFuture = false } = {}) {
   if (Number.isNaN(parsed.getTime())) {
     throw badRequest(`Invalid ${fieldName}: not a real calendar date`);
   }
-  // Es comprova la coherència recompondre la data des dels seus components,
-  // ja que `new Date('2026-02-31Z')` interpreta com a 2026-03-03 en lloc de
-  // donar error. Si la cadena reconstruïda no coincideix, la data és falsa.
+  // Reconstrucció: `new Date('2026-02-31Z')` interpreta com a 2026-03-03
+  // enlloc de donar error. Si la cadena reconstruïda no coincideix, falsa.
   const reconstructed = parsed.toISOString().slice(0, 10);
   if (reconstructed !== value) {
     throw badRequest(`Invalid ${fieldName}: not a real calendar date`);
@@ -77,9 +70,7 @@ function parseOptionalIsoDate(value, fieldName, { allowFuture = false } = {}) {
   return value;
 }
 
-// Versió obligatòria de parseOptionalIsoDate. Llança si el valor no s'ha
-// enviat, perquè el cridant l'utilitza per a camps que mai poden faltar
-// (per exemple, la data d'una ascensió en una creació nova).
+// Versió obligatòria de parseOptionalIsoDate.
 function requireIsoDate(value, fieldName, options = {}) {
   if (value === undefined || value === null || value === '') {
     throw badRequest(`Missing required field: ${fieldName}`);
