@@ -91,8 +91,18 @@ class Peak {
       description != null && description!.trim().isNotEmpty;
 
   // Aquest getter indica si el cim disposa de coordenades útils
-  // per poder obrir la seva posició al mapa.
-  bool get hasMapPosition => latitude != null && longitude != null;
+  // per poder obrir la seva posició al mapa. La validació de rang
+  // evita que un valor corrupte a la BD (per exemple un overflow del
+  // DECIMAL) faci que el càlcul de límits del mapa s'expandeixi a tot
+  // el planeta i deixi la càmera enfocada al pol nord.
+  bool get hasMapPosition {
+    final lat = latitude;
+    final lng = longitude;
+    if (lat == null || lng == null) {
+      return false;
+    }
+    return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  }
 
   static String? _parseNullableString(dynamic value) {
     final text = value?.toString().trim();
