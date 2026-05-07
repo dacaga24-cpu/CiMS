@@ -1,4 +1,5 @@
 import 'package:cims/core/entity/ascent.dart';
+import 'package:cims/core/entity/ascent_upload_photo.dart';
 
 // Aquest contracte defineix les operacions de l’API relacionades amb les ascensions.
 // Permet registrar i consultar ascensions sense que la resta del projecte conegui
@@ -10,6 +11,20 @@ abstract class AscentsApiClient {
     required int peakId,
     required DateTime ascentDate,
     String? notes,
+    List<AscentUploadPhoto> photos = const [],
+  });
+
+  // Aquest mètode demana al backend una URL temporal per pujar una foto d’ascensió.
+  Future<AscentSignedUploadUrl> createAscentPhotoSignedUploadUrl({
+    required String mimeType,
+    bool isPrimary = false,
+  });
+
+  // Aquest mètode puja el contingut binari de la imatge a la URL temporal retornada pel backend.
+  Future<void> uploadAscentPhotoBytes({
+    required String uploadUrl,
+    required List<int> bytes,
+    required String mimeType,
   });
 
   // Aquest mètode recupera les ascensions de l’usuari autenticat

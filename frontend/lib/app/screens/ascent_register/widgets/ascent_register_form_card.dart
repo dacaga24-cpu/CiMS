@@ -43,7 +43,13 @@ class AscentRegisterFormCard extends StatelessWidget {
           const SizedBox(height: 24),
           const _SectionLabel('Pujar foto'),
           const SizedBox(height: 10),
-          const AscentRegisterPhotoCard(),
+          AscentRegisterPhotoCard(
+            previewBytes: controller.selectedPhotoPreviewBytes,
+            isLoading: controller.isUploadingPhoto,
+            errorMessage: controller.photoErrorMessage,
+            onTap: controller.onPhotoTap,
+            onRemoveTap: controller.onRemovePhotoTap,
+          ),
         ],
       ),
     );
@@ -159,7 +165,8 @@ class _NotesField extends StatelessWidget {
         maxLines: 7,
         decoration: const InputDecoration(
           border: InputBorder.none,
-          hintText: 'Com ha anat la pujada? Temps invertit, condicions meteorològiques, sensacions...',
+          hintText:
+              'Com ha anat la pujada? Temps invertit, condicions meteorològiques, sensacions...',
           hintStyle: TextStyle(
             fontSize: 14,
             color: Color(0xFFB0B3B8),

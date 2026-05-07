@@ -23,10 +23,23 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
         },
       );
 
-      // Si la resposta és correcta, es valida que el cos sigui una llista
-      // i es transforma cada element en un objecte Peak del sistema.
+      // Si la resposta és correcta, es valida el format rebut.
+      // El backend pot retornar una llista directa o una resposta paginada amb "items".
       if (response.statusCode == 200) {
-        final data = _tryParseJsonList(response.body);
+        final directList = _tryParseJsonList(response.body);
+
+        final List<dynamic>? data;
+        if (directList != null) {
+          data = directList;
+        } else {
+          final wrappedData = _tryParseJson(response.body);
+          final rawPeaks = wrappedData?['items'] ??
+              wrappedData?['peaks'] ??
+              wrappedData?['data'] ??
+              wrappedData?['results'];
+
+          data = rawPeaks is List ? rawPeaks : null;
+        }
 
         if (data == null) {
           throw const ApiException(
@@ -36,8 +49,8 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
         }
 
         return data
-            .whereType<Map<String, dynamic>>()
-            .map(Peak.fromJson)
+            .whereType<Map>()
+            .map((item) => Peak.fromJson(Map<String, dynamic>.from(item)))
             .toList();
       }
 
@@ -46,6 +59,133 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
       final message = data?['error']?.toString() ??
           data?['message']?.toString() ??
           'No s\'ha pogut carregar el catàleg de cims';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
+
+  // Aquest mètode recupera una pàgina concreta del catàleg de cims.
+  // Manté la informació de paginació perquè la pantalla pugui carregar més resultats en fer scroll.
+  Future<PeaksPage> getPeaksPage({
+    String? search,
+    int? regionId,
+    int? minAltitude,
+    int? maxAltitude,
+    int page = 1,
+    int pageSize = 50,
+  }) async {
+    try {
+      final response = await _getJson(
+        ApiEndpoints.peaks,
+        queryParameters: {
+          'page': page.toString(),
+          'pageSize': pageSize.toString(),
+          if (search != null && search.trim().isNotEmpty)
+            'search': search.trim(),
+          if (regionId != null) 'regionId': regionId.toString(),
+          if (minAltitude != null) 'minAltitude': minAltitude.toString(),
+          if (maxAltitude != null) 'maxAltitude': maxAltitude.toString(),
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = _tryParseJson(response.body);
+
+        if (data == null) {
+          throw const ApiException(
+            'La resposta paginada del catàleg no és vàlida',
+            statusCode: 200,
+          );
+        }
+
+        return PeaksPage.fromJson(data);
+      }
+
+      final Map<String, dynamic>? data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'ha pogut carregar la pàgina del catàleg';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
+
+    // Aquest mètode recupera els cims destinats al mapa.
+  // Utilitza l’endpoint específic del backend i envia els filtres principals
+  // perquè comarca, cerca i altitud es resolguin amb dades completes.
+  Future<List<Peak>> getMapPeaks({
+    String? search,
+    int? regionId,
+    int? minAltitude,
+    int? maxAltitude,
+  }) async {
+    try {
+      final response = await _getJson(
+        ApiEndpoints.peaksMap,
+        queryParameters: {
+          if (search != null && search.trim().isNotEmpty)
+            'search': search.trim(),
+          if (regionId != null) 'regionId': regionId.toString(),
+          if (minAltitude != null) 'minAltitude': minAltitude.toString(),
+          if (maxAltitude != null) 'maxAltitude': maxAltitude.toString(),
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final directList = _tryParseJsonList(response.body);
+
+        final List<dynamic>? data;
+        if (directList != null) {
+          data = directList;
+        } else {
+          final wrappedData = _tryParseJson(response.body);
+          final rawPeaks = wrappedData?['items'] ??
+              wrappedData?['peaks'] ??
+              wrappedData?['data'] ??
+              wrappedData?['results'];
+
+          data = rawPeaks is List ? rawPeaks : null;
+        }
+
+        if (data == null) {
+          throw const ApiException(
+            'La resposta del mapa no és vàlida',
+            statusCode: 200,
+          );
+        }
+
+        return data
+            .whereType<Map>()
+            .map((item) => Peak.fromJson(Map<String, dynamic>.from(item)))
+            .toList();
+      }
+
+      final Map<String, dynamic>? data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'han pogut carregar els cims del mapa';
 
       throw ApiException(message, statusCode: response.statusCode);
     } on TimeoutException {

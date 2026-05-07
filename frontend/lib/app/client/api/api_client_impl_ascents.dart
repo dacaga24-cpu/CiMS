@@ -6,11 +6,13 @@ part of 'api_client_impl.dart';
 mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
   // Aquest mètode envia al backend les dades d’una nova ascensió.
   // La data s’envia en format YYYY-MM-DD, que és el format esperat per l’API.
+  // Si l’usuari ha seleccionat fotos, també s’envien les rutes ja pujades a GCS.
   @override
   Future<Ascent> createAscent({
     required int peakId,
     required DateTime ascentDate,
     String? notes,
+    List<AscentUploadPhoto> photos = const [],
   }) async {
     try {
       final response = await _postJson(
@@ -19,6 +21,8 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
           'peakId': peakId,
           'ascentDate': _formatDateOnly(ascentDate),
           if (notes != null) 'notes': notes,
+          if (photos.isNotEmpty)
+            'photos': photos.map((photo) => photo.toJson()).toList(),
         },
         requiresAuth: true,
       );
@@ -52,6 +56,98 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
 
       throw const ApiException(
         'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
+
+  // Aquest mètode demana al backend una URL temporal per pujar una foto.
+  // La imatge encara no queda associada a cap ascensió fins que s’envia el formulari final.
+  @override
+  Future<AscentSignedUploadUrl> createAscentPhotoSignedUploadUrl({
+    required String mimeType,
+    bool isPrimary = false,
+  }) async {
+    try {
+      final response = await _postJson(
+        ApiEndpoints.ascentPhotoSignedUploadUrl,
+        body: {
+          'mimeType': mimeType,
+          'isPrimary': isPrimary,
+        },
+        requiresAuth: true,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = _tryParseJson(response.body);
+
+        if (data == null) {
+          throw ApiException(
+            'La resposta de pujada d’imatge no és vàlida',
+            statusCode: response.statusCode,
+          );
+        }
+
+        return AscentSignedUploadUrl.fromJson(data);
+      }
+
+      final data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'ha pogut preparar la pujada de la imatge';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut preparar la pujada de la imatge',
+      );
+    }
+  }
+
+  // Aquest mètode puja els bytes de la imatge directament a la URL temporal de GCS.
+  // Aquesta petició no fa servir el backend ni el token, perquè la URL ja incorpora el permís temporal.
+  @override
+  Future<void> uploadAscentPhotoBytes({
+    required String uploadUrl,
+    required List<int> bytes,
+    required String mimeType,
+  }) async {
+    try {
+      final response = await _client
+          .put(
+            Uri.parse(uploadUrl),
+            headers: {
+              'Content-Type': mimeType,
+            },
+            body: bytes,
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200 ||
+          response.statusCode == 201 ||
+          response.statusCode == 204) {
+        return;
+      }
+
+      throw ApiException(
+        'No s\'ha pogut pujar la imatge',
+        statusCode: response.statusCode,
+      );
+    } on TimeoutException {
+      throw const ApiException(
+        'La pujada de la imatge ha trigat massa',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut pujar la imatge',
       );
     }
   }

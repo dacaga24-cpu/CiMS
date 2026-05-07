@@ -64,10 +64,25 @@ const changePasswordRateLimiter = rateLimit({
   message: { error: 'Too many password change attempts. Please try again later.' },
 });
 
+// Aquest limitador protegeix la generació de signed URLs per pujar fotos
+// d'ascensions. Cada signed URL és barata d'emetre però autoritza la
+// pujada d'un objecte al bucket; sense límit, un usuari podria demanar-ne
+// milers i omplir el bucket de blobs orfes (pujades que mai es confirmen
+// amb un ascens). Un sostre per IP redueix aquest abús sense afectar els
+// usuaris legítims, que típicament pujaran unes poques fotos per ascensió.
+const signedUploadUrlRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minuts
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many upload URL requests. Please try again later.' },
+});
+
 module.exports = {
   loginRateLimiter,
   forgotPasswordRateLimiter,
   registerRateLimiter,
   resetPasswordRateLimiter,
   changePasswordRateLimiter,
+  signedUploadUrlRateLimiter,
 };

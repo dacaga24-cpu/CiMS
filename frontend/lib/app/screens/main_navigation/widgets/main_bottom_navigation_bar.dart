@@ -59,13 +59,13 @@ class MainBottomNavigationBar extends StatelessWidget {
               ),
               _NavigationItem(
                 icon: Icons.grid_view_rounded,
-                label: 'DASHBOARD',
+                label: 'INICI',
                 isSelected: selectedTab == MainBottomNavigationTab.dashboard,
                 onTap: () => onTabSelected(MainBottomNavigationTab.dashboard),
               ),
               _NavigationItem(
                 icon: Icons.bar_chart_rounded,
-                label: 'ESTADÍSTIQUES',
+                label: 'DADES',
                 isSelected: selectedTab == MainBottomNavigationTab.stats,
                 onTap: () => onTabSelected(MainBottomNavigationTab.stats),
               ),
@@ -114,6 +114,7 @@ class _NavigationItem extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   icon,
@@ -121,13 +122,24 @@ class _NavigationItem extends StatelessWidget {
                   color: activeColor,
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: activeColor,
+
+                // Aquest bloc evita que els textos llargs del menú ocupin dues línies.
+                // Així es manté l’alçada del menú estable en pantalles estretes.
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.visible,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight:
+                            isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: activeColor,
+                      ),
+                    ),
                   ),
                 ),
               ],

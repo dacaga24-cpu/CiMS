@@ -45,8 +45,10 @@ const AscentModel = {
     // Aquest mètode retorna una ascensió concreta, però només si pertany a
     // l'usuari indicat. Aquesta restricció evita que un usuari pugui llegir
     // o modificar ascensions d'un altre encara que conegui l'identificador
-    // (protecció contra IDOR).
-    async findByIdAndUserId(userId, ascentId) {
+    // (protecció contra IDOR). Accepta connection opcional per quan cal
+    // llegir l'ascens acabat de crear dins de la mateixa transacció.
+    async findByIdAndUserId(userId, ascentId, connection) {
+        const executor = connection || pool;
         const sql = `
         SELECT id, user_id, peak_id, ascent_date, notes, created_at, updated_at
         FROM ascents
@@ -54,7 +56,7 @@ const AscentModel = {
         LIMIT 1
         `;
 
-        const [rows] = await pool.execute(sql, [ascentId, userId]);
+        const [rows] = await executor.execute(sql, [ascentId, userId]);
         return rows[0] || null;
     },
 
@@ -62,21 +64,27 @@ const AscentModel = {
     // existeix, MySQL llança ER_NO_REFERENCED_ROW_2 per la foreign key i
     // aquí el convertim en un error 404 amb un missatge clar perquè la capa
     // de servei no hagi de conèixer codis específics del driver.
-    async create({ userId, peakId, ascentDate, notes = null }) {
+    //
+    // Accepta opcionalment una `connection` del pool perquè el caller pugui
+    // executar la inserció dins d'una transacció (per exemple, per crear
+    // l'ascens i les seves fotos atòmicament). Si no es passa, es fa servir
+    // el pool directament i la inserció és independent.
+    async create({ userId, peakId, ascentDate, notes = null }, connection) {
+        const executor = connection || pool;
         const sql = `
         INSERT INTO ascents (user_id, peak_id, ascent_date, notes)
         VALUES (?, ?, ?, ?)
         `;
 
         try {
-            const [result] = await pool.execute(sql, [
+            const [result] = await executor.execute(sql, [
                 userId,
                 peakId,
                 ascentDate,
                 notes,
             ]);
 
-            return this.findByIdAndUserId(userId, result.insertId);
+            return this.findByIdAndUserId(userId, result.insertId, connection);
         } catch (err) {
             if (err && (err.code === 'ER_NO_REFERENCED_ROW' || err.code === 'ER_NO_REFERENCED_ROW_2')) {
                 const error = new Error('Peak not found');

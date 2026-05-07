@@ -6,7 +6,10 @@ const router = express.Router();
 
 const UserController = require('../controllers/userController');
 const authMiddleware = require('../middleware/authMiddleware');
-const { changePasswordRateLimiter } = require('../middleware/rateLimiters');
+const {
+  changePasswordRateLimiter,
+  signedUploadUrlRateLimiter,
+} = require('../middleware/rateLimiters');
 
 // Totes les rutes d'aquest fitxer requereixen autenticació.
 // El middleware es registra a nivell de router perquè s'apliqui
@@ -24,5 +27,21 @@ router.put('/profile', UserController.updateProfile);
 
 // Aquest endpoint permet a l'usuari desactivar el seu compte de manera voluntària.
 router.delete('/account', UserController.deleteAccount);
+
+// Endpoints de la foto de perfil. La pujada segueix el mateix patró que les
+// fotos d'ascens: el client demana una signed URL, puja directament a GCS
+// i després confirma el path al backend perquè quedi enllaçat al perfil.
+// El rate limiter es comparteix amb el d'ascent-photos i s'aplica també
+// als endpoints de mutació (PUT i DELETE) perquè cada operació toca BD
+// i fa una o dues operacions a GCS (objectExists, deleteObject,
+// generateSignedDownloadUrl); sense límit, un usuari autenticat podria
+// abusar-ne i saturar les quotes del bucket.
+router.post(
+  '/profile-photo/signed-upload-url',
+  signedUploadUrlRateLimiter,
+  UserController.createProfilePhotoUploadUrl
+);
+router.put('/profile-photo', signedUploadUrlRateLimiter, UserController.setProfilePhoto);
+router.delete('/profile-photo', signedUploadUrlRateLimiter, UserController.deleteProfilePhoto);
 
 module.exports = router;

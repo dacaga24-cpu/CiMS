@@ -63,7 +63,7 @@ class _AscentRegisterScreenState extends State<AscentRegisterScreen> {
 
   // Aquest mètode obre el selector de calendari i actualitza la data local del formulari.
   Future<void> _selectAscentDate() async {
-    if (controller.isLoading) {
+    if (controller.isLoading || controller.isUploadingPhoto) {
       return;
     }
 
@@ -148,12 +148,15 @@ class _AscentRegisterScreenState extends State<AscentRegisterScreen> {
                 PrimaryGradientButton(
                   label: 'Confirmar',
                   isLoading: controller.isLoading,
-                  onPressed: controller.onConfirmTap,
+                  onPressed: controller.isUploadingPhoto
+                      ? null
+                      : controller.onConfirmTap,
                 ),
                 const SizedBox(height: 12),
                 SecondaryPillButton(
                   label: 'Cancel·lar',
-                  enabled: !controller.isLoading,
+                  enabled:
+                      !controller.isLoading && !controller.isUploadingPhoto,
                   onPressed: controller.onCancelTap,
                 ),
               ],

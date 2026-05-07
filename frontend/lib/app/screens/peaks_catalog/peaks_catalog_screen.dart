@@ -28,6 +28,10 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
   // els estats personals dels cims i la navegació cap al detall.
   late final PeaksCatalogController controller;
 
+  // Aquest controlador permet detectar quan l’usuari arriba al final del llistat.
+  // Així es poden carregar més cims sense afegir dependències externes.
+  final ScrollController _scrollController = ScrollController();
+
   // Aquest mètode prepara el controller quan la pantalla es crea
   // i inicia la càrrega inicial de les dades que es mostraran al catàleg.
   @override
@@ -36,6 +40,23 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
     controller = PeaksCatalogController()
       ..addListener(_handleControllerChanges)
       ..initialize();
+
+    _scrollController.addListener(_handleScroll);
+  }
+
+  // Aquest mètode detecta quan el llistat s’apropa al final.
+  // En aquell moment demana al controller que carregui la pàgina següent.
+  void _handleScroll() {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+
+    final position = _scrollController.position;
+    final remainingScroll = position.maxScrollExtent - position.pixels;
+
+    if (remainingScroll <= 280) {
+      controller.loadMorePeaks();
+    }
   }
 
   // Aquest mètode escolta els canvis del controller i resol la navegació real
@@ -97,10 +118,12 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
     );
   }
 
-  // Aquest mètode allibera els recursos associats al controller
+  // Aquest mètode allibera els recursos associats al controller i al llistat
   // quan la pantalla deixa d’existir.
   @override
   void dispose() {
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
     controller.removeListener(_handleControllerChanges);
     controller.dispose();
     super.dispose();
@@ -145,14 +168,18 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
                 // càrrega, error, estat buit o llistat de cims.
                 Expanded(
                   child: PeaksCatalogContent(
+                    scrollController: _scrollController,
                     isLoading: controller.isLoading,
+                    isLoadingMore: controller.isLoadingMore,
                     errorMessage: controller.errorMessage,
+                    loadMoreErrorMessage: controller.loadMoreErrorMessage,
                     peaks: controller.peaks,
                     currentSearch: controller.currentSearch,
                     hasActiveFilters: controller.hasActiveFilters,
                     statusForPeak: controller.statusForPeak,
                     onRefresh: controller.onRetryTap,
                     onRetryTap: controller.onRetryTap,
+                    onLoadMoreRetryTap: controller.loadMorePeaks,
                     onPeakTap: controller.onPeakTap,
                   ),
                 ),

@@ -33,17 +33,33 @@ const AscentController = {
     }
   },
 
+  // Retorna totes les fotos d'un ascens concret amb signed download URLs.
+  // El servei ja valida ownership i respon 404 si l'ascens no és de
+  // l'usuari autenticat.
+  async getPhotosForAscent(req, res, next) {
+    try {
+      const photos = await AscentService.getPhotosForAscent(
+        req.userId,
+        req.params.ascentId,
+      );
+      res.status(200).json(photos);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   // Crea una nova ascensió. Respon 201 amb el registre creat o un 4xx si la
   // validació falla. Els errors de FK (peak inexistent) també es propaguen
   // com a 404 des del model.
   async create(req, res, next) {
     try {
-      const { peakId, ascentDate, notes } = req.body || {};
+      const { peakId, ascentDate, notes, photos } = req.body || {};
 
       const ascent = await AscentService.create(req.userId, {
         peakId,
         ascentDate,
         notes,
+        photos,
       });
 
       res.status(201).json(ascent);
