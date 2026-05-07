@@ -165,7 +165,6 @@ class AscentRegisterController extends ChangeNotifier {
 
     photoErrorMessage = null;
     errorMessage = null;
-    isUploadingPhoto = true;
     _safeNotifyListeners();
 
     try {
@@ -177,6 +176,9 @@ class AscentRegisterController extends ChangeNotifier {
       if (pickedImage == null) {
         return;
       }
+
+      isUploadingPhoto = true;
+      _safeNotifyListeners();
 
       final originalBytes = await pickedImage.readAsBytes();
 
@@ -201,16 +203,11 @@ class AscentRegisterController extends ChangeNotifier {
       selectedPhotoPreviewBytes = compressedBytes;
       _uploadedPhoto = uploadedPhoto;
     } on ApiException catch (error) {
-      if (_disposed) {
-        return;
-      }
-
+      if (_disposed) return;
       photoErrorMessage = error.message;
-    } catch (_) {
-      if (_disposed) {
-        return;
-      }
-
+    } catch (error) {
+      if (_disposed) return;
+      debugPrint('[AscentRegisterController] Photo error: $error');
       photoErrorMessage = 'No s\'ha pogut preparar la foto';
     } finally {
       if (!_disposed) {
