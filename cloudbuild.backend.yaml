@@ -40,7 +40,7 @@ steps:
         APP_URL=APP_URL:latest,
         SENDGRID_API_KEY=SENDGRID_API_KEY:latest,
         CORS_DEV_ORIGINS=CORS_DEV_ORIGINS:latest,
-        GCS_BUCKET_NAME=GCS_BUCKET_NAME:latest,
+        GCS_BUCKET_NAME=GCS_BUCKET_NAME:latest'
 
 images:
   - 'europe-southwest1-docker.pkg.dev/$PROJECT_ID/cims/cims-backend:$COMMIT_SHA'
