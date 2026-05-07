@@ -73,8 +73,12 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
   }
 
   // Detecta si ha canviat el cim seleccionat o la llista de cims des de fora
-  // del widget. Quan canvia el seleccionat, centra la càmera. Quan la llista
-  // de cims passa de buida a amb dades, ajusta la vista perquè els cims quedin visibles.
+  // del widget. Quan canvia el seleccionat, centra la càmera sobre el cim.
+  // Quan canvia el conjunt de cims visibles (carrega inicial, cerca, o nous
+  // filtres aplicats), refà el fit perquè la càmera enfoqui la zona on són
+  // els cims actuals. La comparació per hash dels ids evita refer el fit
+  // quan només canvia un detall que no afecta el conjunt (per exemple, un
+  // estat personal d'un cim que repinta el marcador però no en mou cap).
   @override
   void didUpdateWidget(covariant PeaksGoogleMap oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -88,11 +92,18 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
       return;
     }
 
-    final previousVisibleCount =
-        oldWidget.peaks.where((peak) => peak.hasMapPosition).length;
-    final currentVisibleCount = _visiblePeaks.length;
+    final currentVisible = _visiblePeaks;
+    if (currentVisible.isEmpty) {
+      return;
+    }
 
-    if (previousVisibleCount == 0 && currentVisibleCount > 0) {
+    final previousVisibleIdsHash = Object.hashAll(
+      oldWidget.peaks.where((peak) => peak.hasMapPosition).map((peak) => peak.id),
+    );
+    final currentVisibleIdsHash =
+        Object.hashAll(currentVisible.map((peak) => peak.id));
+
+    if (previousVisibleIdsHash != currentVisibleIdsHash) {
       _fitVisiblePeaks();
     }
   }
