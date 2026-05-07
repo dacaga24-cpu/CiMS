@@ -6,15 +6,11 @@ function badRequest(message) {
   return error;
 }
 
-// Aquest controlador gestiona les peticions relacionades amb el catàleg de cims.
-// La seva funció és llegir els paràmetres de la petició, delegar la feina al servei
-// i enviar la resposta HTTP amb el codi i el format adequats.
+// Controlador del catàleg de cims.
 const PeakController = {
 
-  // Aquest mètode retorna una pàgina del catàleg de cims que compleixen
-  // els filtres rebuts. Els filtres i la paginació arriben per query string
-  // i tots són opcionals; sense paràmetres es retorna la primera pàgina
-  // del catàleg complet amb la mida per defecte definida al servei.
+  // Pàgina del catàleg amb filtres opcionals. Sense paràmetres retorna la
+  // primera pàgina amb la mida per defecte definida al servei.
   async list(req, res, next) {
     try {
       const { regionId, minAltitude, maxAltitude, search, page, pageSize } = req.query;
@@ -34,9 +30,7 @@ const PeakController = {
     }
   },
 
-  // Aquest mètode retorna tots els cims per al mapa, amb camps mínims i
-  // sense paginació. La justificació de quins camps i per què viu al servei
-  // i al model; aquí només es delega.
+  // Cims per al mapa: camps mínims i sense paginació (justificació al servei).
   async listForMap(req, res, next) {
     try {
       const { regionId, minAltitude, maxAltitude, search } = req.query;
@@ -54,8 +48,7 @@ const PeakController = {
     }
   },
 
-  // Aquest mètode retorna el detall d'un cim concret a partir del seu identificador.
-  // Comprova que l'identificador sigui un enter vàlid abans de consultar el servei.
+  // Detall d'un cim. Comprova que l'id sigui un enter positiu.
   async getById(req, res, next) {
     try {
       const id = Number(req.params.id);

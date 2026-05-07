@@ -1,14 +1,10 @@
 const pool = require('../config/db');
 
-// Aquest model centralitza l'accés a les dades dels cims.
-// La seva funció és recuperar cims, aplicar filtres del catàleg
-// i unir-los amb les comarques a les quals pertanyen.
+// Accés a dades dels cims: catàleg amb filtres i unió amb les comarques.
 
-// Construeix el fragment WHERE i els paràmetres associats per als filtres
-// del catàleg. S'extreu en una funció pròpia perquè els tres punts d'entrada
-// (llista paginada, vista de mapa, comptador) han d'aplicar exactament el
-// mateix conjunt de filtres i mantenir una única font de veritat evita
-// divergències quan se n'afegeixin de nous.
+// Construeix el WHERE i els paràmetres dels filtres del catàleg. S'extreu
+// per garantir que les tres consultes (paginada, mapa, comptador) apliquin
+// exactament el mateix conjunt de filtres.
 function buildPeakFilters({ regionId, minAltitude, maxAltitude, search } = {}) {
     const conditions = [];
     const params = [];
@@ -39,10 +35,8 @@ function buildPeakFilters({ regionId, minAltitude, maxAltitude, search } = {}) {
     return { join, where, params };
 }
 
-// Adjunta a una llista de cims les seves comarques associades en una sola
-// query agrupada per peak_id. Així s'evita el patró N+1 que faria una
-// consulta per cada cim. Si la llista d'entrada és buida, no es fa cap
-// query i es retorna directament.
+// Adjunta les comarques a una llista de cims amb una sola query agrupada
+// per peak_id, evitant el patró N+1.
 async function attachRegionsToPeaks(peaks) {
     if (peaks.length === 0) {
         return peaks;
@@ -77,15 +71,9 @@ async function attachRegionsToPeaks(peaks) {
 
 const PeakModel = {
 
-    // Aquest mètode retorna la llista paginada de cims que compleixen els
-    // filtres rebuts. La paginació és offset-based: limit defineix la mida
-    // de la pàgina i offset des de quin element començar. Tots els filtres
-    // són opcionals i es combinen amb AND.
-    //
-    // L'ordre per altitud descendent + nom ascendent és estable, condició
-    // imprescindible per a la paginació: sense un ORDER BY determinístic,
-    // dues pàgines consecutives podrien repetir o saltar-se cims si MySQL
-    // canvia l'ordre intern entre crides.
+    // Llista paginada de cims que compleixen els filtres. L'ordre per altitud
+    // descendent + nom ascendent és estable i imprescindible: sense ORDER BY
+    // determinístic, dues pàgines podrien repetir o saltar-se cims.
     async findAll({ regionId, minAltitude, maxAltitude, search, limit, offset } = {}) {
         const { join, where, params } = buildPeakFilters({
             regionId, minAltitude, maxAltitude, search,
@@ -99,18 +87,13 @@ const PeakModel = {
             ORDER BY p.altitude DESC, p.name ASC
         `;
 
-        // LIMIT i OFFSET s'interpolen directament a la cadena perquè
-        // pool.execute() (statements preparats) tracta aquestes clàusules
-        // com a strings i MySQL les rebutja; pool.query() les acceptaria
-        // però perdríem la resta de paràmetres preparats. Els valors es
-        // validen al servei (peakService.getPage) i, com a defensa local,
-        // aquí es comprova que siguin enters dins del rang esperat abans
-        // d'incloure'ls al SQL.
+        // LIMIT i OFFSET s'interpolen perquè pool.execute() (statements
+        // preparats) els tracta com a strings i MySQL els rebutja. Es
+        // valida explícitament Number.isInteger abans d'incloure'ls al
+        // SQL: defensa local contra qualsevol tipus inesperat.
         //
-        // Si el caller passa offset sense limit, l'OFFSET s'ignora perquè
-        // SQL standard requereix LIMIT per acceptar OFFSET. Aquesta restricció
-        // és intencionada: la paginació sempre ha de venir acompanyada de
-        // mida de pàgina, i així el comportament és predictible.
+        // Sense LIMIT no s'aplica OFFSET (SQL standard ho exigeix); això
+        // força la convenció que la paginació sempre porta mida de pàgina.
         if (Number.isInteger(limit) && limit > 0) {
             sql += ` LIMIT ${limit}`;
             if (offset !== undefined) {
@@ -127,14 +110,9 @@ const PeakModel = {
         return attachRegionsToPeaks(rows);
     },
 
-    // Compta el nombre total de cims que coincideixen amb els filtres.
-    // S'utilitza des del servei per omplir el camp totalItems de la resposta
-    // paginada perquè el frontend pugui calcular quantes pàgines hi ha
-    // disponibles i mostrar el comptador "X cims trobats" als filtres.
-    //
-    // S'usa SELECT COUNT(DISTINCT p.id) perquè el JOIN amb peak_regions pot
-    // duplicar files quan un cim pertany a més d'una comarca i això inflaria
-    // el comptador respecte als resultats reals que retorna findAll.
+    // Compta cims que coincideixen amb els filtres per omplir totalItems
+    // de la resposta paginada. COUNT(DISTINCT p.id) perquè el JOIN amb
+    // peak_regions duplica files quan un cim té diverses comarques.
     async count({ regionId, minAltitude, maxAltitude, search } = {}) {
         const { join, where, params } = buildPeakFilters({
             regionId, minAltitude, maxAltitude, search,
@@ -151,12 +129,9 @@ const PeakModel = {
         return Number(rows[0].total);
     },
 
-    // Retorna tots els cims que coincideixen amb els filtres amb només els
-    // camps mínims que necessita el mapa (id, nom, coordenades i altitud).
-    // S'evita exposar regions i description perquè el mapa no els pinta i
-    // el seu volum faria inflar la resposta innecessàriament. Aquest
-    // endpoint no té límit de resultats: és la vista que ha de mostrar
-    // sempre el conjunt complet de cims que casen amb els filtres.
+    // Cims per a la vista de mapa amb només els camps mínims (id, nom,
+    // coordenades, altitud). Sense límit perquè el mapa ha de mostrar el
+    // conjunt complet que casi amb els filtres.
     async findAllForMap({ regionId, minAltitude, maxAltitude, search } = {}) {
         const { join, where, params } = buildPeakFilters({
             regionId, minAltitude, maxAltitude, search,
@@ -174,10 +149,8 @@ const PeakModel = {
         return rows;
     },
 
-    // Aquest mètode busca un cim pel seu identificador i hi afegeix la
-    // llista de comarques a les quals pertany. Retorna les comarques en
-    // una única resposta perquè el consumidor (vista de detall) tingui
-    // tota la informació sense haver de fer una segona crida.
+    // Cim per id amb les seves comarques. Les comarques en una segona query
+    // (no JOIN a la principal) per no duplicar files quan un cim té diverses.
     async findById(id) {
         const sqlPeak = `
         SELECT id, name, altitude, latitude, longitude, description
@@ -193,10 +166,6 @@ const PeakModel = {
             return null;
         }
 
-        // Les comarques es consulten en una segona query separada per no
-        // duplicar files quan un cim pertany a més d'una comarca: si es fes
-        // amb un JOIN a la consulta principal, MySQL retornaria una fila per
-        // cada parella (cim, comarca) i caldria desduplicar a codi.
         const sqlRegions = `
         SELECT r.id, r.name
         FROM regions r

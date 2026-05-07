@@ -1,16 +1,13 @@
 const pool = require('../config/db');
 
-// Aquest model agrupa les consultes agregades específiques per a la pantalla
-// d'estadístiques. Es manté separat dels models de domini (peakStatus, ascent)
-// perquè aquí hi viuen JOINs i agregacions que no tenen lloc en cap d'aquells
-// recursos individuals i que servirien només a aquesta vista.
+// Consultes agregades específiques de la pantalla d'estadístiques. Es manté
+// separat dels models de domini perquè aquí viuen JOINs i agregacions que
+// només serveixen aquesta vista.
 const StatsModel = {
 
-  // Retorna l'altitud màxima entre els cims que l'usuari ha marcat com a
-  // assolits. Es resol amb una sola query agregada per evitar carregar la
-  // taula sencera de peaks al servidor d'aplicació. Si l'usuari encara no
-  // ha completat cap cim, retorna null perquè el servei pugui distingir
-  // aquest cas i no enviar un zero ambigu al client.
+  // Altitud màxima entre els cims que l'usuari té com a assolits. Retorna
+  // null si encara no n'ha completat cap (el servei distingeix aquest cas
+  // d'un zero ambigu).
   async getHighestCompletedAltitude(userId) {
     const sql = `
       SELECT MAX(p.altitude) AS highest_altitude
@@ -24,11 +21,8 @@ const StatsModel = {
     return value === null ? null : Number(value);
   },
 
-  // Retorna la suma d'altitud acumulada per totes les ascensions de l'usuari.
-  // Cada ascensió compta de manera independent, de manera que pujar tres
-  // vegades al mateix cim suma tres vegades la seva altitud. Aquesta lectura
-  // reflecteix l'esforç físic acumulat, que és el que fa servir la pantalla
-  // d'estadístiques per indicar "metres totals escalats".
+  // Suma d'altitud acumulada per totes les ascensions. Cada ascensió compta
+  // per separat (pujar tres vegades el mateix cim suma tres vegades).
   async getTotalAltitudeMeters(userId) {
     const sql = `
       SELECT COALESCE(SUM(p.altitude), 0) AS total_altitude
@@ -41,10 +35,8 @@ const StatsModel = {
     return rows[0] ? Number(rows[0].total_altitude) : 0;
   },
 
-  // Retorna el cim que l'usuari ha pujat més vegades. En cas d'empat al
-  // nombre d'ascensions, prioritza el de més altitud per oferir un resultat
-  // determinístic i alhora informativament més significatiu. Retorna null
-  // si l'usuari encara no ha registrat cap ascensió.
+  // Cim que l'usuari ha pujat més vegades. Empats per nombre d'ascensions
+  // es desempaten per altitud descendent (resultat determinístic).
   async getMostAscendedPeak(userId) {
     const sql = `
       SELECT a.peak_id, p.name AS peak_name, p.altitude AS peak_altitude, COUNT(*) AS ascent_count
@@ -68,10 +60,8 @@ const StatsModel = {
     };
   },
 
-  // Retorna el nombre d'ascensions agrupades per any i mes. La query només
-  // inclou els mesos amb activitat real; correspon al servei completar els
-  // mesos sense ascensions amb count zero per garantir un array de mida fixa
-  // al client (i així poder dibuixar el gràfic sense forats lògics).
+  // Ascensions agrupades per any+mes. Només mesos amb activitat real; el
+  // servei completa amb count zero perquè l'array tingui mida fixa al client.
   async getMonthlyAscentsRaw(userId, monthsBack) {
     const sql = `
       SELECT
@@ -96,15 +86,10 @@ const StatsModel = {
     }));
   },
 
-  // Calcula el progrés del repte rolling de 100 cims únics. La finestra
-  // sempre acaba a la data de l'última ascensió de l'usuari i s'estén un any
-  // cap enrere des d'aquell punt. Aquest disseny garanteix que cada nova
-  // ascensió desplaça la finestra cap endavant, de manera que l'usuari sempre
-  // pot completar el repte si segueix pujant cims diferents.
-  //
-  // El comptador són cims únics (un cim pujat diverses vegades dins la
-  // finestra es compta una sola vegada) perquè l'enunciat del repte és
-  // explícitament "100 cims diferents", no "100 ascensions".
+  // Progrés del repte rolling de 100 cims únics. La finestra acaba a la
+  // data de l'última ascensió i s'estén un any cap enrere; cada nova
+  // ascensió desplaça la finestra. Es compten cims únics (l'enunciat és
+  // "100 cims diferents", no "100 ascensions").
   async getChallengeProgress(userId) {
     const sql = `
       SELECT
@@ -140,14 +125,11 @@ const StatsModel = {
     };
   },
 
-  // Retorna les últimes ascensions de l'usuari amb informació enriquida del
-  // cim associat (nom i altitud). Les comarques no s'inclouen aquí perquè es
-  // resolen en una segona query batch al servei per evitar files duplicades
-  // quan un cim té diverses comarques associades.
+  // Últimes ascensions amb info enriquida del cim. Les comarques es resolen
+  // en una segona query batch al servei per evitar duplicació de files.
   async getRecentAscentsRaw(userId, limit) {
-    // El límit s'interpola directament perquè mysql2 no suporta paràmetres
-    // preparats per a LIMIT en totes les versions, però el valor sempre és
-    // un enter validat al servei i mai prové de l'usuari.
+    // El límit s'interpola perquè mysql2 no suporta LIMIT parametritzat en
+    // totes les versions. El valor sempre és un enter validat al servei.
     const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : 5;
     const sql = `
       SELECT
@@ -171,16 +153,12 @@ const StatsModel = {
     }));
   },
 
-  // Retorna els cims que tenen un flag concret actiu al peak_status d'un
-  // usuari, ordenats per la modificació més recent i limitats al sostre
-  // sol·licitat. S'utilitza des del dashboard per llistar els objectius
-  // pendents (is_target = 1) i els preferits (is_favorite = 1) sense haver
-  // de duplicar la query a múltiples mètodes específics.
+  // Cims amb un flag concret actiu al peak_status d'un usuari. S'usa des
+  // del dashboard per pendents (is_target) i preferits (is_favorite).
   //
-  // El nom de la columna del flag s'interpola directament al SQL perquè
-  // mysql2 no permet parametritzar identificadors. La whitelist garanteix
-  // que el valor només pot ser un dels valors permesos i, per tant, no és
-  // un vector d'injecció. Mai s'ha de passar input d'usuari a aquest paràmetre.
+  // El nom de columna del flag s'interpola perquè mysql2 no parametritza
+  // identificadors. La whitelist garanteix que mai sigui input d'usuari
+  // i, per tant, no és un vector d'injecció.
   async findFlaggedPeaks(userId, flagColumn, limit) {
     const allowedFlags = ['is_target', 'is_favorite', 'is_completed'];
     if (!allowedFlags.includes(flagColumn)) {
@@ -205,13 +183,8 @@ const StatsModel = {
     }));
   },
 
-  // Retorna les comarques associades a un conjunt de cims en una sola query.
-  // L'ús habitual és cridar-lo amb els peakIds que el servei ja sap que
-  // necessita (els del cim més pujat i els de les ascensions recents) per
-  // evitar problemes de N+1.
-  //
-  // Retorna un Map<peakId, string[]> perquè els consumidors puguin assignar
-  // les comarques a cada cim sense buscar manualment dins una llista plana.
+  // Comarques associades a un conjunt de cims en una sola query (evita N+1).
+  // Retorna Map<peakId, string[]> per assignació directa al consumidor.
   async getRegionsForPeaks(peakIds) {
     const result = new Map();
     if (!Array.isArray(peakIds) || peakIds.length === 0) {

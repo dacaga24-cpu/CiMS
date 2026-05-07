@@ -1,15 +1,12 @@
 const AscentService = require('../services/ascentService');
 
-// Aquest controlador gestiona les peticions HTTP relacionades amb les
-// ascensions registrades pels usuaris. La seva funció és llegir els
-// paràmetres de la petició, delegar la lògica al servei i enviar la resposta
-// amb el codi HTTP adequat. L'identificador de l'usuari s'obté sempre de
-// req.userId (poblat pel authMiddleware a partir del JWT) i mai del cos o
-// la URL, per evitar que un client pugui actuar en nom d'un altre.
+// Controlador d'ascensions. L'identificador d'usuari surt sempre de
+// req.userId (del JWT), mai del cos o la URL, per evitar que un client pugui
+// actuar en nom d'un altre.
 const AscentController = {
 
-  // Retorna totes les ascensions de l'usuari autenticat.
-  // Sempre 200, amb llista buida si l'usuari encara no n'ha registrat cap.
+  // Totes les ascensions de l'usuari. Llista buida amb 200 si encara no n'ha
+  // registrat cap.
   async getByUser(req, res, next) {
     try {
       const ascents = await AscentService.getByUser(req.userId);
@@ -19,8 +16,8 @@ const AscentController = {
     }
   },
 
-  // Retorna les ascensions de l'usuari autenticat sobre un cim concret.
-  // El peakId arriba per la URL i es valida al servei.
+  // Ascensions de l'usuari sobre un cim concret. peakId arriba per la URL
+  // i es valida al servei.
   async getByUserAndPeak(req, res, next) {
     try {
       const ascents = await AscentService.getByUserAndPeak(
@@ -33,9 +30,7 @@ const AscentController = {
     }
   },
 
-  // Retorna totes les fotos d'un ascens concret amb signed download URLs.
-  // El servei ja valida ownership i respon 404 si l'ascens no és de
-  // l'usuari autenticat.
+  // Fotos d'un ascens amb signed download URLs. El servei valida ownership.
   async getPhotosForAscent(req, res, next) {
     try {
       const photos = await AscentService.getPhotosForAscent(
@@ -48,9 +43,8 @@ const AscentController = {
     }
   },
 
-  // Crea una nova ascensió. Respon 201 amb el registre creat o un 4xx si la
-  // validació falla. Els errors de FK (peak inexistent) també es propaguen
-  // com a 404 des del model.
+  // Crea una ascensió. 201 amb el registre o 4xx si valida malament. Errors
+  // de FK (peak inexistent) es propaguen com a 404 des del model.
   async create(req, res, next) {
     try {
       const { peakId, ascentDate, notes, photos } = req.body || {};
@@ -68,8 +62,8 @@ const AscentController = {
     }
   },
 
-  // Actualitza una ascensió existent. Respon 200 amb el registre resultant.
-  // Si l'ascensió no existeix o no pertany a l'usuari autenticat, respon 404.
+  // Actualitza una ascensió. 200 amb el resultat; 404 si no existeix o és
+  // d'un altre usuari.
   async update(req, res, next) {
     try {
       const { peakId, ascentDate, notes } = req.body || {};
@@ -86,8 +80,7 @@ const AscentController = {
     }
   },
 
-  // Elimina una ascensió. Respon 204 sense cos si tot va bé,
-  // o 404 si l'ascensió no existeix o és d'un altre usuari.
+  // Elimina una ascensió. 204 sense cos; 404 si no existeix o és d'un altre.
   async remove(req, res, next) {
     try {
       await AscentService.remove(req.userId, req.params.ascentId);

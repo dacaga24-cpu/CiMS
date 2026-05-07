@@ -1,21 +1,15 @@
 const express = require('express');
 const router = express.Router();
 
-// Aquesta expressió valida el format del token de recuperació.
-// El token es genera amb crypto.randomBytes(32).toString('hex'),
-// de manera que sempre ha de ser una cadena de 64 caràcters hexadecimals.
-// Comprovar-ho abans d'incrustar-lo a l'HTML és una defensa en profunditat
-// contra possibles atacs XSS si mai canviés la generació del token o si
-// algú intentés manipular el valor per query string.
+// Format del token: 64 caràcters hex (crypto.randomBytes(32).toString('hex')).
+// Validar-ho abans d'incrustar-lo a l'HTML és defensa en profunditat contra XSS.
 const TOKEN_FORMAT_REGEX = /^[a-f0-9]{64}$/;
 
-// Aquest middleware ajusta la Content-Security-Policy només per a aquesta ruta.
-// La CSP que aplica Helmet per defecte bloqueja els scripts i els gestors
-// d'esdeveniments inline, i aquest formulari els necessita perquè tot l'HTML
-// es serveix en una sola resposta sense fitxers externs. Com que la pàgina
-// només fa una crida al mateix origen i no carrega recursos de tercers,
-// permetre inline aquí és un compromís raonable i manté la CSP estricta
-// per a la resta d'endpoints de l'API.
+// Ajusta la CSP només per a aquesta ruta: el formulari necessita scripts i
+// estils inline perquè tot l'HTML es serveix en una sola resposta sense
+// fitxers externs. La pàgina només crida al mateix origen i no carrega
+// recursos de tercers, així que inline és acceptable aquí mantenint la CSP
+// estricta a la resta de l'API.
 function allowInlineScriptsForResetPage(req, res, next) {
   res.setHeader(
     'Content-Security-Policy',
@@ -24,15 +18,13 @@ function allowInlineScriptsForResetPage(req, res, next) {
   next();
 }
 
-// Aquesta ruta serveix la pàgina HTML de restabliment de contrasenya.
-// Rep el token per query string i el passa al formulari perquè l'usuari
-// pugui introduir la nova contrasenya.
+// Pàgina HTML de restabliment de contrasenya. Rep el token per query string
+// i el passa al formulari.
 router.get('/', allowInlineScriptsForResetPage, (req, res) => {
   const { token } = req.query;
 
-  // Es rebutja qualsevol petició sense token o amb un format que no coincideixi
-  // amb el patró esperat. Si el token arriba amb caràcters inesperats, es
-  // tracta com un enllaç no vàlid i ni tan sols s'interpola a la resposta.
+  // Es rebutja qualsevol token mal format sense ni tan sols interpolar-lo
+  // a la resposta.
   if (!token || typeof token !== 'string' || !TOKEN_FORMAT_REGEX.test(token)) {
     return res.status(400).send(`
       <!DOCTYPE html>
@@ -58,7 +50,7 @@ router.get('/', allowInlineScriptsForResetPage, (req, res) => {
     `);
   }
 
-  // Si el token existeix, es serveix el formulari per introduir la nova contrasenya.
+  // Token vàlid: es serveix el formulari per introduir la nova contrasenya.
   res.send(`
     <!DOCTYPE html>
     <html lang="ca">
@@ -104,10 +96,8 @@ router.get('/', allowInlineScriptsForResetPage, (req, res) => {
       <script>
         const TOKEN = '${token}';
 
-        // Aquest formulari el serveix el mateix backend, per això la crida
-        // al endpoint de restabliment es fa amb una ruta relativa.
-        // Així s'evita dependre d'una URL fixa i el formulari funciona
-        // en qualsevol entorn on s'hagi desplegat l'aplicació.
+        // Ruta relativa: el formulari el serveix el mateix backend, així
+        // funciona a qualsevol entorn sense dependre d'URLs fixes.
         const API_URL = '/api/auth/reset-password';
 
         async function handleSubmit() {

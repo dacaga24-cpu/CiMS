@@ -1,0 +1,21 @@
+# Generated code do not commit.
+file(TO_CMAKE_PATH "/home/vant/_develop/flutter" FLUTTER_ROOT)
+file(TO_CMAKE_PATH "/home/vant/_Projects/CiMS/frontend" PROJECT_DIR)
+
+set(FLUTTER_VERSION "0.1.0+1" PARENT_SCOPE)
+set(FLUTTER_VERSION_MAJOR 0 PARENT_SCOPE)
+set(FLUTTER_VERSION_MINOR 1 PARENT_SCOPE)
+set(FLUTTER_VERSION_PATCH 0 PARENT_SCOPE)
+set(FLUTTER_VERSION_BUILD 1 PARENT_SCOPE)
+
+# Environment variables to pass to tool_backend.sh
+list(APPEND FLUTTER_TOOL_ENVIRONMENT
+  "FLUTTER_ROOT=/home/vant/_develop/flutter"
+  "PROJECT_DIR=/home/vant/_Projects/CiMS/frontend"
+  "DART_DEFINES=QVBJX0JBU0VfVVJMPWh0dHBzOi8vY2ltcy1iYWNrZW5kLTYzOTgyMjI1OTI4OS5ldXJvcGUtc291dGh3ZXN0MS5ydW4uYXBw,RkxVVFRFUl9WRVJTSU9OPTMuMzguMw==,RkxVVFRFUl9DSEFOTkVMPXN0YWJsZQ==,RkxVVFRFUl9HSVRfVVJMPWh0dHBzOi8vZ2l0aHViLmNvbS9mbHV0dGVyL2ZsdXR0ZXIuZ2l0,RkxVVFRFUl9GUkFNRVdPUktfUkVWSVNJT049MTkwNzRkMTJmNw==,RkxVVFRFUl9FTkdJTkVfUkVWSVNJT049MTNlNjU4NzI1ZA==,RkxVVFRFUl9EQVJUX1ZFUlNJT049My4xMC4x"
+  "DART_OBFUSCATION=false"
+  "TRACK_WIDGET_CREATION=true"
+  "TREE_SHAKE_ICONS=false"
+  "PACKAGE_CONFIG=/home/vant/_Projects/CiMS/frontend/.dart_tool/package_config.json"
+  "FLUTTER_TARGET=/home/vant/_Projects/CiMS/frontend/lib/main.dart"
+)

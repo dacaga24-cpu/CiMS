@@ -1,20 +1,12 @@
 const pool = require('../config/db');
 
-// Aquest model centralitza l'accés a les dades de la taula ascent_photos.
-// Manté la mateixa convenció que la resta de models: SELECTs explícits per
-// fixar el format de resposta i mètodes parametritzats per evitar SQLi.
-//
-// La majoria de mètodes accepten una `connection` opcional perquè els
-// serveis puguin executar-los dins d'una transacció iniciada amb
-// pool.getConnection(). Quan no es passa, es fa servir el pool directament.
+// Accés a la taula ascent_photos. Mètodes parametritzats per evitar SQLi.
+// La majoria accepten una `connection` opcional perquè els serveis puguin
+// executar-los dins d'una transacció iniciada amb pool.getConnection().
 const AscentPhotoModel = {
 
-  // Insereix múltiples fotos associades al mateix ascens en una sola query.
-  // S'usa des de la creació d'ascens, on el conjunt complet de fotos és
-  // conegut a priori i interessa que totes s'insereixin atòmicament dins
-  // de la mateixa transacció que crea l'ascens. Si el caller no passa una
-  // connection, es fa servir el pool, però llavors no hi ha garantia
-  // d'atomicitat amb la inserció de l'ascens.
+  // Insereix múltiples fotos del mateix ascens en una sola query, dins de
+  // la transacció que crea l'ascens si el caller hi passa connection.
   async createMany(ascentId, photos, connection) {
     if (!Array.isArray(photos) || photos.length === 0) {
       return [];
@@ -34,10 +26,9 @@ const AscentPhotoModel = {
 
     const [insertResult] = await executor.execute(sql, params);
 
-    // El SELECT es restringeix als ids generats per aquesta inserció (un
-    // INSERT múltiple a InnoDB assigna ids consecutius començant per
-    // insertId). Així el resultat només conté les files acabades d'inserir,
-    // mai files pre-existents per a aquest mateix ascens.
+    // Restringim al rang d'ids generat per aquesta inserció (InnoDB els
+    // assigna consecutius des d'insertId), així no llegim files antigues
+    // del mateix ascens.
     const firstId = insertResult.insertId;
     const lastId = firstId + photos.length - 1;
     const [rows] = await executor.execute(
@@ -50,11 +41,9 @@ const AscentPhotoModel = {
     return rows;
   },
 
-  // Retorna totes les fotos d'un ascens concret, però només si l'ascens
-  // pertany a l'usuari indicat. El JOIN amb ascents fa la comprovació
-  // d'ownership a nivell de query, evitant que un reorden futur del flux
-  // que cridi aquest mètode obri una via d'IDOR. Si l'ascens no existeix
-  // o és d'un altre usuari, retorna una llista buida.
+  // Totes les fotos d'un ascens, només si pertany a l'usuari indicat. El
+  // JOIN amb ascents fa la comprovació d'ownership a nivell de query, així
+  // un reorden futur del flux no obre una via d'IDOR.
   async findAllByAscentIdAndUserId(ascentId, userId) {
     const sql = `
       SELECT ap.id, ap.ascent_id, ap.storage_path, ap.is_primary, ap.created_at
@@ -67,18 +56,9 @@ const AscentPhotoModel = {
     return rows;
   },
 
-  // Retorna les fotos principals d'un conjunt d'ascens en una sola query.
-  // S'utilitza des de l'enriquiment del llistat d'ascens per evitar el
-  // patró N+1 que faria una consulta per cada ascens. La filtració per
-  // is_primary = 1 garanteix com a màxim una fila per ascens; en cas
-  // d'una incoherència històrica amb múltiples principals (que el servei
-  // ja no permet però podria existir a dades antigues), el bucle de
-  // construcció del Map manté només la primera fila trobada i descarta
-  // la resta sense que la consulta hagi de fer DISTINCT.
-  //
-  // No filtra per user_id perquè el caller ja ha consultat els ascens
-  // amb la seva pròpia query d'ownership; els ascentIds passats aquí ja
-  // són de l'usuari autenticat i fer un nou JOIN seria redundant.
+  // Fotos principals d'un conjunt d'ascens en una sola query (evita N+1).
+  // No filtra per user_id perquè el caller ja ha consultat els ascens amb
+  // ownership; els ascentIds passats aquí ja són de l'usuari autenticat.
   async findPrimaryByAscentIds(ascentIds) {
     if (!Array.isArray(ascentIds) || ascentIds.length === 0) {
       return new Map();
@@ -92,9 +72,10 @@ const AscentPhotoModel = {
     `;
     const [rows] = await pool.execute(sql, ascentIds);
 
-    // El resultat es retorna com a Map<ascentId, photo> perquè el caller
-    // pugui assignar la principal a cada ascens en una sola passada sense
-    // fer recerca lineal dins una llista plana.
+    // Map<ascentId, photo> perquè el caller assigni la principal a cada
+    // ascens en una sola passada. Si hi ha incoherències antigues amb
+    // múltiples principals (que el servei ja no permet), es queda la
+    // primera fila i descarta la resta.
     const byAscentId = new Map();
     for (const row of rows) {
       if (!byAscentId.has(row.ascent_id)) {

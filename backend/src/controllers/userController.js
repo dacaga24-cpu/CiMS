@@ -1,23 +1,17 @@
 const UserService = require('../services/userService');
 const Validation = require('../utils/validation');
 
-// Aquestes constants defineixen els límits de longitud acceptats als camps editables
-// del perfil. Coincideixen amb els tipus definits a la base de dades i amb els
-// mateixos valors que s'utilitzen durant el registre per mantenir coherència.
+// Mateixos límits que al registre (alineats amb la BD).
 const MAX_FIRST_NAME_LENGTH = 100;
 const MAX_LAST_NAME_LENGTH = 150;
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 128;
 
 
-// Aquest controlador gestiona les peticions relacionades amb el perfil de l'usuari.
-// La seva funció és rebre les dades de la petició, validar les més bàsiques,
-// delegar la feina al servei corresponent i enviar la resposta HTTP.
+// Controlador del perfil d'usuari.
 const UserController = {
 
-  // Aquest mètode retorna el perfil de l'usuari autenticat.
-  // L'identificador arriba preparat pel middleware d'autenticació
-  // i es trasllada directament al servei sense cap manipulació addicional.
+  // Perfil de l'usuari autenticat (req.userId del middleware).
   async getProfile(req, res, next) {
     try {
       const userId = req.userId;
@@ -28,9 +22,7 @@ const UserController = {
     }
   },
 
-  // Aquest mètode actualitza el nom i el cognom de l'usuari autenticat.
-  // Comprova que els camps obligatoris arribin i que la seva longitud
-  // no superi els límits definits per la base de dades.
+  // Actualitza nom i cognom. Valida obligatorietat i longitud màxima.
   async updateProfile(req, res, next) {
     try {
       const userId = req.userId;
@@ -91,8 +83,7 @@ const UserController = {
     }
   },
 
-  // Genera una signed URL perquè el frontend pugui pujar la foto de perfil
-  // directament al bucket de GCS sense passar pel backend.
+  // Signed URL perquè el client pugi la foto de perfil directament a GCS.
   async createProfilePhotoUploadUrl(req, res, next) {
     try {
       const { mimeType } = req.body || {};
@@ -103,9 +94,8 @@ const UserController = {
     }
   },
 
-  // Confirma una pujada de foto de perfil un cop el client l'ha completada
-  // contra GCS. Retorna el perfil actualitzat amb la signed URL ja
-  // disponible per visualitzar.
+  // Confirma una pujada un cop completada contra GCS. Retorna el perfil
+  // actualitzat amb la signed URL llesta per visualitzar.
   async setProfilePhoto(req, res, next) {
     try {
       const { storagePath } = req.body || {};
@@ -116,8 +106,8 @@ const UserController = {
     }
   },
 
-  // Esborra la foto de perfil. Idempotent: respon 200 amb el perfil tal
-  // com queda fins i tot si l'usuari no en tenia cap.
+  // Esborra la foto de perfil. Idempotent: 200 amb el perfil tal qual fins
+  // i tot si l'usuari no en tenia.
   async deleteProfilePhoto(req, res, next) {
     try {
       const updated = await UserService.removeProfilePhoto(req.userId);
