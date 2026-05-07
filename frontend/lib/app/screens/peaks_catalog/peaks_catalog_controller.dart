@@ -8,10 +8,14 @@ import 'package:cims/core/entity/peak_status.dart';
 import 'package:cims/core/entity/region.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:cims/core/store/peak_status_store.dart';
-import 'package:cims/core/usecase/peaks/get_peaks_usecase.dart';
 import 'package:cims/core/usecase/get_regions_usecase.dart';
 import 'package:cims/core/usecase/peak_status/get_user_peak_statuses_usecase.dart';
+import 'package:cims/core/usecase/peaks/get_peaks_page_usecase.dart';
 import 'package:flutter/material.dart';
+
+// Aquest valor defineix quants cims es demanen per cada pàgina del catàleg.
+// Coincideix amb la mida prevista pel backend i permet carregar el llistat progressivament.
+const int _catalogPageSize = 50;
 
 // Aquest enum defineix les possibles navegacions de la pantalla del catàleg.
 // La vista les consumeix i decideix com resoldre la navegació real.
@@ -32,15 +36,15 @@ class PeaksCatalogController extends ChangeNotifier {
   // Aquest constructor prepara els casos d’ús necessaris per carregar
   // el catàleg, les comarques i els estats personals de l’usuari.
   PeaksCatalogController({
-    GetPeaksUseCase? getPeaksUseCase,
+    GetPeaksPageUseCase? getPeaksPageUseCase,
     GetRegionsUseCase? getRegionsUseCase,
     GetUserPeakStatusesUseCase? getUserPeakStatusesUseCase,
     PeakStatusStore? peakStatusStore,
   }) : _peakStatusStore = peakStatusStore ?? AppSession.peakStatusStore {
     final apiClient = ApiClientImpl();
 
-    _getPeaksUseCase = getPeaksUseCase ??
-        GetPeaksUseCase(
+    _getPeaksPageUseCase = getPeaksPageUseCase ??
+        GetPeaksPageUseCase(
           apiClient: apiClient,
         );
     _getRegionsUseCase = getRegionsUseCase ??
@@ -63,7 +67,7 @@ class PeaksCatalogController extends ChangeNotifier {
 
   // Aquest bloc guarda els casos d’ús que el controller necessita
   // per obtenir dades del backend sense fer peticions directes des de la pantalla.
-  late final GetPeaksUseCase _getPeaksUseCase;
+  late final GetPeaksPageUseCase _getPeaksPageUseCase;
   late final GetRegionsUseCase _getRegionsUseCase;
   late final GetUserPeakStatusesUseCase _getUserPeakStatusesUseCase;
   final PeakStatusStore _peakStatusStore;
@@ -73,7 +77,12 @@ class PeaksCatalogController extends ChangeNotifier {
   // Aquest bloc representa l’estat visible del catàleg.
   // La pantalla l’utilitza per mostrar càrrega, errors, cims i comarques.
   bool isLoading = false;
+  bool isLoadingMore = false;
+  bool hasMore = true;
+  int currentPage = 0;
   String? errorMessage;
+  String? loadMoreErrorMessage;
+
   // peaks conté la llista final que veu l’usuari.
   // _loadedPeaks conserva els cims retornats pel backend abans d’aplicar el filtre d’estat local.
   List<Peak> peaks = const [];
@@ -139,7 +148,7 @@ class PeaksCatalogController extends ChangeNotifier {
 
   // Aquest mètode carrega les dades inicials del catàleg.
   // Primer recupera les comarques i els estats personals, i després
-  // carrega els cims que es mostraran a la pantalla.
+  // carrega la primera pàgina de cims que es mostrarà a la pantalla.
   Future<void> initialize() async {
     await _loadRegions();
     await _loadUserPeakStatuses();
@@ -193,6 +202,7 @@ class PeaksCatalogController extends ChangeNotifier {
   // Utilitza un debounce compartit per evitar una petició al backend a cada tecla.
   void onSearchChanged(String value) {
     errorMessage = null;
+    loadMoreErrorMessage = null;
 
     if (!_disposed) {
       notifyListeners();
@@ -223,7 +233,7 @@ class PeaksCatalogController extends ChangeNotifier {
   }
 
   // Aquest mètode elimina els filtres actius i torna a carregar el catàleg.
-  // La crida a clear() notifica els listeners (si hi havia filtres actius),
+  // La crida a clear() notifica els listeners si hi havia filtres actius,
   // i la recàrrega es resol per la mateixa via que applyFilters.
   Future<void> clearFilters() async {
     _filtersState.clear();
@@ -235,6 +245,69 @@ class PeaksCatalogController extends ChangeNotifier {
     return _loadPeaks(
       search: currentSearch.isEmpty ? null : currentSearch,
     );
+  }
+
+  // Aquest mètode carrega la pàgina següent del catàleg.
+  // La pantalla el cridarà quan l’usuari arribi al final del llistat.
+  Future<void> loadMorePeaks() async {
+    if (isLoading || isLoadingMore || !hasMore) {
+      return;
+    }
+
+    final requestId = _loadRequestId;
+    final nextPage = currentPage + 1;
+
+    isLoadingMore = true;
+    loadMoreErrorMessage = null;
+
+    if (!_disposed) {
+      notifyListeners();
+    }
+
+    try {
+      final loadedPage = await _getPeaksPageUseCase.execute(
+        search: currentSearch.isEmpty ? null : currentSearch,
+        regionId: selectedRegionId,
+        minAltitude: minAltitude,
+        maxAltitude: maxAltitude,
+        page: nextPage,
+        pageSize: _catalogPageSize,
+      );
+
+      if (_disposed || requestId != _loadRequestId) {
+        return;
+      }
+
+      final existingIds = _loadedPeaks.map((peak) => peak.id).toSet();
+      final newItems =
+          loadedPage.items.where((peak) => existingIds.add(peak.id)).toList();
+
+      _loadedPeaks = [
+        ..._loadedPeaks,
+        ...newItems,
+      ];
+      currentPage = loadedPage.page;
+      hasMore = loadedPage.hasMore;
+
+      _applyStatusFilter();
+    } on ApiException catch (error) {
+      if (_disposed || requestId != _loadRequestId) {
+        return;
+      }
+
+      loadMoreErrorMessage = error.message;
+    } catch (_) {
+      if (_disposed || requestId != _loadRequestId) {
+        return;
+      }
+
+      loadMoreErrorMessage = 'No s\'han pogut carregar més cims';
+    } finally {
+      if (!_disposed && requestId == _loadRequestId) {
+        isLoadingMore = false;
+        notifyListeners();
+      }
+    }
   }
 
   // Aquest mètode prepara la navegació cap al detall del cim seleccionat.
@@ -251,32 +324,42 @@ class PeaksCatalogController extends ChangeNotifier {
     _selectedPeakId = null;
   }
 
-  // Aquest mètode centralitza la càrrega real del catàleg.
-  // També evita que una resposta antiga sobreescrigui una cerca més recent.
+  // Aquest mètode centralitza la càrrega de la primera pàgina del catàleg.
+  // També reinicia la paginació quan canvien la cerca o els filtres.
   Future<void> _loadPeaks({
     String? search,
   }) async {
     final requestId = ++_loadRequestId;
 
     isLoading = true;
+    isLoadingMore = false;
+    hasMore = true;
+    currentPage = 0;
     errorMessage = null;
+    loadMoreErrorMessage = null;
+
     if (!_disposed) {
       notifyListeners();
     }
 
     try {
-      final loadedPeaks = await _getPeaksUseCase.execute(
+      final loadedPage = await _getPeaksPageUseCase.execute(
         search: search,
         regionId: selectedRegionId,
         minAltitude: minAltitude,
         maxAltitude: maxAltitude,
+        page: 1,
+        pageSize: _catalogPageSize,
       );
 
       if (_disposed || requestId != _loadRequestId) {
         return;
       }
 
-      _loadedPeaks = loadedPeaks;
+      _loadedPeaks = loadedPage.items;
+      currentPage = loadedPage.page;
+      hasMore = loadedPage.hasMore;
+
       _applyStatusFilter();
     } on ApiException catch (error) {
       if (_disposed || requestId != _loadRequestId) {
@@ -285,6 +368,7 @@ class PeaksCatalogController extends ChangeNotifier {
 
       _loadedPeaks = const [];
       peaks = const [];
+      hasMore = false;
       errorMessage = error.message;
     } catch (_) {
       if (_disposed || requestId != _loadRequestId) {
@@ -293,6 +377,7 @@ class PeaksCatalogController extends ChangeNotifier {
 
       _loadedPeaks = const [];
       peaks = const [];
+      hasMore = false;
       errorMessage = 'No s\'ha pogut carregar el catàleg de cims';
     } finally {
       if (!_disposed && requestId == _loadRequestId) {
@@ -319,10 +404,8 @@ class PeaksCatalogController extends ChangeNotifier {
     return selectedStatusFilter.matches(status);
   }
 
-  // Quan el store notifica un canvi (per exemple, perquè el detall ha
-  // actualitzat l'estat d'un cim), s'ha de tornar a aplicar el filtre d'estat
-  // perquè la llista visible reflecteixi la nova realitat sense recarregar
-  // res del backend.
+  // Quan el store notifica un canvi, s'ha de tornar a aplicar el filtre d'estat
+  // perquè la llista visible reflecteixi la nova realitat sense recarregar dades del backend.
   void _onStoreChanged() {
     if (_disposed) {
       return;
@@ -332,21 +415,13 @@ class PeaksCatalogController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Quan el filtre compartit canvia (per exemple, perquè l'usuari l'ha aplicat
-  // des del mapa), recarreguem els cims al catàleg amb els nous criteris.
-  // L'usuari trobarà la mateixa selecció en tornar a aquesta pantalla, sense
-  // dependre de coordinació manual entre les dues vistes.
-  //
-  // NOTA: si tant el catàleg com el mapa estan vius alhora (cas habitual al
-  // MainNavigation amb tabs), una sola crida a apply() dispararà aquest
-  // listener als dos controllers, generant dues peticions a /api/peaks.
-  // S'accepta el cost a canvi de mantenir la coherència entre pestanyes; si
-  // en el futur cal optimitzar, es podria gating la càrrega segons la
-  // pestanya activa via TabsRouter.
+  // Quan el filtre compartit canvia, es recarrega la primera pàgina del catàleg.
+  // Això garanteix que el llistat respecti els nous criteris des del principi.
   void _onFiltersChanged() {
     if (_disposed) {
       return;
     }
+
     _loadPeaks(
       search: currentSearch.isEmpty ? null : currentSearch,
     );
