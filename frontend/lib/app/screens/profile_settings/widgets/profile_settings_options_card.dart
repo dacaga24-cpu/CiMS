@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 class ProfileSettingsOptionsCard extends StatelessWidget {
   const ProfileSettingsOptionsCard({
     super.key,
+    required this.onChangeProfilePhotoTap,
     required this.onEditProfileTap,
     required this.onChangePasswordTap,
     required this.onDeleteAccountTap,
@@ -12,6 +13,7 @@ class ProfileSettingsOptionsCard extends StatelessWidget {
 
   // Aquestes accions permeten obrir els formularis associats al perfil.
   // La targeta no decideix què passa, només comunica la interacció de l’usuari.
+  final VoidCallback onChangeProfilePhotoTap;
   final VoidCallback onEditProfileTap;
   final VoidCallback onChangePasswordTap;
   final VoidCallback onDeleteAccountTap;
@@ -34,6 +36,11 @@ class ProfileSettingsOptionsCard extends StatelessWidget {
       ),
       child: Column(
         children: [
+          _ProfileSettingsOptionTile(
+            title: 'Canviar foto de perfil',
+            onTap: onChangeProfilePhotoTap,
+          ),
+          const Divider(height: 1),
           _ProfileSettingsOptionTile(
             title: 'Dades personals',
             onTap: onEditProfileTap,

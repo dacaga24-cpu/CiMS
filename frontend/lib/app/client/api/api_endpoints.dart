@@ -69,6 +69,12 @@ class ApiEndpoints {
   static const String changePassword = '$users/password';
   static const String deleteAccount = '$users/account';
 
+  // Aquestes rutes permeten gestionar la foto de perfil de l'usuari autenticat.
+  // La imatge es puja primer amb una URL temporal i després es confirma al backend.
+  static const String profilePhoto = '$users/profile-photo';
+  static const String profilePhotoSignedUploadUrl =
+      '$profilePhoto/signed-upload-url';
+
   // Aquest endpoint permet obtenir les dades resumides del dashboard.
   // Retorna el progrés general, els reptes i els cims destacats de l’usuari autenticat.
   static const String dashboard = '$api/dashboard';

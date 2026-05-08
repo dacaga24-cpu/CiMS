@@ -2,6 +2,7 @@ import 'package:cims/app/client/session/session_storage_impl.dart';
 import 'package:cims/app/screens/peaks_catalog/models/peaks_filter_state.dart';
 import 'package:cims/core/client/session_storage.dart';
 import 'package:cims/core/store/peak_status_store.dart';
+import 'package:cims/core/store/user_profile_store.dart';
 import 'package:cims/core/store/user_stats_refresh_store.dart';
 import 'package:cims/core/usecase/session/clear_session_usecase.dart';
 import 'package:cims/core/usecase/session/has_saved_session_usecase.dart';
@@ -30,6 +31,10 @@ class AppSession {
   // token, per evitar que els estats d'un usuari es mostrin a un altre.
   static late final PeakStatusStore peakStatusStore;
 
+  // Aquest store manté les dades bàsiques del perfil de l’usuari autenticat.
+  // Permet reutilitzar la foto de perfil a diferents parts de la interfície.
+  static late final UserProfileStore userProfileStore;
+
   // Aquest callback guarda l’acció global que s’executarà
   // quan la sessió deixi de ser vàlida.
   static Future<void> Function()? _onSessionExpired;
@@ -56,6 +61,7 @@ class AppSession {
 
     userStatsRefreshStore = UserStatsRefreshStore();
     peakStatusStore = PeakStatusStore();
+    userProfileStore = UserProfileStore();
   }
 
   // Aquest callback permet decidir des de fora què ha de passar
@@ -65,12 +71,11 @@ class AppSession {
   }
 
   // Aquest mètode centralitza la reacció davant d’una sessió caducada:
-  // neteja la sessió local, buida l'estat compartit (incloent-hi el filtre
-  // de cims, perquè un nou usuari no hereti els filtres de l'anterior) i
-  // executa la redirecció global a login.
+  // neteja la sessió local, buida l'estat compartit i executa la redirecció global a login.
   static Future<void> handleUnauthorized() async {
     await clearSessionUseCase.execute();
     peakStatusStore.clear();
+    userProfileStore.clear();
     PeaksFilterState.shared.clear();
 
     if (_onSessionExpired != null) {

@@ -10,6 +10,7 @@ import 'widgets/profile_settings_options_card.dart';
 import 'widgets/profile_settings_section_title.dart';
 import 'widgets/profile_settings_top_bar.dart';
 import 'widgets/profile_delete_account_form.dart';
+import 'widgets/profile_photo_actions_sheet.dart';
 
 // Aquesta pantalla mostra la configuració bàsica del compte.
 // Permet consultar el perfil real, editar dades personals, canviar la contrasenya
@@ -128,6 +129,30 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     );
   }
 
+  // Aquest mètode mostra les accions disponibles per gestionar la foto de perfil.
+  // La pantalla només presenta les opcions; el controller executa la pujada o eliminació.
+  Future<void> _openProfilePhotoActions() async {
+    if (controller.isUpdatingProfilePhoto) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(28),
+        ),
+      ),
+      builder: (_) {
+        return ProfilePhotoActionsSheet(
+          hasProfilePhoto: controller.hasProfilePhoto,
+          isUpdatingProfilePhoto: controller.isUpdatingProfilePhoto,
+          onSelectPhotoTap: controller.changeProfilePhoto,
+          onDeletePhotoTap: controller.deleteProfilePhoto,
+        );
+      },
+    );
+  }
+
   // Aquest mètode obre el formulari per canviar la contrasenya.
   // Quan es tanca el formulari, es netegen els camps per no conservar dades sensibles.
   void _openPasswordForm() {
@@ -223,14 +248,17 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     onBackTap: controller.onBackTap,
                   ),
                   const SizedBox(height: 28),
-                  ProfileSettingsHeader(
-                    displayName: controller.displayName,
-                    displayEmail: controller.displayEmail,
-                  ),
+                    ProfileSettingsHeader(
+                      displayName: controller.displayName,
+                      displayEmail: controller.displayEmail,
+                      profilePhotoUrl: controller.profilePhotoUrl,
+                      isUpdatingProfilePhoto: controller.isUpdatingProfilePhoto,
+                    ),
                   const Spacer(),
                   const ProfileSettingsSectionTitle(),
                   const SizedBox(height: 14),
                   ProfileSettingsOptionsCard(
+                    onChangeProfilePhotoTap: _openProfilePhotoActions,
                     onEditProfileTap: _openEditProfileForm,
                     onChangePasswordTap: _openPasswordForm,
                     onDeleteAccountTap: _openDeleteAccountForm,
