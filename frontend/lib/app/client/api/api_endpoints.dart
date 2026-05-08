@@ -48,6 +48,15 @@ class ApiEndpoints {
   // Permet consultar l’historial personal de l’usuari sobre aquell cim.
   static String ascentsByPeakId(int peakId) => '$ascents/peak/$peakId';
 
+  // Aquesta ajuda construeix la ruta d’una ascensió concreta.
+  // Permet actualitzar o eliminar un registre existent a partir del seu identificador.
+  static String ascentById(int ascentId) => '$ascents/$ascentId';
+
+  // Aquesta ajuda construeix la ruta de les fotos d’una ascensió concreta.
+  // Permet recuperar totes les imatges associades a un registre existent.
+  static String ascentPhotosByAscentId(int ascentId) =>
+      '$ascents/$ascentId/photos';
+
   // Aquesta ruta correspon a les estadístiques personals de l’usuari.
   // Permet carregar el resum de progrés amb una sola petició autenticada.
   static const String stats = '$api/stats';

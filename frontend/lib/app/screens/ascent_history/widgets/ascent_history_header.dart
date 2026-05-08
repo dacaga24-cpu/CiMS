@@ -34,14 +34,13 @@ class AscentHistoryHeader extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(28),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFFE8EEF6),
-                Color(0xFFD4E1F0),
-                Color(0xFFC2D2E4),
-              ],
+            image: const DecorationImage(
+              image: AssetImage('assets/images/montana_0001.png'),
+              fit: BoxFit.cover,
+              colorFilter: ColorFilter.mode(
+                Color.fromARGB(157, 255, 255, 255),
+                BlendMode.srcATop,
+              ),
             ),
             boxShadow: const [
               BoxShadow(
@@ -69,7 +68,7 @@ class AscentHistoryHeader extends StatelessWidget {
               ),
               const SizedBox(height: 5),
               Text(
-                regionsText.toUpperCase(),
+                regionsText.toString(),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -115,11 +114,6 @@ class AscentHistoryHeader extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.workspace_premium_rounded,
-                  size: 14,
-                  color: Colors.white,
-                ),
                 const SizedBox(width: 6),
                 Text(
                   'ASCENSIONS TOTALS: $totalAscents',

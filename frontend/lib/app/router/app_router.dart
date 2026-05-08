@@ -13,7 +13,9 @@ import 'package:cims/app/screens/profile_settings/profile_settings_screen.dart';
 import 'package:cims/app/screens/register/register_screen.dart';
 import 'package:cims/app/screens/reset_password/reset_password_screen.dart';
 import 'package:cims/app/screens/user_stats/user_stats_screen.dart';
+import 'package:cims/app/screens/ascent_edit/ascent_edit_screen.dart';
 import 'package:cims/core/entity/peak.dart';
+import 'package:cims/core/entity/ascent.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/widgets.dart';
 
@@ -56,6 +58,11 @@ class AppRouter extends RootStackRouter {
         AutoRoute(
           page: AscentHistoryRoute.page,
           path: '/ascents/history',
+          guards: [authGuard],
+        ),
+        AutoRoute(
+          page: AscentEditRoute.page,
+          path: '/ascents/edit',
           guards: [authGuard],
         ),
         AutoRoute(

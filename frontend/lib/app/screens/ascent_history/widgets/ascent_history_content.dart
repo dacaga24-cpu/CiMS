@@ -18,6 +18,7 @@ class AscentHistoryContent extends StatelessWidget {
     required this.errorMessage,
     required this.onRefresh,
     required this.onRetryTap,
+    required this.onAscentTap,
   });
 
   // Aquest bloc rep la informació del cim i l’estat de les ascensions carregades.
@@ -30,6 +31,7 @@ class AscentHistoryContent extends StatelessWidget {
   final String? errorMessage;
   final Future<void> Function() onRefresh;
   final Future<void> Function() onRetryTap;
+  final ValueChanged<Ascent> onAscentTap;
 
   // Aquest mètode construeix una vista refrescable amb la capçalera del cim
   // i el bloc inferior de darreres ascensions.
@@ -54,15 +56,6 @@ class AscentHistoryContent extends StatelessWidget {
             totalAscents: ascents.length,
           ),
           const SizedBox(height: 30),
-          const Text(
-            'Darreres Ascensions',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF222222),
-            ),
-          ),
-          const SizedBox(height: 18),
           if (errorMessage != null)
             AscentHistoryErrorState(
               message: errorMessage!,
@@ -71,7 +64,10 @@ class AscentHistoryContent extends StatelessWidget {
           else if (ascents.isEmpty)
             const AscentHistoryEmptyState()
           else
-            AscentHistoryTimeline(ascents: ascents),
+            AscentHistoryTimeline(
+              ascents: ascents,
+              onAscentTap: onAscentTap,
+            ),
         ],
       ),
     );

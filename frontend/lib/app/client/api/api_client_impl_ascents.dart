@@ -60,6 +60,114 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
     }
   }
 
+  // Aquest mètode actualitza una ascensió existent al backend.
+  // Manté el registre original i només modifica les dades editables del formulari.
+  @override
+  Future<Ascent> updateAscent({
+    required int ascentId,
+    required DateTime ascentDate,
+    String? notes,
+  }) async {
+    try {
+      final response = await _putJson(
+        ApiEndpoints.ascentById(ascentId),
+        body: {
+          'ascentDate': _formatDateForApi(ascentDate),
+          'notes': notes,
+        },
+        requiresAuth: true,
+      );
+
+      if (response.statusCode == 200) {
+        final data = _tryParseJson(response.body);
+
+        if (data == null) {
+          throw const ApiException(
+            'La resposta de l\'actualització no és vàlida',
+            statusCode: 200,
+          );
+        }
+
+        final rawAscent = data['ascent'] ?? data['data'] ?? data;
+
+        if (rawAscent is! Map) {
+          throw const ApiException(
+            'La resposta de l\'actualització no conté cap ascensió vàlida',
+            statusCode: 200,
+          );
+        }
+
+        return Ascent.fromJson(
+          Map<String, dynamic>.from(rawAscent),
+        );
+      }
+
+      final data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'ha pogut actualitzar l\'ascensió';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
+
+  // Aquest mètode recupera totes les fotos d’una ascensió existent.
+  // Es fa servir a la pantalla d’edició per mostrar les imatges ja associades.
+  @override
+  Future<List<AscentPhoto>> getAscentPhotos(int ascentId) async {
+    try {
+      final response = await _getJson(
+        ApiEndpoints.ascentPhotosByAscentId(ascentId),
+        requiresAuth: true,
+      );
+
+      if (response.statusCode == 200) {
+        final decodedBody = jsonDecode(response.body);
+
+        if (decodedBody is! List) {
+          throw const ApiException(
+            'La resposta de les fotos no és vàlida',
+            statusCode: 200,
+          );
+        }
+
+        return decodedBody
+            .whereType<Map>()
+            .map((item) => AscentPhoto.fromJson(Map<String, dynamic>.from(item)))
+            .toList();
+      }
+
+      final data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'han pogut carregar les fotos de l\'ascensió';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
+
   // Aquest mètode demana al backend una URL temporal per pujar una foto.
   // La imatge encara no queda associada a cap ascensió fins que s’envia el formulari final.
   @override
@@ -82,7 +190,7 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
 
         if (data == null) {
           throw ApiException(
-            'La resposta de pujada d’imatge no és vàlida',
+            'La resposta de pujada d\'imatge no és vàlida',
             statusCode: response.statusCode,
           );
         }
@@ -210,4 +318,13 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
 
     return '$year-$month-$day';
   }
+
+  // Aquest mètode transforma una data de Dart al format que espera el backend.
+  String _formatDateForApi(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year.toString();
+
+    return '$year-$month-$day';
+}
 }
