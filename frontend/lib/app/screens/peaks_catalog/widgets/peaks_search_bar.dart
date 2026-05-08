@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-// Aquest widget encapsula la barra de cerca del catàleg.
-// També mostra el botó per obrir el panell de filtres.
+// Defineix la longitud màxima acceptada al cercador de cims.
+// El valor s'alinea amb la mida màxima del nom del cim a la base de dades.
+const int peakSearchMaxLength = 150;
+
+// Aquest widget mostra la barra de cerca compartida pel catàleg i el mapa.
+// També inclou el botó que obre el panell de filtres.
 class PeaksSearchBar extends StatelessWidget {
   const PeaksSearchBar({
     super.key,
@@ -11,8 +16,8 @@ class PeaksSearchBar extends StatelessWidget {
     this.hasActiveFilters = false,
   });
 
-  // Aquestes propietats connecten el widget amb l’estat extern de la pantalla,
-  // permetent gestionar el text escrit, els canvis de cerca i l’obertura dels filtres.
+  // Aquestes propietats connecten el camp de cerca amb la pantalla que l'utilitza.
+  // Permeten controlar el text escrit, reaccionar als canvis i obrir els filtres.
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final VoidCallback onFilterTap;
@@ -20,9 +25,6 @@ class PeaksSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Aquest bloc construeix la capçalera de cerca del catàleg.
-    // Combina el camp de text amb un botó lateral que reflecteix visualment
-    // si hi ha filtres actius en aquell moment.
     return Row(
       children: [
         Expanded(
@@ -30,8 +32,12 @@ class PeaksSearchBar extends StatelessWidget {
             controller: controller,
             onChanged: onChanged,
             textInputAction: TextInputAction.search,
+            inputFormatters: [
+              LengthLimitingTextInputFormatter(peakSearchMaxLength),
+            ],
             decoration: const InputDecoration(
               hintText: 'Cerca cims...',
+              counterText: '',
               prefixIcon: Icon(
                 Icons.search,
                 color: Color(0xFF0B57D0),
@@ -44,9 +50,6 @@ class PeaksSearchBar extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-
-        // Aquest botó obre el panell de filtres i canvia lleugerament d’aspecte
-        // quan el catàleg ja té filtres aplicats, per fer-ho visible a l’usuari.
         Material(
           color: hasActiveFilters
               ? const Color(0xFFE8F0FE)
