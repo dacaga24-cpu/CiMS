@@ -87,6 +87,7 @@ class ApiEndpoints {
   // Aquestes rutes permeten preparar la pujada de fotos associades a una ascensió.
   // El backend retorna una URL temporal perquè el frontend pugui pujar la imatge directament.
   static const String ascentPhotos = '$api/ascent-photos';
+  static const String ascentPhotosGallery = '$ascentPhotos/me';
   static const String ascentPhotoSignedUploadUrl =
       '$ascentPhotos/signed-upload-url';
 }

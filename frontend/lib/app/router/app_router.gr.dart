@@ -478,6 +478,22 @@ class ResetPasswordRoute extends PageRouteInfo<void> {
 }
 
 /// generated route for
+/// [UserPhotoGalleryScreen]
+class UserPhotoGalleryRoute extends PageRouteInfo<void> {
+  const UserPhotoGalleryRoute({List<PageRouteInfo>? children})
+      : super(UserPhotoGalleryRoute.name, initialChildren: children);
+
+  static const String name = 'UserPhotoGalleryRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const UserPhotoGalleryScreen();
+    },
+  );
+}
+
+/// generated route for
 /// [UserStatsScreen]
 class UserStatsRoute extends PageRouteInfo<void> {
   const UserStatsRoute({List<PageRouteInfo>? children})

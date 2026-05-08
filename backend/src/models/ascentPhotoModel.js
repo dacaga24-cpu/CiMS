@@ -1,20 +1,13 @@
 const pool = require('../config/db');
 
-// Aquest model centralitza l'accés a les dades de la taula ascent_photos.
-// Manté la mateixa convenció que la resta de models: SELECTs explícits per
-// fixar el format de resposta i mètodes parametritzats per evitar SQLi.
-//
-// La majoria de mètodes accepten una `connection` opcional perquè els
-// serveis puguin executar-los dins d'una transacció iniciada amb
-// pool.getConnection(). Quan no es passa, es fa servir el pool directament.
+// Aquest model gestiona l'accés a les fotos associades a les ascensions.
+// Centralitza les consultes i insercions sobre ascent_photos, mantenint un
+// format de resposta coherent per als serveis que consumeixen aquestes dades.
 const AscentPhotoModel = {
 
-  // Insereix múltiples fotos associades al mateix ascens en una sola query.
-  // S'usa des de la creació d'ascens, on el conjunt complet de fotos és
-  // conegut a priori i interessa que totes s'insereixin atòmicament dins
-  // de la mateixa transacció que crea l'ascens. Si el caller no passa una
-  // connection, es fa servir el pool, però llavors no hi ha garantia
-  // d'atomicitat amb la inserció de l'ascens.
+  // Insereix diverses fotos vinculades a una mateixa ascensió.
+  // S'utilitza quan l'usuari registra una ascensió amb imatges ja pujades
+  // prèviament al sistema d'emmagatzematge.
   async createMany(ascentId, photos, connection) {
     if (!Array.isArray(photos) || photos.length === 0) {
       return [];
@@ -34,10 +27,8 @@ const AscentPhotoModel = {
 
     const [insertResult] = await executor.execute(sql, params);
 
-    // El SELECT es restringeix als ids generats per aquesta inserció (un
-    // INSERT múltiple a InnoDB assigna ids consecutius començant per
-    // insertId). Així el resultat només conté les files acabades d'inserir,
-    // mai files pre-existents per a aquest mateix ascens.
+    // Recupera les fotos que s'acaben d'inserir per retornar-les amb el
+    // mateix format que la resta de consultes del model.
     const firstId = insertResult.insertId;
     const lastId = firstId + photos.length - 1;
     const [rows] = await executor.execute(
@@ -47,14 +38,13 @@ const AscentPhotoModel = {
        ORDER BY id ASC`,
       [firstId, lastId]
     );
+
     return rows;
   },
 
-  // Retorna totes les fotos d'un ascens concret, però només si l'ascens
-  // pertany a l'usuari indicat. El JOIN amb ascents fa la comprovació
-  // d'ownership a nivell de query, evitant que un reorden futur del flux
-  // que cridi aquest mètode obri una via d'IDOR. Si l'ascens no existeix
-  // o és d'un altre usuari, retorna una llista buida.
+  // Retorna totes les fotos d'una ascensió concreta.
+  // La consulta comprova també que l'ascensió pertanyi a l'usuari autenticat,
+  // evitant que es puguin consultar imatges d'altres comptes.
   async findAllByAscentIdAndUserId(ascentId, userId) {
     const sql = `
       SELECT ap.id, ap.ascent_id, ap.storage_path, ap.is_primary, ap.created_at
@@ -63,22 +53,14 @@ const AscentPhotoModel = {
       WHERE ap.ascent_id = ? AND a.user_id = ?
       ORDER BY ap.is_primary DESC, ap.id ASC
     `;
+
     const [rows] = await pool.execute(sql, [ascentId, userId]);
     return rows;
   },
 
-  // Retorna les fotos principals d'un conjunt d'ascens en una sola query.
-  // S'utilitza des de l'enriquiment del llistat d'ascens per evitar el
-  // patró N+1 que faria una consulta per cada ascens. La filtració per
-  // is_primary = 1 garanteix com a màxim una fila per ascens; en cas
-  // d'una incoherència històrica amb múltiples principals (que el servei
-  // ja no permet però podria existir a dades antigues), el bucle de
-  // construcció del Map manté només la primera fila trobada i descarta
-  // la resta sense que la consulta hagi de fer DISTINCT.
-  //
-  // No filtra per user_id perquè el caller ja ha consultat els ascens
-  // amb la seva pròpia query d'ownership; els ascentIds passats aquí ja
-  // són de l'usuari autenticat i fer un nou JOIN seria redundant.
+  // Retorna la foto principal de cada ascensió indicada.
+  // S'utilitza per mostrar una imatge resum als llistats sense haver de
+  // carregar totes les fotos de cada ascensió.
   async findPrimaryByAscentIds(ascentIds) {
     if (!Array.isArray(ascentIds) || ascentIds.length === 0) {
       return new Map();
@@ -90,18 +72,87 @@ const AscentPhotoModel = {
       FROM ascent_photos
       WHERE ascent_id IN (${placeholders}) AND is_primary = 1
     `;
+
     const [rows] = await pool.execute(sql, ascentIds);
 
-    // El resultat es retorna com a Map<ascentId, photo> perquè el caller
-    // pugui assignar la principal a cada ascens en una sola passada sense
-    // fer recerca lineal dins una llista plana.
+    // Organitza les fotos per identificador d'ascensió perquè el servei les
+    // pugui associar ràpidament amb el seu registre corresponent.
     const byAscentId = new Map();
     for (const row of rows) {
       if (!byAscentId.has(row.ascent_id)) {
         byAscentId.set(row.ascent_id, row);
       }
     }
+
     return byAscentId;
+  },
+
+  // Retorna les fotos representatives més recents de l'usuari.
+  // Només selecciona una foto per ascensió, prioritzant la foto principal i,
+  // si no n'hi ha, la imatge més recent d'aquella ascensió.
+  async findRecentRepresentativeByUserId(userId, limit = 12) {
+    const sql = `
+      SELECT
+        ranked.id,
+        ranked.ascent_id,
+        ranked.peak_id,
+        ranked.peak_name,
+        ranked.ascent_date,
+        ranked.storage_path,
+        ranked.is_primary,
+        ranked.created_at
+      FROM (
+        SELECT
+          ap.id,
+          ap.ascent_id,
+          a.peak_id,
+          p.name AS peak_name,
+          a.ascent_date,
+          ap.storage_path,
+          ap.is_primary,
+          ap.created_at,
+          ROW_NUMBER() OVER (
+            PARTITION BY ap.ascent_id
+            ORDER BY ap.is_primary DESC, ap.created_at DESC, ap.id DESC
+          ) AS row_number
+        FROM ascent_photos ap
+        INNER JOIN ascents a ON a.id = ap.ascent_id
+        INNER JOIN peaks p ON p.id = a.peak_id
+        WHERE a.user_id = ?
+      ) ranked
+      WHERE ranked.row_number = 1
+      ORDER BY ranked.ascent_date DESC, ranked.ascent_id DESC
+      LIMIT ?
+    `;
+
+    const [rows] = await pool.execute(sql, [userId, limit]);
+    return rows;
+  },
+
+  // Retorna les fotos de totes les ascensions de l'usuari.
+  // S'utilitza per construir la galeria completa, ordenada per les ascensions
+  // més recents i preparada per carregar-se de manera paginada.
+  async findGalleryByUserId(userId, limit, offset = 0) {
+    const sql = `
+      SELECT
+        ap.id,
+        ap.ascent_id,
+        a.peak_id,
+        p.name AS peak_name,
+        a.ascent_date,
+        ap.storage_path,
+        ap.is_primary,
+        ap.created_at
+      FROM ascent_photos ap
+      INNER JOIN ascents a ON a.id = ap.ascent_id
+      INNER JOIN peaks p ON p.id = a.peak_id
+      WHERE a.user_id = ?
+      ORDER BY a.ascent_date DESC, a.id DESC, ap.created_at DESC, ap.id DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    const [rows] = await pool.execute(sql, [userId, limit, offset]);
+    return rows;
   },
 };
 

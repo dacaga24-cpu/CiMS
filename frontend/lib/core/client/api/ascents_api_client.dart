@@ -1,6 +1,7 @@
 import 'package:cims/core/entity/ascent.dart';
 import 'package:cims/core/entity/ascent_upload_photo.dart';
 import 'package:cims/core/entity/ascent_photo.dart';
+import 'package:cims/core/entity/ascent_photo_gallery.dart';
 
 // Aquest contracte defineix les operacions de l’API relacionades amb les ascensions.
 // Permet registrar i consultar ascensions sense que la resta del projecte conegui
@@ -46,4 +47,11 @@ abstract class AscentsApiClient {
   // associades a un cim concret.
   // Es farà servir, per exemple, per mostrar l’última ascensió al detall del cim.
   Future<List<Ascent>> getAscentsByPeak(int peakId);
+
+  // Aquest mètode recupera una pàgina de la galeria de fotos de l'usuari autenticat.
+  // S'utilitza per carregar totes les imatges de manera progressiva.
+  Future<AscentPhotoGalleryPage> getUserPhotoGallery({
+    int limit = 30,
+    int offset = 0,
+  });
 }
