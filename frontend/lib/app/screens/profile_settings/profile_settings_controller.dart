@@ -3,11 +3,15 @@ import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/user.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:cims/core/usecase/profile/change_password_usecase.dart';
-import 'package:cims/core/usecase/profile/get_user_profile_usecase.dart';
-import 'package:cims/core/usecase/session/clear_session_usecase.dart';
-import 'package:cims/core/usecase/profile/update_user_profile_usecase.dart';
 import 'package:cims/core/usecase/profile/delete_account_usecase.dart';
+import 'package:cims/core/usecase/profile/delete_profile_photo_usecase.dart';
+import 'package:cims/core/usecase/profile/get_user_profile_usecase.dart';
+import 'package:cims/core/usecase/profile/update_user_profile_usecase.dart';
+import 'package:cims/core/usecase/profile/upload_profile_photo_usecase.dart';
+import 'package:cims/core/usecase/session/clear_session_usecase.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image_picker/image_picker.dart';
 
 // Aquest enum representa les possibles navegacions que la pantalla pot executar.
 // La vista les consumeix i fa la navegació real des de fora del controller.
@@ -18,9 +22,14 @@ enum ProfileSettingsDestination {
 }
 
 // Aquest controller gestiona la càrrega del perfil, l’edició de dades personals,
-// el canvi de contrasenya i el tancament de sessió.
+// el canvi de contrasenya, la foto de perfil i el tancament de sessió.
 // La pantalla només consumeix aquest estat i resol la part visual.
 class ProfileSettingsController extends ChangeNotifier {
+  static const int _profilePhotoMaxWidth = 768;
+  static const int _profilePhotoMaxHeight = 768;
+  static const int _profilePhotoJpegQuality = 82;
+  static const String _profilePhotoMimeType = 'image/jpeg';
+
   ProfileSettingsController({
     Future<void> Function()? logoutAction,
     ClearSessionUseCase? clearSessionUseCase,
@@ -28,6 +37,9 @@ class ProfileSettingsController extends ChangeNotifier {
     UpdateUserProfileUseCase? updateUserProfileUseCase,
     ChangePasswordUseCase? changePasswordUseCase,
     DeleteAccountUseCase? deleteAccountUseCase,
+    UploadProfilePhotoUseCase? uploadProfilePhotoUseCase,
+    DeleteProfilePhotoUseCase? deleteProfilePhotoUseCase,
+    ImagePicker? imagePicker,
   })  : _logoutAction = logoutAction,
         _clearSessionUseCase =
             clearSessionUseCase ?? AppSession.clearSessionUseCase,
@@ -35,12 +47,17 @@ class ProfileSettingsController extends ChangeNotifier {
             GetUserProfileUseCase(
               apiClient: ApiClientImpl(),
             ),
-        _updateUserProfileUseCase = updateUserProfileUseCase ??
-            UpdateUserProfileUseCase(ApiClientImpl()),
+        _updateUserProfileUseCase =
+            updateUserProfileUseCase ?? UpdateUserProfileUseCase(ApiClientImpl()),
         _changePasswordUseCase =
             changePasswordUseCase ?? ChangePasswordUseCase(ApiClientImpl()),
         _deleteAccountUseCase =
-            deleteAccountUseCase ?? DeleteAccountUseCase(ApiClientImpl());
+            deleteAccountUseCase ?? DeleteAccountUseCase(ApiClientImpl()),
+        _uploadProfilePhotoUseCase = uploadProfilePhotoUseCase ??
+            UploadProfilePhotoUseCase(ApiClientImpl()),
+        _deleteProfilePhotoUseCase = deleteProfilePhotoUseCase ??
+            DeleteProfilePhotoUseCase(ApiClientImpl()),
+        _imagePicker = imagePicker ?? ImagePicker();
 
   // Aquest bloc agrupa les dependències principals del controller.
   // Permet consultar i modificar el perfil real de l’usuari autenticat.
@@ -50,6 +67,12 @@ class ProfileSettingsController extends ChangeNotifier {
   final UpdateUserProfileUseCase _updateUserProfileUseCase;
   final ChangePasswordUseCase _changePasswordUseCase;
   final DeleteAccountUseCase _deleteAccountUseCase;
+
+  // Aquestes dependències gestionen la selecció, pujada i eliminació
+  // de la foto de perfil de l’usuari autenticat.
+  final UploadProfilePhotoUseCase _uploadProfilePhotoUseCase;
+  final DeleteProfilePhotoUseCase _deleteProfilePhotoUseCase;
+  final ImagePicker _imagePicker;
 
   // Aquests controladors guarden temporalment les dades del formulari de perfil.
   // La pantalla els utilitza per editar el nom i cognoms sense gestionar lògica.
@@ -89,6 +112,9 @@ class ProfileSettingsController extends ChangeNotifier {
   bool _isLoggingOut = false;
   bool get isLoggingOut => _isLoggingOut;
 
+  bool _isUpdatingProfilePhoto = false;
+  bool get isUpdatingProfilePhoto => _isUpdatingProfilePhoto;
+
   bool _showProfileValidation = false;
   bool get showProfileValidation => _showProfileValidation;
 
@@ -126,6 +152,19 @@ class ProfileSettingsController extends ChangeNotifier {
     return _user?.email ?? '';
   }
 
+  // Aquest getter retorna la foto de perfil carregada.
+  // Permet que la pantalla mostri la imatge de l’usuari si existeix.
+  String? get profilePhotoUrl {
+    return _user?.profilePhotoUrl;
+  }
+
+  // Aquest getter indica si l’usuari té una foto de perfil associada.
+  // Permet decidir si cal mostrar opcions com eliminar la foto actual.
+  bool get hasProfilePhoto {
+    final url = profilePhotoUrl;
+    return url != null && url.isNotEmpty;
+  }
+
   // Aquest getter indica si el formulari de perfil té les dades mínimes necessàries.
   bool get isProfileFormValid {
     return firstNameController.text.trim().isNotEmpty &&
@@ -161,11 +200,15 @@ class ProfileSettingsController extends ChangeNotifier {
     }
 
     try {
-      _user = await _getUserProfileUseCase.execute();
+      final loadedUser = await _getUserProfileUseCase.execute();
+
+      _user = loadedUser;
+      AppSession.userProfileStore.setUser(loadedUser);
       prepareProfileForm();
     } on ApiUnauthorizedException {
-      // En aquest cas no mostrem error manual perquè la sessió ja es neteja
-      // i la redirecció global a login es resol des de la sessió centralitzada.
+      await _clearSessionUseCase.execute();
+      AppSession.userProfileStore.clear();
+      _destination = ProfileSettingsDestination.login;
     } on ApiException catch (error) {
       _errorMessage = error.message;
     } catch (_) {
@@ -214,6 +257,110 @@ class ProfileSettingsController extends ChangeNotifier {
     }
   }
 
+  // Aquest mètode permet seleccionar una nova foto de perfil.
+  // La imatge es prepara en format JPEG, es puja al backend i actualitza el perfil compartit.
+  Future<void> changeProfilePhoto() async {
+    if (_isUpdatingProfilePhoto || _isLoadingProfile) {
+      return;
+    }
+
+    _errorMessage = null;
+    _successMessage = null;
+
+    try {
+      final pickedImage = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        requestFullMetadata: false,
+      );
+
+      if (pickedImage == null) {
+        if (!_disposed) {
+          notifyListeners();
+        }
+        return;
+      }
+
+      _isUpdatingProfilePhoto = true;
+
+      if (!_disposed) {
+        notifyListeners();
+      }
+
+      final originalBytes = await pickedImage.readAsBytes();
+
+      final compressedBytes = await FlutterImageCompress.compressWithList(
+        originalBytes,
+        minWidth: _profilePhotoMaxWidth,
+        minHeight: _profilePhotoMaxHeight,
+        quality: _profilePhotoJpegQuality,
+        format: CompressFormat.jpeg,
+      );
+
+      final updatedUser = await _uploadProfilePhotoUseCase(
+        bytes: compressedBytes,
+        mimeType: _profilePhotoMimeType,
+      );
+
+      _user = updatedUser;
+      AppSession.userProfileStore.setUser(updatedUser);
+      _successMessage = 'Foto de perfil actualitzada correctament';
+    } on ApiUnauthorizedException {
+      await _clearSessionUseCase.execute();
+      AppSession.userProfileStore.clear();
+      _destination = ProfileSettingsDestination.login;
+    } on ApiException catch (error) {
+      _errorMessage = error.message;
+    } catch (error) {
+      debugPrint('[ProfileSettingsController] Profile photo error: $error');
+      _errorMessage = 'No s\'ha pogut actualitzar la foto de perfil';
+    } finally {
+      _isUpdatingProfilePhoto = false;
+
+      if (!_disposed) {
+        notifyListeners();
+      }
+    }
+  }
+
+  // Aquest mètode elimina la foto de perfil actual.
+  // Després actualitza el perfil local i el store compartit perquè tota la interfície canviï alhora.
+  Future<void> deleteProfilePhoto() async {
+    if (_isUpdatingProfilePhoto || _isLoadingProfile) {
+      return;
+    }
+
+    _isUpdatingProfilePhoto = true;
+    _errorMessage = null;
+    _successMessage = null;
+
+    if (!_disposed) {
+      notifyListeners();
+    }
+
+    try {
+      final updatedUser = await _deleteProfilePhotoUseCase();
+
+      _user = updatedUser;
+      AppSession.userProfileStore.setUser(updatedUser);
+      _successMessage = 'Foto de perfil eliminada correctament';
+    } on ApiUnauthorizedException {
+      await _clearSessionUseCase.execute();
+      AppSession.userProfileStore.clear();
+      _destination = ProfileSettingsDestination.login;
+    } on ApiException catch (error) {
+      _errorMessage = error.message;
+    } catch (error) {
+      debugPrint('[ProfileSettingsController] Delete profile photo error: $error');
+      _errorMessage = 'No s\'ha pogut eliminar la foto de perfil';
+    } finally {
+      _isUpdatingProfilePhoto = false;
+
+      if (!_disposed) {
+        notifyListeners();
+      }
+    }
+  }
+
   // Aquest mètode envia al backend les dades actualitzades del perfil.
   // Si l’operació és correcta, actualitza l’usuari local i mostra un missatge de confirmació.
   Future<bool> saveProfileChanges() async {
@@ -235,16 +382,19 @@ class ProfileSettingsController extends ChangeNotifier {
     }
 
     try {
-      _user = await _updateUserProfileUseCase(
+      final updatedUser = await _updateUserProfileUseCase(
         firstName: firstNameController.text.trim(),
         lastName: lastNameController.text.trim(),
       );
 
+      _user = updatedUser;
+      AppSession.userProfileStore.setUser(updatedUser);
       _successMessage = 'Perfil actualitzat correctament';
       _showProfileValidation = false;
       return true;
     } on ApiUnauthorizedException {
       await _clearSessionUseCase.execute();
+      AppSession.userProfileStore.clear();
       _destination = ProfileSettingsDestination.login;
       return false;
     } on ApiException catch (error) {
@@ -293,6 +443,7 @@ class ProfileSettingsController extends ChangeNotifier {
       return true;
     } on ApiUnauthorizedException {
       await _clearSessionUseCase.execute();
+      AppSession.userProfileStore.clear();
       _destination = ProfileSettingsDestination.login;
       return false;
     } on ApiException catch (error) {
@@ -337,11 +488,13 @@ class ProfileSettingsController extends ChangeNotifier {
 
       clearDeleteAccountForm();
       await _clearSessionUseCase.execute();
+      AppSession.userProfileStore.clear();
       _successMessage = 'Compte desactivat correctament';
       _destination = ProfileSettingsDestination.login;
       return true;
     } on ApiUnauthorizedException {
       await _clearSessionUseCase.execute();
+      AppSession.userProfileStore.clear();
       _destination = ProfileSettingsDestination.login;
       return false;
     } on ApiException catch (error) {
@@ -400,6 +553,7 @@ class ProfileSettingsController extends ChangeNotifier {
       }
 
       await _clearSessionUseCase.execute();
+      AppSession.userProfileStore.clear();
       _destination = ProfileSettingsDestination.login;
     } catch (_) {
       _errorMessage = 'No s\'ha pogut tancar la sessió';
