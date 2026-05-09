@@ -368,4 +368,42 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
 
     return '$year-$month-$day';
   }
+
+  // Aquest mètode elimina una foto d’ascensió de l’usuari autenticat.
+  // Si la foto era principal, el backend s’encarrega de promocionar-ne una altra.
+  @override
+  Future<void> deleteAscentPhoto(int photoId) async {
+    final response = await _deleteJson(
+      ApiEndpoints.ascentPhotoById(photoId),
+      requiresAuth: true,
+    );
+
+    if (response.statusCode == 204) {
+      return;
+    }
+
+    throw ApiException(
+      'No s\'ha pogut eliminar la foto',
+      statusCode: response.statusCode,
+    );
+  }
+
+  // Aquest mètode elimina una ascensió de l’usuari autenticat.
+  // Si era l’última ascensió del cim, el backend deixa el cim com a no completat.
+  @override
+  Future<void> deleteAscent(int ascentId) async {
+    final response = await _deleteJson(
+      ApiEndpoints.ascentById(ascentId),
+      requiresAuth: true,
+    );
+
+    if (response.statusCode == 204) {
+      return;
+    }
+
+    throw ApiException(
+      'No s\'ha pogut eliminar l\'ascensió',
+      statusCode: response.statusCode,
+    );
+  }
 }

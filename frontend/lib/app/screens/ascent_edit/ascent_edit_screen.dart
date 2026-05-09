@@ -4,6 +4,7 @@ import 'package:cims/app/screens/ascent_edit/widgets/ascent_edit_form_card.dart'
 import 'package:cims/app/widgets/buttons/primary_gradient_button.dart';
 import 'package:cims/app/widgets/buttons/secondary_pill_button.dart';
 import 'package:cims/core/entity/ascent.dart';
+import 'package:cims/core/entity/ascent_photo.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta pantalla permet consultar i editar una ascensió ja registrada.
@@ -32,7 +33,7 @@ class AscentEditScreen extends StatefulWidget {
 
 class _AscentEditScreenState extends State<AscentEditScreen> {
   // Aquest controller centralitza l’estat del formulari d’edició.
-  // Rep l’ascensió existent i prepara data i notes amb els valors guardats.
+  // Rep l’ascensió existent i prepara data, notes i fotos amb els valors guardats.
   late final AscentEditController controller;
 
   @override
@@ -44,7 +45,7 @@ class _AscentEditScreenState extends State<AscentEditScreen> {
     )
       ..addListener(_handleControllerChanges)
       ..initialize();
- }
+  }
 
   // Aquest mètode resol les accions globals que el controller comunica a la vista.
   void _handleControllerChanges() {
@@ -59,21 +60,31 @@ class _AscentEditScreenState extends State<AscentEditScreen> {
       );
     }
 
+    if (controller.feedback == AscentEditFeedback.deleted) {
+      controller.consumeFeedback();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ascensió eliminada correctament.'),
+        ),
+      );
+    }
+
     if (controller.destination == AscentEditNavigationDestination.back) {
       controller.consumeNavigation();
-      context.router.maybePop();
+      context.router.maybePop(true);
     }
   }
 
   // Aquest mètode obre el selector de calendari i actualitza la data local del formulari.
+  // Si l’ascensió no té data, el calendari s’obre situat al dia actual.
   Future<void> _selectAscentDate() async {
-    if (controller.isLoading) {
+    if (controller.isLoading || controller.isDeletingAscent) {
       return;
     }
 
     final selectedDate = await showDatePicker(
       context: context,
-      initialDate: controller.selectedAscentDate,
+      initialDate: controller.selectedAscentDate ?? DateTime.now(),
       firstDate: DateTime(1950),
       lastDate: DateTime.now(),
     );
@@ -81,6 +92,82 @@ class _AscentEditScreenState extends State<AscentEditScreen> {
     if (selectedDate != null) {
       controller.onAscentDateChanged(selectedDate);
     }
+  }
+
+  // Aquest mètode demana confirmació abans d’eliminar una foto.
+  // La confirmació evita esborrats accidentals en una acció destructiva.
+  Future<void> _confirmDeletePhoto(AscentPhoto photo) async {
+    if (controller.deletingPhotoId != null ||
+        controller.isLoading ||
+        controller.isDeletingAscent) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Eliminar foto?'),
+          content: const Text(
+            'Aquesta foto s\'eliminarà de l\'ascensió. Aquesta acció no es pot desfer.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel·lar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Eliminar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || confirmed != true) {
+      return;
+    }
+
+    await controller.onDeletePhotoTap(photo.id);
+  }
+
+  // Aquest mètode demana confirmació abans d’eliminar tota l’ascensió.
+  // Si és l’última ascensió del cim, el backend també deixarà el cim com a no completat.
+  Future<void> _confirmDeleteAscent() async {
+    if (controller.isLoading ||
+        controller.isDeletingAscent ||
+        controller.deletingPhotoId != null) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Eliminar ascensió?'),
+          content: const Text(
+            'Aquesta acció eliminarà l\'ascensió i les fotos associades. Si és l\'últim registre del cim, deixarà d\'estar completat.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel·lar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Eliminar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || confirmed != true) {
+      return;
+    }
+
+    await controller.onDeleteAscentTap();
   }
 
   @override
@@ -115,7 +202,7 @@ class _AscentEditScreenState extends State<AscentEditScreen> {
             child: GestureDetector(
               onTap: () => FocusScope.of(context).unfocus(),
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 150),
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 170),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -128,6 +215,7 @@ class _AscentEditScreenState extends State<AscentEditScreen> {
                     AscentEditFormCard(
                       controller: controller,
                       onDateTap: _selectAscentDate,
+                      onDeletePhotoTap: _confirmDeletePhoto,
                     ),
                     if (controller.errorMessage != null) ...[
                       const SizedBox(height: 16),
@@ -148,13 +236,39 @@ class _AscentEditScreenState extends State<AscentEditScreen> {
                 PrimaryGradientButton(
                   label: 'Guardar canvis',
                   isLoading: controller.isLoading,
-                  onPressed: controller.onSaveTap,
+                  onPressed: controller.isDeletingAscent
+                      ? null
+                      : controller.onSaveTap,
                 ),
                 const SizedBox(height: 12),
                 SecondaryPillButton(
                   label: 'Cancel·lar',
-                  enabled: !controller.isLoading,
+                  enabled: !controller.isLoading &&
+                      !controller.isDeletingAscent,
                   onPressed: controller.onCancelTap,
+                ),
+                const SizedBox(height: 12),
+                TextButton.icon(
+                  onPressed: controller.isLoading ||
+                          controller.isDeletingAscent
+                      ? null
+                      : _confirmDeleteAscent,
+                  icon: controller.isDeletingAscent
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.delete_outline_rounded),
+                  label: const Text('Eliminar ascensió'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFFE84A4A),
+                    textStyle: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
               ],
             ),

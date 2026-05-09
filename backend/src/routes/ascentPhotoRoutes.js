@@ -6,7 +6,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 const { signedUploadUrlRateLimiter } = require('../middleware/rateLimiters');
 
 // Totes les rutes de fotos requereixen autenticació.
-// Això garanteix que cada usuari només pugui consultar o preparar imatges pròpies.
+// Això garanteix que cada usuari només pugui consultar, preparar o eliminar imatges pròpies.
 router.use(authMiddleware);
 
 // Retorna les fotos de l'usuari autenticat en format paginat.
@@ -19,5 +19,9 @@ router.post(
   signedUploadUrlRateLimiter,
   AscentPhotoController.createUploadUrl
 );
+
+// Elimina una foto concreta de l'usuari autenticat.
+// El controlador delega al servei la comprovació de propietat i la neteja del bucket.
+router.delete('/:photoId', AscentPhotoController.deletePhoto);
 
 module.exports = router;

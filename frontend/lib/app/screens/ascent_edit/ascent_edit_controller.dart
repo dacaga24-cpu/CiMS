@@ -4,6 +4,8 @@ import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/usecase/ascents/update_ascent_usecase.dart';
 import 'package:cims/core/entity/ascent_photo.dart';
 import 'package:cims/core/usecase/ascents/get_ascent_photos_usecase.dart';
+import 'package:cims/core/usecase/ascents/delete_ascent_photo_usecase.dart';
+import 'package:cims/core/usecase/ascents/delete_ascent_usecase.dart';
 import 'package:flutter/material.dart';
 
 // Aquest límit coincideix amb la validació del backend.
@@ -22,6 +24,7 @@ enum AscentEditNavigationDestination {
 enum AscentEditFeedback {
   none,
   saved,
+  deleted,
 }
 
 // Aquest controller gestiona l’estat local de l’edició d’una ascensió.
@@ -32,6 +35,8 @@ class AscentEditController extends ChangeNotifier {
     required this.ascent,
     UpdateAscentUseCase? updateAscentUseCase,
     GetAscentPhotosUseCase? getAscentPhotosUseCase,
+    DeleteAscentPhotoUseCase? deleteAscentPhotoUseCase,
+    DeleteAscentUseCase? deleteAscentUseCase,
   })  : _selectedAscentDate = ascent.ascentDate == null
             ? null
             : DateUtils.dateOnly(ascent.ascentDate!),
@@ -39,7 +44,11 @@ class AscentEditController extends ChangeNotifier {
         _updateAscentUseCase =
             updateAscentUseCase ?? UpdateAscentUseCase(ApiClientImpl()),
         _getAscentPhotosUseCase =
-            getAscentPhotosUseCase ?? GetAscentPhotosUseCase(ApiClientImpl());
+            getAscentPhotosUseCase ?? GetAscentPhotosUseCase(ApiClientImpl()),
+        _deleteAscentPhotoUseCase =
+            deleteAscentPhotoUseCase ?? DeleteAscentPhotoUseCase(ApiClientImpl()),
+        _deleteAscentUseCase =
+            deleteAscentUseCase ?? DeleteAscentUseCase(ApiClientImpl());
 
   // Aquesta ascensió és el registre original que l’usuari vol consultar o editar.
   final Ascent ascent;
@@ -54,12 +63,19 @@ class AscentEditController extends ChangeNotifier {
   // Aquest cas d’ús permet carregar les fotos ja associades a l’ascensió.
   final GetAscentPhotosUseCase _getAscentPhotosUseCase;
 
+  // Aquest cas d’ús permet eliminar fotos associades a l’ascensió.
+  final DeleteAscentPhotoUseCase _deleteAscentPhotoUseCase;
+
+  // Aquest cas d’ús permet eliminar l’ascensió completa.
+  final DeleteAscentUseCase _deleteAscentUseCase;
+
   // Aquest bloc manté l’estat intern del formulari:
   // data opcional, càrrega, errors, navegació i avisos puntuals.
   DateTime? _selectedAscentDate;
   bool _disposed = false;
 
   bool isLoading = false;
+  bool isDeletingAscent = false;
   bool showValidation = false;
   String? errorMessage;
 
@@ -73,13 +89,10 @@ class AscentEditController extends ChangeNotifier {
   List<AscentPhoto> photos = const [];
   bool isLoadingPhotos = false;
   String? photosErrorMessage;
+  int? deletingPhotoId;
 
-  // Aquest valor indica si actualment hi ha una data seleccionada.
-  // Permet a la pantalla mostrar o ocultar l’acció de netejar-la.
   bool get hasSelectedAscentDate => _selectedAscentDate != null;
 
-  // Aquest valor preparat mostra la data seleccionada o un text d’ajuda
-  // quan l’ascensió no té cap data associada.
   String get formattedAscentDate {
     final selectedDate = _selectedAscentDate;
 
@@ -94,12 +107,9 @@ class AscentEditController extends ChangeNotifier {
 
   AscentEditFeedback get feedback => _feedback;
 
-  // Aquest getter indica si les notes superen el límit acceptat.
-  // La pantalla el pot utilitzar per mostrar l’error visual corresponent.
   bool get hasInvalidNotes =>
       showValidation && notesController.text.length > _maxNotesLength;
 
-  // Aquest getter indica si l’usuari ha modificat alguna dada del formulari.
   bool get hasChanges {
     final originalDate = ascent.ascentDate == null
         ? null
@@ -115,14 +125,10 @@ class AscentEditController extends ChangeNotifier {
     return hasDateChanged || currentNotes != originalNotes;
   }
 
-  // Aquest mètode carrega les dades complementàries de l’edició.
-  // Ara mateix recupera les fotos existents de l’ascensió.
   Future<void> initialize() async {
     await _loadPhotos();
   }
 
-  // Aquest mètode recupera les fotos associades a l’ascensió des del backend.
-  // Si falla, manté la pantalla operativa i mostra un missatge només al bloc de fotos.
   Future<void> _loadPhotos() async {
     isLoadingPhotos = true;
     photosErrorMessage = null;
@@ -131,22 +137,16 @@ class AscentEditController extends ChangeNotifier {
     try {
       final loadedPhotos = await _getAscentPhotosUseCase(ascent.id);
 
-      if (_disposed) {
-        return;
-      }
+      if (_disposed) return;
 
       photos = loadedPhotos;
     } on ApiException catch (error) {
-      if (_disposed) {
-        return;
-      }
+      if (_disposed) return;
 
       photos = const [];
       photosErrorMessage = error.message;
     } catch (_) {
-      if (_disposed) {
-        return;
-      }
+      if (_disposed) return;
 
       photos = const [];
       photosErrorMessage = 'No s\'han pogut carregar les fotos';
@@ -158,21 +158,48 @@ class AscentEditController extends ChangeNotifier {
     }
   }
 
-  // Aquest mètode permet repetir la càrrega de fotos si hi ha hagut un error.
   Future<void> onRetryPhotosTap() {
     return _loadPhotos();
   }
 
-  // Aquest getter retorna les notes netes, o null si l’usuari deixa el camp buit.
+  Future<void> onDeletePhotoTap(int photoId) async {
+    if (isLoading || isDeletingAscent || deletingPhotoId != null) {
+      return;
+    }
+
+    deletingPhotoId = photoId;
+    photosErrorMessage = null;
+    _safeNotifyListeners();
+
+    try {
+      await _deleteAscentPhotoUseCase(photoId);
+
+      if (_disposed) return;
+
+      photos = photos.where((photo) => photo.id != photoId).toList();
+    } on ApiException catch (error) {
+      if (_disposed) return;
+
+      photosErrorMessage = error.message;
+    } catch (_) {
+      if (_disposed) return;
+
+      photosErrorMessage = 'No s\'ha pogut eliminar la foto';
+    } finally {
+      if (!_disposed) {
+        deletingPhotoId = null;
+        _safeNotifyListeners();
+      }
+    }
+  }
+
   String? get normalizedNotes {
     final notes = notesController.text.trim();
     return notes.isEmpty ? null : notes;
   }
 
-  // Aquest mètode actualitza la data seleccionada de l’ascensió.
-  // La pantalla li passa la data escollida des del selector de calendari.
   void onAscentDateChanged(DateTime value) {
-    if (isLoading) {
+    if (isLoading || isDeletingAscent) {
       return;
     }
 
@@ -181,11 +208,8 @@ class AscentEditController extends ChangeNotifier {
     _safeNotifyListeners();
   }
 
-  // Aquest mètode deixa l’ascensió sense data.
-  // Serveix per als casos en què l’usuari no vol conservar cap dia concret
-  // associat al registre.
   void onClearAscentDateTap() {
-    if (isLoading) {
+    if (isLoading || isDeletingAscent) {
       return;
     }
 
@@ -194,17 +218,13 @@ class AscentEditController extends ChangeNotifier {
     _safeNotifyListeners();
   }
 
-  // Aquest mètode neteja els errors quan l’usuari modifica les notes.
-  // Ajuda a evitar que es mantinguin avisos antics després de corregir el formulari.
   void onNotesChanged(String value) {
     errorMessage = null;
     _safeNotifyListeners();
   }
 
-  // Aquest mètode valida el formulari i envia els canvis al backend.
-  // Si l’actualització funciona, avisa la pantalla i torna a l’historial.
   Future<void> onSaveTap() async {
-    if (isLoading) {
+    if (isLoading || isDeletingAscent) {
       return;
     }
 
@@ -226,24 +246,18 @@ class AscentEditController extends ChangeNotifier {
         notes: normalizedNotes,
       );
 
-      if (_disposed) {
-        return;
-      }
+      if (_disposed) return;
 
       _feedback = AscentEditFeedback.saved;
       _destination = AscentEditNavigationDestination.back;
     } on ApiException catch (error) {
-      if (_disposed) {
-        return;
-      }
+      if (_disposed) return;
 
       errorMessage = error.message;
     } catch (_) {
-      if (_disposed) {
-        return;
-      }
+      if (_disposed) return;
 
-      errorMessage = 'No s’ha pogut actualitzar l’ascensió';
+      errorMessage = 'No s\'ha pogut actualitzar l\'ascensió';
     } finally {
       if (!_disposed) {
         isLoading = false;
@@ -252,9 +266,42 @@ class AscentEditController extends ChangeNotifier {
     }
   }
 
-  // Aquest mètode indica a la vista que l’usuari vol sortir de l’edició.
+  // Aquest mètode elimina l’ascensió completa.
+  // Si era l’última ascensió del cim, el backend deixa el cim com a no completat.
+  Future<void> onDeleteAscentTap() async {
+    if (isLoading || isDeletingAscent || deletingPhotoId != null) {
+      return;
+    }
+
+    isDeletingAscent = true;
+    errorMessage = null;
+    _safeNotifyListeners();
+
+    try {
+      await _deleteAscentUseCase(ascent.id);
+
+      if (_disposed) return;
+
+      _feedback = AscentEditFeedback.deleted;
+      _destination = AscentEditNavigationDestination.back;
+    } on ApiException catch (error) {
+      if (_disposed) return;
+
+      errorMessage = error.message;
+    } catch (_) {
+      if (_disposed) return;
+
+      errorMessage = 'No s\'ha pogut eliminar l\'ascensió';
+    } finally {
+      if (!_disposed) {
+        isDeletingAscent = false;
+        _safeNotifyListeners();
+      }
+    }
+  }
+
   void onCancelTap() {
-    if (isLoading) {
+    if (isLoading || isDeletingAscent) {
       return;
     }
 
@@ -262,18 +309,14 @@ class AscentEditController extends ChangeNotifier {
     _safeNotifyListeners();
   }
 
-  // Aquest mètode reinicia l’acció de navegació després que la vista l’hagi resolt.
   void consumeNavigation() {
     _destination = AscentEditNavigationDestination.none;
   }
 
-  // Aquest mètode reinicia l’avís puntual després que la vista ja l’hagi mostrat.
   void consumeFeedback() {
     _feedback = AscentEditFeedback.none;
   }
 
-  // Aquest mètode valida les dades abans de guardar els canvis.
-  // La data és opcional, però si existeix no pot ser futura.
   bool _isValidForm() {
     final selectedDate = _selectedAscentDate;
     final today = DateUtils.dateOnly(DateTime.now());
@@ -292,8 +335,6 @@ class AscentEditController extends ChangeNotifier {
     return true;
   }
 
-  // Aquí s’alliberen els recursos del formulari abans de tancar-lo,
-  // evitant que quedin controladors actius quan la pantalla desapareix.
   @override
   void dispose() {
     _disposed = true;
@@ -301,15 +342,12 @@ class AscentEditController extends ChangeNotifier {
     super.dispose();
   }
 
-  // Aquest mètode centralitza la notificació de canvis
-  // i evita intentar actualitzar la vista quan el controller ja s’ha tancat.
   void _safeNotifyListeners() {
     if (!_disposed) {
       notifyListeners();
     }
   }
 
-  // Aquest mètode transforma la data en un text llegible per al formulari.
   String _formatDate(DateTime date) {
     final day = _twoDigits(date.day);
     final month = _twoDigits(date.month);
@@ -318,8 +356,6 @@ class AscentEditController extends ChangeNotifier {
     return '$day/$month/$year';
   }
 
-  // Aquest suport assegura que dia i mes sempre es mostrin
-  // amb dos dígits per mantenir un format visual uniforme.
   String _twoDigits(int value) {
     return value.toString().padLeft(2, '0');
   }

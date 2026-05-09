@@ -1,6 +1,10 @@
 const AscentPhotoModel = require('../models/ascentPhotoModel');
 const StorageService = require('./storageService');
-const { badRequest, parseOptionalInteger } = require('../utils/validation');
+const {
+  badRequest,
+  parseOptionalInteger,
+  requireInteger,
+} = require('../utils/validation');
 
 // Defineix quantes fotos es carreguen per defecte a la galeria.
 // Aquest valor permet mostrar una primera pàgina àmplia sense fer la resposta massa pesada.
@@ -10,8 +14,23 @@ const DEFAULT_GALLERY_LIMIT = 30;
 // Evita càrregues massa grans si el frontend o un client extern envia un límit excessiu.
 const MAX_GALLERY_LIMIT = 60;
 
+// Aquest helper intenta eliminar una imatge del bucket.
+// Si l'eliminació falla, la foto ja eliminada de la base de dades no es restaura;
+// l'error queda registrat per poder revisar possibles fitxers orfes.
+async function safeDeletePhotoBlob(storagePath, photoId) {
+  try {
+    await StorageService.deleteObject(storagePath);
+  } catch (err) {
+    console.error(
+      `[ascentPhotos] orphan blob after photo delete (photoId=${photoId} path=${storagePath}):`,
+      err
+    );
+  }
+}
+
 // Aquest servei gestiona les operacions directes sobre fotos d'ascensions.
-// Inclou la generació de signed URLs de pujada i la consulta paginada de la galeria personal.
+// Inclou la generació de signed URLs, la consulta paginada de la galeria
+// personal i l'eliminació segura de fotos pròpies.
 const AscentPhotoService = {
 
   // Genera una URL temporal perquè el frontend pugui pujar una foto al bucket.
@@ -81,6 +100,41 @@ const AscentPhotoService = {
       hasMore,
       nextOffset: hasMore ? parsedOffset + parsedLimit : null,
     };
+  },
+
+  // Elimina una foto d'una ascensió de l'usuari autenticat.
+  // Primer comprova que la foto sigui pròpia, després elimina el registre
+  // de base de dades i finalment intenta netejar el fitxer del bucket.
+  async deletePhoto(userId, photoId) {
+    const parsedPhotoId = requireInteger(photoId, 'photoId');
+
+    const photo = await AscentPhotoModel.findByIdAndUserId(
+      parsedPhotoId,
+      userId
+    );
+
+    if (!photo) {
+      const error = new Error('Ascent photo not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const affectedRows = await AscentPhotoModel.deleteByIdAndUserId(
+      parsedPhotoId,
+      userId
+    );
+
+    if (affectedRows === 0) {
+      const error = new Error('Ascent photo not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (photo.is_primary === 1) {
+      await AscentPhotoModel.promoteFirstPhotoAsPrimary(photo.ascent_id);
+    }
+
+    await safeDeletePhotoBlob(photo.storage_path, parsedPhotoId);
   },
 };
 

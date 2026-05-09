@@ -40,7 +40,7 @@ class AscentPhotoGalleryItem {
     required this.ascentId,
     required this.peakId,
     required this.peakName,
-    required this.ascentDate,
+    this.ascentDate,
     this.storagePath,
     this.downloadUrl,
     this.isPrimary = false,
@@ -48,16 +48,20 @@ class AscentPhotoGalleryItem {
   });
 
   // Aquestes dades permeten mostrar la imatge i identificar d'on prové.
-  // El downloadUrl és temporal i serveix per visualitzar la foto sense fer públic el bucket.
+  // La data pot ser nul·la si l'ascensió es va registrar sense dia concret.
   final int id;
   final int ascentId;
   final int peakId;
   final String peakName;
-  final String ascentDate;
+  final String? ascentDate;
   final String? storagePath;
   final String? downloadUrl;
   final bool isPrimary;
   final String? createdAt;
+
+  // Aquest text prepara la data per mostrar-la a la interfície.
+  // Si la foto pertany a una ascensió sense data, es mostra un valor clar.
+  String get displayAscentDate => ascentDate ?? 'Sense data';
 
   // Aquest constructor adapta el JSON de cada foto al format que consumeix la pantalla.
   // Accepta noms en camelCase i snake_case per mantenir compatibilitat amb el backend.
@@ -67,7 +71,7 @@ class AscentPhotoGalleryItem {
       ascentId: _asInt(json['ascentId'] ?? json['ascent_id']),
       peakId: _asInt(json['peakId'] ?? json['peak_id']),
       peakName: _asString(json['peakName'] ?? json['peak_name']),
-      ascentDate: _asString(json['ascentDate'] ?? json['ascent_date']),
+      ascentDate: _asNullableString(json['ascentDate'] ?? json['ascent_date']),
       storagePath:
           _asNullableString(json['storagePath'] ?? json['storage_path']),
       downloadUrl:
@@ -94,7 +98,8 @@ String _asString(dynamic value, {String defaultValue = ''}) {
 
 String? _asNullableString(dynamic value) {
   if (value == null) return null;
-  final text = value.toString();
+
+  final text = value.toString().trim();
   return text.isEmpty ? null : text;
 }
 
