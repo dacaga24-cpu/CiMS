@@ -2,9 +2,11 @@ const pool = require('../config/db');
 
 // Aquest model centralitza l'accés a les dades de les ascensions registrades
 // pels usuaris. Cada ascensió representa una pujada concreta d'un usuari a un
-// cim en una data determinada, i a diferència de peak_status, sí que pot tenir
-// múltiples registres per a la mateixa parella usuari-cim (un usuari pot
-// pujar al mateix cim diverses vegades).
+// cim, amb data opcional, notes i possibles fotos associades.
+//
+// A diferència de peak_status, aquí sí que poden existir múltiples registres
+// per a la mateixa parella usuari-cim. Això permet que un usuari pugui pujar
+// diverses vegades al mateix cim i conservar cada registre de manera separada.
 //
 // Tots els SELECT inclouen explícitament les columnes per garantir un format
 // estable de resposta i mantenir el snake_case de la base de dades, que és
@@ -12,9 +14,9 @@ const pool = require('../config/db');
 const AscentModel = {
 
     // Aquest mètode retorna totes les ascensions d'un usuari ordenades per
-    // data descendent, perquè a la interfície tingui sentit veure primer les
-    // més recents. L'ordre secundari per id estabilitza el resultat quan dues
-    // ascensions tenen la mateixa data.
+    // data descendent. Les ascensions sense data queden igualment disponibles
+    // per al sistema, però la interfície podrà decidir si les mostra o només
+    // les utilitza per marcar el cim com a completat.
     async findAllByUserId(userId) {
         const sql = `
         SELECT id, user_id, peak_id, ascent_date, notes, created_at, updated_at
@@ -28,8 +30,8 @@ const AscentModel = {
     },
 
     // Aquest mètode retorna les ascensions d'un usuari sobre un cim concret.
-    // S'utilitza a la pantalla de detall del cim per mostrar l'historial
-    // personal de pujades de l'usuari autenticat.
+    // S'utilitza a la pantalla de detall del cim per consultar els registres
+    // personals associats a aquell cim i mantenir la coherència amb el seu estat.
     async findAllByUserAndPeak(userId, peakId) {
         const sql = `
         SELECT id, user_id, peak_id, ascent_date, notes, created_at, updated_at
@@ -45,8 +47,10 @@ const AscentModel = {
     // Aquest mètode retorna una ascensió concreta, però només si pertany a
     // l'usuari indicat. Aquesta restricció evita que un usuari pugui llegir
     // o modificar ascensions d'un altre encara que conegui l'identificador
-    // (protecció contra IDOR). Accepta connection opcional per quan cal
-    // llegir l'ascens acabat de crear dins de la mateixa transacció.
+    // del registre.
+    //
+    // Accepta una connexió opcional per poder llegir una ascensió acabada de
+    // crear dins de la mateixa transacció.
     async findByIdAndUserId(userId, ascentId, connection) {
         const executor = connection || pool;
         const sql = `
@@ -60,16 +64,16 @@ const AscentModel = {
         return rows[0] || null;
     },
 
-    // Aquest mètode crea una nova ascensió. Si el peak_id referenciat no
-    // existeix, MySQL llança ER_NO_REFERENCED_ROW_2 per la foreign key i
-    // aquí el convertim en un error 404 amb un missatge clar perquè la capa
-    // de servei no hagi de conèixer codis específics del driver.
+    // Aquest mètode crea una nova ascensió. La data pot ser nul·la quan
+    // l'usuari vol registrar que ha completat un cim però no recorda quan
+    // va fer l'ascensió.
     //
-    // Accepta opcionalment una `connection` del pool perquè el caller pugui
-    // executar la inserció dins d'una transacció (per exemple, per crear
-    // l'ascens i les seves fotos atòmicament). Si no es passa, es fa servir
-    // el pool directament i la inserció és independent.
-    async create({ userId, peakId, ascentDate, notes = null }, connection) {
+    // Si el peak_id referenciat no existeix, MySQL llança un error de foreign
+    // key i aquí es transforma en un 404 amb un missatge funcional.
+    //
+    // Accepta opcionalment una connexió del pool perquè el servei pugui crear
+    // l'ascensió i les seves fotos dins d'una mateixa transacció.
+    async create({ userId, peakId, ascentDate = null, notes = null }, connection) {
         const executor = connection || pool;
         const sql = `
         INSERT INTO ascents (user_id, peak_id, ascent_date, notes)
@@ -96,10 +100,12 @@ const AscentModel = {
     },
 
     // Aquest mètode actualitza els camps indicats d'una ascensió ja existent.
-    // Només s'escriuen els camps presents al payload, de manera que un client
-    // pot modificar només la data o només les notes sense haver de reenviar
-    // la resta. Si no hi ha res a modificar es retorna 0 sense tocar la base
-    // de dades, evitant un UPDATE inútil que renovaria el updated_at.
+    // Només s'escriuen els camps presents al payload, de manera que el client
+    // pot modificar només la data, només les notes o el cim associat sense
+    // reenviar tota la informació.
+    //
+    // També permet deixar la data com a null, mantenint el cas d'ús en què
+    // l'usuari registra un cim completat però no recorda la data exacta.
     async updateByIdAndUserId(userId, ascentId, { peakId, ascentDate, notes } = {}) {
         const fields = [];
         const params = [];
@@ -144,10 +150,23 @@ const AscentModel = {
         }
     },
 
+    // Aquest mètode compta quantes ascensions conserva un usuari sobre un cim.
+    // Serveix per saber si el cim ha de continuar marcat com a completat després
+    // d'eliminar o modificar una ascensió.
+    async countByUserAndPeak(userId, peakId) {
+        const sql = `
+        SELECT COUNT(*) AS total
+        FROM ascents
+        WHERE user_id = ? AND peak_id = ?
+        `;
+
+        const [rows] = await pool.execute(sql, [userId, peakId]);
+        return Number(rows[0].total);
+    },
+
     // Aquest mètode elimina una ascensió només si pertany a l'usuari indicat.
-    // Si no s'ha eliminat cap fila, el servei pot interpretar-ho com a
-    // ascensió inexistent o d'un altre usuari (en tots dos casos respon 404,
-    // per no filtrar quines ascensions existeixen al sistema).
+    // Si no s'ha eliminat cap fila, el servei pot interpretar-ho com a ascensió
+    // inexistent o d'un altre usuari i respondre 404 sense exposar informació.
     async deleteByIdAndUserId(userId, ascentId) {
         const sql = `
         DELETE FROM ascents

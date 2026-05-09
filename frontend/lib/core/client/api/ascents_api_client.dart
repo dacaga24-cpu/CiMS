@@ -4,23 +4,26 @@ import 'package:cims/core/entity/ascent_photo.dart';
 import 'package:cims/core/entity/ascent_photo_gallery.dart';
 
 // Aquest contracte defineix les operacions de l’API relacionades amb les ascensions.
-// Permet registrar i consultar ascensions sense que la resta del projecte conegui
-// com es construeixen les peticions HTTP reals.
+// Permet registrar, editar, consultar i gestionar fotos d’ascensions sense que
+// la resta del projecte conegui com es construeixen les peticions HTTP reals.
 abstract class AscentsApiClient {
   // Aquest mètode envia al backend les dades necessàries per registrar una ascensió.
+  // La data és opcional perquè un usuari pot completar un cim encara que no recordi
+  // el dia exacte de l’ascensió.
   // El backend associa l’ascensió a l’usuari autenticat a partir del token de sessió.
   Future<Ascent> createAscent({
     required int peakId,
-    required DateTime ascentDate,
+    DateTime? ascentDate,
     String? notes,
     List<AscentUploadPhoto> photos = const [],
   });
 
   // Aquest mètode actualitza una ascensió existent.
-  // Permet modificar la data i les notes sense crear un registre nou.
+  // Permet modificar la data i les notes, i també deixar la data buida
+  // quan l’usuari no vol conservar cap dia concret.
   Future<Ascent> updateAscent({
     required int ascentId,
-    required DateTime ascentDate,
+    required DateTime? ascentDate,
     String? notes,
   });
 
@@ -35,8 +38,7 @@ abstract class AscentsApiClient {
 
   // Aquest mètode puja el contingut binari de la imatge a la URL temporal
   // retornada pel backend. Els headers els decideix el backend en signar la
-  // URL (Content-Type i, si escau, extensionHeaders com x-goog-content-length-range)
-  // i s'han d'enviar tal qual al PUT, perquè formen part de la signatura.
+  // URL i s'han d'enviar tal qual al PUT, perquè formen part de la signatura.
   Future<void> uploadAscentPhotoBytes({
     required String uploadUrl,
     required List<int> bytes,

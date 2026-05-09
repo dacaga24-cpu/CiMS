@@ -2,7 +2,8 @@ import 'package:cims/core/entity/ascent.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget representa les ascensions del cim en format de línia temporal.
-// Ajuda a visualitzar l’historial personal mantenint la data i les notes de cada registre.
+// Ajuda a visualitzar l’historial personal mantenint només els registres amb data.
+// Les ascensions sense data completen el cim, però no apareixen a la cronologia.
 class AscentHistoryTimeline extends StatelessWidget {
   const AscentHistoryTimeline({
     super.key,
@@ -17,16 +18,22 @@ class AscentHistoryTimeline extends StatelessWidget {
   final ValueChanged<Ascent> onAscentTap;
 
   // Aquest mètode construeix la línia vertical i els punts associats a cada ascensió.
+  // Abans de pintar-la, filtra els registres sense data perquè no formen part
+  // de la cronologia visual.
   @override
   Widget build(BuildContext context) {
+    final datedAscents = ascents
+        .where((ascent) => ascent.ascentDate != null)
+        .toList();
+
     return Column(
       children: [
-        for (var index = 0; index < ascents.length; index++)
+        for (var index = 0; index < datedAscents.length; index++)
           _TimelineItem(
-            ascent: ascents[index],
+            ascent: datedAscents[index],
             isFirst: index == 0,
-            isLast: index == ascents.length - 1,
-            onTap: () => onAscentTap(ascents[index]),
+            isLast: index == datedAscents.length - 1,
+            onTap: () => onAscentTap(datedAscents[index]),
           ),
       ],
     );
@@ -52,6 +59,12 @@ class _TimelineItem extends StatelessWidget {
   // Aquest mètode construeix el punt de la línia temporal i el text associat.
   @override
   Widget build(BuildContext context) {
+    final ascentDate = ascent.ascentDate;
+
+    if (ascentDate == null) {
+      return const SizedBox.shrink();
+    }
+
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -139,7 +152,7 @@ class _TimelineItem extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            _formatDate(ascent.ascentDate),
+                            _formatDate(ascentDate),
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,

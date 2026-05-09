@@ -48,25 +48,29 @@ const PeakStatusController = {
   },
 
   // Aquest mètode crea o actualitza l'estat d'un cim per a l'usuari autenticat.
-  // Implementa un upsert intern: si ja existia un registre s'actualitza,
-  // i si no existia es crea. Es retorna sempre el registre resultant amb codi 200,
-  // tant si s'ha creat com si s'ha actualitzat, per simplicitat del client.
+  // Només permet modificar els estats manuals, com objectiu i preferit.
+  // L'estat completat es calcula a partir de les ascensions registrades i no es pot
+  // modificar directament des d'aquest endpoint.
   async upsertPeakStatus(req, res, next) {
     try {
-      const { isCompleted, isTarget, isFavorite } = req.body || {};
+      const body = req.body || {};
+      const { isTarget, isFavorite } = body;
 
-      // Els flags arriben com a booleans estrictes per garantir que el client
+      if (Object.prototype.hasOwnProperty.call(body, 'isCompleted')) {
+        throw badRequest('Completed status is derived from ascents and cannot be updated manually');
+      }
+
+      // Els flags manuals arriben com a booleans estrictes per garantir que el client
       // expressa la intenció de manera explícita. Si s'acceptessin valors com
       // "true" o 1, una crida amb tipus incorrectes podria persistir estats
       // erronis sense que ningú se n'adonés.
-      ensureOptionalBoolean(isCompleted, 'isCompleted');
       ensureOptionalBoolean(isTarget, 'isTarget');
       ensureOptionalBoolean(isFavorite, 'isFavorite');
 
       const status = await PeakStatusService.upsertPeakStatus(
         req.userId,
         req.params.peakId,
-        { isCompleted, isTarget, isFavorite }
+        { isTarget, isFavorite }
       );
 
       res.status(200).json(status);

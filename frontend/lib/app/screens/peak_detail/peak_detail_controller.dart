@@ -20,13 +20,8 @@ enum PeakDetailDestination {
   ascentHistory,
 }
 
-// Aquest controller gestiona l’estat de la pantalla de detall del cim.
-// Carrega la informació principal del Peak, l’estat personal de l’usuari
-// i les ascensions registrades per poder mostrar dades com l’últim ascens.
-//
-// Les accions sobre l'estat (objectiu, completat, preferit) apliquen un
-// canvi optimista al store: la interfície es refresca immediatament i, si
-// la petició al backend falla, el valor anterior es restaura.
+// Les accions manuals sobre l'estat només permeten modificar objectiu i preferit.
+// L'estat completat es deriva de les ascensions registrades i es mostra com a segell.
 class PeakDetailController extends ChangeNotifier {
   // Aquest constructor rep l’identificador del cim que s’ha de carregar
   // i prepara els casos d’ús responsables de recuperar-ne el detall,
@@ -132,16 +127,6 @@ class PeakDetailController extends ChangeNotifier {
 
     return _updateStatus(
       isTarget: !currentStatus.isTarget,
-    );
-  }
-
-  // Aquesta acció activa o desactiva el cim com a completat.
-  // Aquest estat és independent del registre d’ascensió.
-  Future<void> onCompletedTap() {
-    final currentStatus = peakStatus ?? PeakStatus.emptyForPeak(peakId);
-
-    return _updateStatus(
-      isCompleted: !currentStatus.isCompleted,
     );
   }
 
@@ -274,10 +259,9 @@ class PeakDetailController extends ChangeNotifier {
   // respongui a l'instant, i només si el backend rebutja la petició es
   // restaura el valor anterior.
   Future<void> _updateStatus({
-    bool? isCompleted,
-    bool? isTarget,
-    bool? isFavorite,
-  }) async {
+  bool? isTarget,
+  bool? isFavorite,
+}) async {
     if (isUpdatingStatus || isLoading) {
       return;
     }
@@ -285,7 +269,6 @@ class PeakDetailController extends ChangeNotifier {
     final previousStatus = peakStatus;
     final baseStatus = previousStatus ?? PeakStatus.emptyForPeak(peakId);
     final optimisticStatus = baseStatus.copyWith(
-      isCompleted: isCompleted,
       isTarget: isTarget,
       isFavorite: isFavorite,
     );
@@ -298,7 +281,6 @@ class PeakDetailController extends ChangeNotifier {
     try {
       final updatedStatus = await _updatePeakStatusUseCase.execute(
         peakId: peakId,
-        isCompleted: isCompleted,
         isTarget: isTarget,
         isFavorite: isFavorite,
       );

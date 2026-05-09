@@ -8,7 +8,7 @@ import 'package:cims/core/entity/peak.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta pantalla mostra el formulari de registre d’una ascensió.
-// Permet revisar el cim seleccionat, introduir la data i les notes,
+// Permet revisar el cim seleccionat, introduir una data opcional, afegir notes
 // i enviar el registre al backend a través del controller.
 @RoutePage()
 class AscentRegisterScreen extends StatefulWidget {
@@ -62,6 +62,7 @@ class _AscentRegisterScreenState extends State<AscentRegisterScreen> {
   }
 
   // Aquest mètode obre el selector de calendari i actualitza la data local del formulari.
+  // Si encara no hi ha cap data seleccionada, el calendari s’obre situat al dia actual.
   Future<void> _selectAscentDate() async {
     if (controller.isLoading || controller.isUploadingPhoto) {
       return;
@@ -69,7 +70,7 @@ class _AscentRegisterScreenState extends State<AscentRegisterScreen> {
 
     final selectedDate = await showDatePicker(
       context: context,
-      initialDate: controller.selectedAscentDate,
+      initialDate: controller.selectedAscentDate ?? DateTime.now(),
       firstDate: DateTime(1950),
       lastDate: DateTime.now(),
     );
@@ -77,6 +78,44 @@ class _AscentRegisterScreenState extends State<AscentRegisterScreen> {
     if (selectedDate != null) {
       controller.onAscentDateChanged(selectedDate);
     }
+  }
+
+  // Aquest mètode confirma el registre de l’ascensió.
+  // Si no hi ha data seleccionada, demana confirmació abans de guardar-la.
+  Future<void> _handleConfirmTap() async {
+    if (controller.isLoading || controller.isUploadingPhoto) {
+      return;
+    }
+
+    if (controller.needsMissingDateConfirmation) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Registrar ascensió sense data?'),
+            content: const Text(
+              'El cim quedarà marcat com a completat, però aquesta ascensió no apareixerà a la cronologia perquè no té data.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel·lar'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Registrar'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (!mounted || confirmed != true) {
+        return;
+      }
+    }
+
+    await controller.onConfirmTap();
   }
 
   @override
@@ -150,7 +189,7 @@ class _AscentRegisterScreenState extends State<AscentRegisterScreen> {
                   isLoading: controller.isLoading,
                   onPressed: controller.isUploadingPhoto
                       ? null
-                      : controller.onConfirmTap,
+                      : _handleConfirmTap,
                 ),
                 const SizedBox(height: 12),
                 SecondaryPillButton(

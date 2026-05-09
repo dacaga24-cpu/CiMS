@@ -40,8 +40,8 @@ enum AscentRegisterFeedback {
 }
 
 // Aquest controller gestiona l’estat local del formulari de registre d’ascensió.
-// Controla la data, les notes, les validacions, el desat amb backend i la
-// sincronització de l’estat del cim quan l’ascensió s’ha registrat correctament.
+// Controla la data opcional, les notes, les fotos, les validacions, el desat amb
+// backend i la sincronització de l’estat del cim quan el registre es completa.
 class AscentRegisterController extends ChangeNotifier {
   AscentRegisterController({
     required this.peakId,
@@ -51,7 +51,8 @@ class AscentRegisterController extends ChangeNotifier {
     UserStatsRefreshStore? userStatsRefreshStore,
     UploadAscentPhotoUseCase? uploadAscentPhotoUseCase,
     ImagePicker? imagePicker,
-  })  : _selectedAscentDate = DateUtils.dateOnly(initialDate ?? DateTime.now()),
+  })  : _selectedAscentDate =
+            initialDate == null ? null : DateUtils.dateOnly(initialDate),
         _registerAscentUseCase = registerAscentUseCase ??
             RegisterAscentUseCase(
               ApiClientImpl(),
@@ -85,8 +86,8 @@ class AscentRegisterController extends ChangeNotifier {
   final TextEditingController notesController = TextEditingController();
 
   // Aquest bloc manté l’estat intern del formulari:
-  // data seleccionada, càrrega, errors, navegació i avisos puntuals.
-  DateTime _selectedAscentDate;
+  // data opcional, càrrega, errors, navegació i avisos puntuals.
+  DateTime? _selectedAscentDate;
   bool _disposed = false;
 
   bool isLoading = false;
@@ -113,11 +114,27 @@ class AscentRegisterController extends ChangeNotifier {
       AscentRegisterNavigationDestination.none;
   AscentRegisterFeedback _feedback = AscentRegisterFeedback.none;
 
-  DateTime get selectedAscentDate => _selectedAscentDate;
+  DateTime? get selectedAscentDate => _selectedAscentDate;
 
-  // Aquest valor preparat permet mostrar la data del formulari
-  // en un format clar i directe per a l’usuari.
-  String get formattedAscentDate => _formatDate(_selectedAscentDate);
+  // Aquest valor indica si el formulari té una data seleccionada.
+  // Permet a la pantalla mostrar l’opció de netejar-la només quan cal.
+  bool get hasSelectedAscentDate => _selectedAscentDate != null;
+
+  // Aquest valor preparat mostra la data seleccionada o un text d’ajuda
+  // quan l’usuari encara no ha triat cap data.
+  String get formattedAscentDate {
+    final selectedDate = _selectedAscentDate;
+
+    if (selectedDate == null) {
+      return 'Seleccionar data';
+    }
+
+    return _formatDate(selectedDate);
+  }
+
+  // Aquest valor indica si el registre s’està intentant guardar sense data.
+  // La pantalla l’utilitza per demanar confirmació abans d’enviar el formulari.
+  bool get needsMissingDateConfirmation => _selectedAscentDate == null;
 
   AscentRegisterNavigationDestination get destination => _destination;
 
@@ -157,6 +174,19 @@ class AscentRegisterController extends ChangeNotifier {
     }
 
     _selectedAscentDate = DateUtils.dateOnly(value);
+    errorMessage = null;
+    _safeNotifyListeners();
+  }
+
+  // Aquest mètode deixa el registre sense data.
+  // Serveix per als casos en què l’usuari sap que ha completat el cim,
+  // però no recorda el dia exacte de l’ascensió.
+  void onClearAscentDateTap() {
+    if (isLoading || isUploadingPhoto) {
+      return;
+    }
+
+    _selectedAscentDate = null;
     errorMessage = null;
     _safeNotifyListeners();
   }
@@ -265,8 +295,8 @@ class AscentRegisterController extends ChangeNotifier {
   }
 
   // Aquest mètode confirma el formulari i envia l’ascensió al backend.
-  // Si el registre funciona, també marca el cim com a completat i avisa
-  // que les estadístiques s’han de tornar a carregar.
+  // Si el registre funciona, el cim queda completat i les estadístiques
+  // es marquen per tornar-se a carregar.
   Future<void> onConfirmTap() async {
     if (isLoading || isUploadingPhoto) {
       return;
@@ -341,11 +371,12 @@ class AscentRegisterController extends ChangeNotifier {
   }
 
   // Aquest mètode valida les dades abans d’enviar-les al backend.
-  // Ara mateix només cal controlar que la data no sigui futura i que les notes no superin el límit.
+  // La data és opcional, però si existeix no pot ser futura.
   bool _isValidForm() {
+    final selectedDate = _selectedAscentDate;
     final today = DateUtils.dateOnly(DateTime.now());
 
-    if (_selectedAscentDate.isAfter(today)) {
+    if (selectedDate != null && selectedDate.isAfter(today)) {
       errorMessage = 'La data de l\'ascensió no pot ser futura';
       return false;
     }
@@ -404,5 +435,4 @@ class AscentRegisterController extends ChangeNotifier {
   String _twoDigits(int value) {
     return value.toString().padLeft(2, '0');
   }
-
 }
