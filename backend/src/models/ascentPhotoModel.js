@@ -93,35 +93,36 @@ const AscentPhotoModel = {
   async findRecentRepresentativeByUserId(userId, limit = 12) {
     const sql = `
       SELECT
-        ranked.id,
-        ranked.ascent_id,
-        ranked.peak_id,
-        ranked.peak_name,
-        ranked.ascent_date,
-        ranked.storage_path,
-        ranked.is_primary,
-        ranked.created_at
-      FROM (
-        SELECT
-          ap.id,
-          ap.ascent_id,
-          a.peak_id,
-          p.name AS peak_name,
-          a.ascent_date,
-          ap.storage_path,
-          ap.is_primary,
-          ap.created_at,
-          ROW_NUMBER() OVER (
-            PARTITION BY ap.ascent_id
-            ORDER BY ap.is_primary DESC, ap.created_at DESC, ap.id DESC
-          ) AS row_number
-        FROM ascent_photos ap
-        INNER JOIN ascents a ON a.id = ap.ascent_id
-        INNER JOIN peaks p ON p.id = a.peak_id
-        WHERE a.user_id = ?
-      ) ranked
-      WHERE ranked.row_number = 1
-      ORDER BY ranked.ascent_date DESC, ranked.ascent_id DESC
+        ap.id,
+        ap.ascent_id,
+        a.peak_id,
+        p.name AS peak_name,
+        a.ascent_date,
+        ap.storage_path,
+        ap.is_primary,
+        ap.created_at
+      FROM ascent_photos ap
+      INNER JOIN ascents a ON a.id = ap.ascent_id
+      INNER JOIN peaks p ON p.id = a.peak_id
+      WHERE a.user_id = ?
+        AND NOT EXISTS (
+          SELECT 1
+          FROM ascent_photos ap2
+          WHERE ap2.ascent_id = ap.ascent_id
+            AND (
+              ap2.is_primary > ap.is_primary
+              OR (
+                ap2.is_primary = ap.is_primary
+                AND ap2.created_at > ap.created_at
+              )
+              OR (
+                ap2.is_primary = ap.is_primary
+                AND ap2.created_at = ap.created_at
+                AND ap2.id > ap.id
+              )
+            )
+        )
+      ORDER BY a.ascent_date DESC, a.id DESC
       LIMIT ?
     `;
 
