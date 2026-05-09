@@ -10,6 +10,7 @@ class AscentEditFormCard extends StatelessWidget {
     super.key,
     required this.controller,
     required this.onDateTap,
+    required this.onPhotoTap,
     required this.onDeletePhotoTap,
   });
 
@@ -20,6 +21,9 @@ class AscentEditFormCard extends StatelessWidget {
   // Aquesta acció permet obrir el selector de data
   // des del mateix bloc del formulari.
   final VoidCallback onDateTap;
+
+  // Aquesta acció permet obrir una foto existent en gran.
+  final ValueChanged<AscentPhoto> onPhotoTap;
 
   // Aquesta acció demana a la pantalla que confirmi l’eliminació d’una foto.
   final ValueChanged<AscentPhoto> onDeletePhotoTap;
@@ -54,6 +58,7 @@ class AscentEditFormCard extends StatelessWidget {
             errorMessage: controller.photosErrorMessage,
             deletingPhotoId: controller.deletingPhotoId,
             onRetryTap: controller.onRetryPhotosTap,
+            onPhotoTap: onPhotoTap,
             onDeletePhotoTap: onDeletePhotoTap,
           ),
         ],
@@ -196,7 +201,8 @@ class _NotesField extends StatelessWidget {
 }
 
 // Aquest bloc mostra les fotos ja associades a l’ascensió.
-// Les imatges es mostren en format gran perquè siguin fàcils de revisar i gestionar.
+// Les imatges es mostren com a miniatures per mantenir el formulari compacte.
+// En tocar una foto, la pantalla pot obrir-la en gran.
 class _AscentEditPhotosSection extends StatelessWidget {
   const _AscentEditPhotosSection({
     required this.photos,
@@ -204,6 +210,7 @@ class _AscentEditPhotosSection extends StatelessWidget {
     required this.errorMessage,
     required this.deletingPhotoId,
     required this.onRetryTap,
+    required this.onPhotoTap,
     required this.onDeletePhotoTap,
   });
 
@@ -212,6 +219,7 @@ class _AscentEditPhotosSection extends StatelessWidget {
   final String? errorMessage;
   final int? deletingPhotoId;
   final Future<void> Function() onRetryTap;
+  final ValueChanged<AscentPhoto> onPhotoTap;
   final ValueChanged<AscentPhoto> onDeletePhotoTap;
 
   @override
@@ -219,7 +227,7 @@ class _AscentEditPhotosSection extends StatelessWidget {
     if (isLoading) {
       return Container(
         width: double.infinity,
-        height: 190,
+        height: 112,
         decoration: BoxDecoration(
           color: const Color(0xFFF5F5F5),
           borderRadius: BorderRadius.circular(26),
@@ -263,7 +271,7 @@ class _AscentEditPhotosSection extends StatelessWidget {
     if (photos.isEmpty) {
       return Container(
         width: double.infinity,
-        constraints: const BoxConstraints(minHeight: 150),
+        constraints: const BoxConstraints(minHeight: 112),
         decoration: BoxDecoration(
           color: const Color(0xFFF5F5F5),
           borderRadius: BorderRadius.circular(26),
@@ -286,134 +294,126 @@ class _AscentEditPhotosSection extends StatelessWidget {
       );
     }
 
-    return Column(
-      children: [
-        for (var index = 0; index < photos.length; index++) ...[
-          _AscentEditPhotoCard(
-            photo: photos[index],
-            isDeleting: deletingPhotoId == photos[index].id,
-            onDeleteTap: () => onDeletePhotoTap(photos[index]),
-          ),
-          if (index != photos.length - 1) const SizedBox(height: 12),
-        ],
-      ],
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: photos.map((photo) {
+        return _AscentEditPhotoCard(
+          photo: photo,
+          isDeleting: deletingPhotoId == photo.id,
+          onTap: () => onPhotoTap(photo),
+          onDeleteTap: () => onDeletePhotoTap(photo),
+        );
+      }).toList(),
     );
   }
 }
 
-// Aquesta targeta representa una foto existent de l’ascensió.
-// Inclou una acció d’eliminació perquè l’usuari pugui gestionar les imatges guardades.
+// Aquesta miniatura representa una foto existent de l’ascensió.
+// Permet obrir-la en gran o eliminar-la sense ocupar massa espai dins del formulari.
 class _AscentEditPhotoCard extends StatelessWidget {
   const _AscentEditPhotoCard({
     required this.photo,
     required this.isDeleting,
+    required this.onTap,
     required this.onDeleteTap,
   });
 
   final AscentPhoto photo;
   final bool isDeleting;
+  final VoidCallback onTap;
   final VoidCallback onDeleteTap;
 
   @override
   Widget build(BuildContext context) {
     final downloadUrl = photo.downloadUrl;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: Stack(
-        children: [
-          AspectRatio(
-            aspectRatio: 16 / 10,
-            child: downloadUrl == null
-                ? const _PhotoFallback(
-                    icon: Icons.image_not_supported_outlined,
-                  )
-                : Image.network(
-                    downloadUrl,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) {
-                      return const _PhotoFallback(
-                        icon: Icons.broken_image_outlined,
-                      );
-                    },
-                  ),
-          ),
-          Positioned(
-            top: 10,
-            right: 10,
-            child: Material(
-              color: const Color(0xCC000000),
-              shape: const CircleBorder(),
+    return SizedBox(
+      width: 92,
+      height: 92,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Material(
+              color: const Color(0xFFE4E7EC),
               child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: isDeleting ? null : onDeleteTap,
-                child: SizedBox(
-                  width: 42,
-                  height: 42,
-                  child: Center(
-                    child: isDeleting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
+                onTap: downloadUrl == null || isDeleting ? null : onTap,
+                child: downloadUrl == null
+                    ? const Icon(
+                        Icons.image_not_supported_outlined,
+                        color: Color(0xFF667085),
+                      )
+                    : Image.network(
+                        downloadUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) {
+                          return const Icon(
+                            Icons.broken_image_outlined,
+                            color: Color(0xFF667085),
+                          );
+                        },
+                      ),
+              ),
+            ),
+            Positioned(
+              top: 5,
+              right: 5,
+              child: Material(
+                color: const Color(0xCC000000),
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: isDeleting ? null : onDeleteTap,
+                  child: SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: Center(
+                      child: isDeleting
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.close_rounded,
+                              size: 18,
                               color: Colors.white,
                             ),
-                          )
-                        : const Icon(
-                            Icons.delete_outline_rounded,
-                            color: Colors.white,
-                          ),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          if (photo.isPrimary)
-            Positioned(
-              left: 10,
-              top: 10,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xCC18B56A),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Text(
-                  'Principal',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
+            if (photo.isPrimary)
+              Positioned(
+                left: 5,
+                bottom: 5,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xCC18B56A),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Text(
+                    'Principal',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PhotoFallback extends StatelessWidget {
-  const _PhotoFallback({
-    required this.icon,
-  });
-
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFFE4E7EC),
-      child: Icon(
-        icon,
-        size: 34,
-        color: const Color(0xFF667085),
+          ],
+        ),
       ),
     );
   }
