@@ -24,7 +24,6 @@ class PeakDetailContent extends StatelessWidget {
     required this.ascentsErrorMessage,
     required this.onRetryTap,
     required this.onTargetTap,
-    required this.onCompletedTap,
     required this.onFavoriteTap,
     required this.onMapTap,
   });
@@ -41,7 +40,6 @@ class PeakDetailContent extends StatelessWidget {
   final String? ascentsErrorMessage;
   final Future<void> Function() onRetryTap;
   final VoidCallback onTargetTap;
-  final VoidCallback onCompletedTap;
   final VoidCallback onFavoriteTap;
   final Future<void> Function(int peakId) onMapTap;
 
@@ -86,7 +84,6 @@ class PeakDetailContent extends StatelessWidget {
             isFavorite: peakStatus?.isFavorite ?? false,
             areActionsEnabled: !isUpdatingStatus,
             onTargetTap: onTargetTap,
-            onCompletedTap: onCompletedTap,
             onFavoriteTap: onFavoriteTap,
           ),
           PeakDetailStatusMessages(

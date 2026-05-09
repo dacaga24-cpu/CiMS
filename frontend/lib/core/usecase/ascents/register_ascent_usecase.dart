@@ -14,7 +14,7 @@ class RegisterAscentUseCase {
   // Si hi ha fotos pujades, també envia les seves rutes perquè quedin associades al registre.
   Future<Ascent> call({
     required int peakId,
-    required DateTime ascentDate,
+    required DateTime? ascentDate,
     String? notes,
     List<AscentUploadPhoto> photos = const [],
   }) {

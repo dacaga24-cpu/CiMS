@@ -13,7 +13,7 @@ class AscentRegisterFormCard extends StatelessWidget {
   });
 
   // Aquest controller aporta l’estat actual del formulari,
-  // com la data seleccionada i el camp de notes.
+  // com la data seleccionada, les notes i les fotos temporals.
   final AscentRegisterController controller;
 
   // Aquesta acció permet obrir el selector de data
@@ -32,7 +32,9 @@ class AscentRegisterFormCard extends StatelessWidget {
           const SizedBox(height: 10),
           _DateSelectorField(
             value: controller.formattedAscentDate,
+            hasValue: controller.hasSelectedAscentDate,
             onTap: onDateTap,
+            onClearTap: controller.onClearAscentDateTap,
           ),
           const SizedBox(height: 24),
           const _SectionLabel('Notes i experiència'),
@@ -81,23 +83,30 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// Aquest camp visual mostra la data actual o la seleccionada
-// i obre el calendari quan l’usuari el toca.
+// Aquest camp visual mostra la data seleccionada o un text d’ajuda.
+// També permet netejar la data perquè l’ascensió pugui registrar-se sense dia concret.
 class _DateSelectorField extends StatelessWidget {
   const _DateSelectorField({
     required this.value,
+    required this.hasValue,
     required this.onTap,
+    required this.onClearTap,
   });
 
-  // Aquest valor mostra la data preparada en format llegible
-  // perquè l’usuari pugui revisar-la fàcilment.
+  // Aquest valor mostra la data o el text inicial del camp.
   final String value;
+
+  // Indica si actualment hi ha una data seleccionada.
+  final bool hasValue;
 
   // Aquesta acció delega a la pantalla l’obertura del calendari.
   final VoidCallback onTap;
 
+  // Aquesta acció permet deixar el registre sense data.
+  final VoidCallback onClearTap;
+
   // Aquest camp no deixa escriure directament, sinó que guia l’usuari
-  // a seleccionar la data amb un toc sobre tota la superfície.
+  // a seleccionar o netejar la data amb controls visuals simples.
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -108,7 +117,10 @@ class _DateSelectorField extends StatelessWidget {
         onTap: onTap,
         child: Container(
           height: 56,
-          padding: const EdgeInsets.symmetric(horizontal: 18),
+          padding: const EdgeInsets.only(
+            left: 18,
+            right: 8,
+          ),
           child: Row(
             children: [
               const Icon(
@@ -120,17 +132,31 @@ class _DateSelectorField extends StatelessWidget {
               Expanded(
                 child: Text(
                   value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF344054),
+                    color: hasValue
+                        ? const Color(0xFF344054)
+                        : const Color(0xFF98A2B3),
                   ),
                 ),
               ),
-              const Icon(
-                Icons.expand_more_rounded,
-                color: Color(0xFF98A2B3),
-              ),
+              if (hasValue)
+                IconButton(
+                  onPressed: onClearTap,
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Color(0xFF98A2B3),
+                  ),
+                )
+              else
+                const Padding(
+                  padding: EdgeInsets.only(right: 10),
+                  child: Icon(
+                    Icons.expand_more_rounded,
+                    color: Color(0xFF98A2B3),
+                  ),
+                ),
             ],
           ),
         ),

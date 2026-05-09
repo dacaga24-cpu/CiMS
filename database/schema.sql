@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS ascents (
   id          INT      NOT NULL AUTO_INCREMENT,
   user_id     INT      NOT NULL,
   peak_id     INT      NOT NULL,
-  ascent_date DATE     NOT NULL,
+  ascent_date DATE     NULL,
   notes       TEXT,
   created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

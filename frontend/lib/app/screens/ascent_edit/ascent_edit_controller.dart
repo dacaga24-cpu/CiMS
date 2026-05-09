@@ -25,18 +25,21 @@ enum AscentEditFeedback {
 }
 
 // Aquest controller gestiona l’estat local de l’edició d’una ascensió.
-// Rep una ascensió existent i prepara el formulari amb la data i les notes ja registrades.
+// Rep una ascensió existent i prepara el formulari amb la data opcional,
+// les notes i les fotos ja registrades.
 class AscentEditController extends ChangeNotifier {
   AscentEditController({
-  required this.ascent,
-  UpdateAscentUseCase? updateAscentUseCase,
-  GetAscentPhotosUseCase? getAscentPhotosUseCase,
-})  : _selectedAscentDate = DateUtils.dateOnly(ascent.ascentDate),
-      notesController = TextEditingController(text: ascent.notes ?? ''),
-      _updateAscentUseCase =
-          updateAscentUseCase ?? UpdateAscentUseCase(ApiClientImpl()),
-      _getAscentPhotosUseCase =
-          getAscentPhotosUseCase ?? GetAscentPhotosUseCase(ApiClientImpl());
+    required this.ascent,
+    UpdateAscentUseCase? updateAscentUseCase,
+    GetAscentPhotosUseCase? getAscentPhotosUseCase,
+  })  : _selectedAscentDate = ascent.ascentDate == null
+            ? null
+            : DateUtils.dateOnly(ascent.ascentDate!),
+        notesController = TextEditingController(text: ascent.notes ?? ''),
+        _updateAscentUseCase =
+            updateAscentUseCase ?? UpdateAscentUseCase(ApiClientImpl()),
+        _getAscentPhotosUseCase =
+            getAscentPhotosUseCase ?? GetAscentPhotosUseCase(ApiClientImpl());
 
   // Aquesta ascensió és el registre original que l’usuari vol consultar o editar.
   final Ascent ascent;
@@ -52,8 +55,8 @@ class AscentEditController extends ChangeNotifier {
   final GetAscentPhotosUseCase _getAscentPhotosUseCase;
 
   // Aquest bloc manté l’estat intern del formulari:
-  // data seleccionada, càrrega, errors, navegació i avisos puntuals.
-  DateTime _selectedAscentDate;
+  // data opcional, càrrega, errors, navegació i avisos puntuals.
+  DateTime? _selectedAscentDate;
   bool _disposed = false;
 
   bool isLoading = false;
@@ -64,16 +67,28 @@ class AscentEditController extends ChangeNotifier {
       AscentEditNavigationDestination.none;
   AscentEditFeedback _feedback = AscentEditFeedback.none;
 
-  DateTime get selectedAscentDate => _selectedAscentDate;
+  DateTime? get selectedAscentDate => _selectedAscentDate;
 
   // Aquest bloc guarda l’estat de les fotos existents de l’ascensió.
   List<AscentPhoto> photos = const [];
   bool isLoadingPhotos = false;
   String? photosErrorMessage;
 
-  // Aquest valor preparat permet mostrar la data del formulari
-  // en un format clar i directe per a l’usuari.
-  String get formattedAscentDate => _formatDate(_selectedAscentDate);
+  // Aquest valor indica si actualment hi ha una data seleccionada.
+  // Permet a la pantalla mostrar o ocultar l’acció de netejar-la.
+  bool get hasSelectedAscentDate => _selectedAscentDate != null;
+
+  // Aquest valor preparat mostra la data seleccionada o un text d’ajuda
+  // quan l’ascensió no té cap data associada.
+  String get formattedAscentDate {
+    final selectedDate = _selectedAscentDate;
+
+    if (selectedDate == null) {
+      return 'Seleccionar data';
+    }
+
+    return _formatDate(selectedDate);
+  }
 
   AscentEditNavigationDestination get destination => _destination;
 
@@ -86,12 +101,18 @@ class AscentEditController extends ChangeNotifier {
 
   // Aquest getter indica si l’usuari ha modificat alguna dada del formulari.
   bool get hasChanges {
-    final originalDate = DateUtils.dateOnly(ascent.ascentDate);
+    final originalDate = ascent.ascentDate == null
+        ? null
+        : DateUtils.dateOnly(ascent.ascentDate!);
     final originalNotes = (ascent.notes ?? '').trim();
     final currentNotes = notesController.text.trim();
 
-    return !_selectedAscentDate.isAtSameMomentAs(originalDate) ||
-        currentNotes != originalNotes;
+    final hasDateChanged = originalDate == null
+        ? _selectedAscentDate != null
+        : _selectedAscentDate == null ||
+            !_selectedAscentDate!.isAtSameMomentAs(originalDate);
+
+    return hasDateChanged || currentNotes != originalNotes;
   }
 
   // Aquest mètode carrega les dades complementàries de l’edició.
@@ -154,8 +175,21 @@ class AscentEditController extends ChangeNotifier {
     if (isLoading) {
       return;
     }
-  
+
     _selectedAscentDate = DateUtils.dateOnly(value);
+    errorMessage = null;
+    _safeNotifyListeners();
+  }
+
+  // Aquest mètode deixa l’ascensió sense data.
+  // Serveix per als casos en què l’usuari no vol conservar cap dia concret
+  // associat al registre.
+  void onClearAscentDateTap() {
+    if (isLoading) {
+      return;
+    }
+
+    _selectedAscentDate = null;
     errorMessage = null;
     _safeNotifyListeners();
   }
@@ -239,11 +273,12 @@ class AscentEditController extends ChangeNotifier {
   }
 
   // Aquest mètode valida les dades abans de guardar els canvis.
-  // Controla que la data no sigui futura i que les notes no superin el límit.
+  // La data és opcional, però si existeix no pot ser futura.
   bool _isValidForm() {
+    final selectedDate = _selectedAscentDate;
     final today = DateUtils.dateOnly(DateTime.now());
 
-    if (_selectedAscentDate.isAfter(today)) {
+    if (selectedDate != null && selectedDate.isAfter(today)) {
       errorMessage = 'La data de l\'ascensió no pot ser futura';
       return false;
     }

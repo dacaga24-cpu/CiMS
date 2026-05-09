@@ -2,16 +2,15 @@ import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/ascent.dart';
 
 // Aquest cas d’ús actualitza una ascensió existent.
-// Centralitza l’acció d’edició perquè la pantalla no depengui directament de l’API.
+// Permet modificar les notes i conservar, canviar o deixar buida la data.
 class UpdateAscentUseCase {
   const UpdateAscentUseCase(this._apiClient);
 
   final ApiClient _apiClient;
 
-  // Aquest mètode envia al backend la data i les notes editades per l’usuari.
   Future<Ascent> call({
     required int ascentId,
-    required DateTime ascentDate,
+    required DateTime? ascentDate,
     String? notes,
   }) {
     return _apiClient.updateAscent(

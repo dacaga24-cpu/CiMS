@@ -10,7 +10,7 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
   @override
   Future<Ascent> createAscent({
     required int peakId,
-    required DateTime ascentDate,
+    DateTime? ascentDate,
     String? notes,
     List<AscentUploadPhoto> photos = const [],
   }) async {
@@ -19,7 +19,7 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
         ApiEndpoints.ascents,
         body: {
           'peakId': peakId,
-          'ascentDate': _formatDateOnly(ascentDate),
+          if (ascentDate != null) 'ascentDate': _formatDateOnly(ascentDate),
           if (notes != null) 'notes': notes,
           if (photos.isNotEmpty)
             'photos': photos.map((photo) => photo.toJson()).toList(),
@@ -65,14 +65,14 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
   @override
   Future<Ascent> updateAscent({
     required int ascentId,
-    required DateTime ascentDate,
+    required DateTime? ascentDate,
     String? notes,
   }) async {
     try {
       final response = await _putJson(
         ApiEndpoints.ascentById(ascentId),
         body: {
-          'ascentDate': _formatDateForApi(ascentDate),
+          'ascentDate': ascentDate == null ? null : _formatDateOnly(ascentDate),
           'notes': notes,
         },
         requiresAuth: true,
@@ -368,13 +368,4 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
 
     return '$year-$month-$day';
   }
-
-  // Aquest mètode transforma una data de Dart al format que espera el backend.
-  String _formatDateForApi(DateTime date) {
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    final year = date.year.toString();
-
-    return '$year-$month-$day';
-}
 }

@@ -223,7 +223,6 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
             ascentsErrorMessage: controller.ascentsErrorMessage,
             onRetryTap: controller.onRetryTap,
             onTargetTap: controller.onTargetTap,
-            onCompletedTap: controller.onCompletedTap,
             onFavoriteTap: controller.onFavoriteTap,
             onMapTap: _openPeakMap,
           ),

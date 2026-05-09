@@ -27,7 +27,6 @@ async function safeSideEffect(label, promise) {
 const {
   badRequest,
   requireInteger,
-  requireIsoDate,
   parseOptionalIsoDate,
 } = require('../utils/validation');
 
@@ -262,7 +261,7 @@ const AscentService = {
   // També pot associar-hi fotos ja pujades al bucket i marca el cim com a assolit.
   async create(userId, { peakId, ascentDate, notes, photos } = {}) {
     const parsedPeakId = requireInteger(peakId, 'peakId');
-    const parsedDate = requireIsoDate(ascentDate, 'ascentDate');
+    const parsedDate = parseOptionalIsoDate(ascentDate, 'ascentDate') ?? null;
     const validatedNotes = ensureValidNotes(notes);
     const validatedPhotos = ensureValidPhotosPayload(userId, photos);
 
@@ -310,10 +309,12 @@ const AscentService = {
       })
     );
 
-    await safeSideEffect(
-      'monthlyChallenge.recompute',
-      MonthlyChallengeService.recomputeForUser(userId, parsedDate)
-    );
+    if (parsedDate !== null) {
+      await safeSideEffect(
+        'monthlyChallenge.recompute',
+        MonthlyChallengeService.recomputeForUser(userId, parsedDate)
+      );
+    }
 
     return {
       ...createdAscent,
@@ -341,7 +342,7 @@ const AscentService = {
     }
 
     if (ascentDate !== undefined) {
-      payload.ascentDate = parseOptionalIsoDate(ascentDate, 'ascentDate');
+      payload.ascentDate = parseOptionalIsoDate(ascentDate, 'ascentDate') ?? null;
     }
 
     if (notes !== undefined) {
@@ -359,6 +360,20 @@ const AscentService = {
           isCompleted: true,
         })
       );
+
+      const remainingAscentsOnPreviousPeak = await AscentModel.countByUserAndPeak(
+        userId,
+        existing.peak_id
+      );
+
+      if (remainingAscentsOnPreviousPeak === 0) {
+        await safeSideEffect(
+          'peakStatus.uncompletePreviousPeak',
+          PeakStatusService.upsertPeakStatus(userId, existing.peak_id, {
+            isCompleted: false,
+          })
+        );
+      }
     }
 
     await safeSideEffect(
@@ -374,17 +389,19 @@ const AscentService = {
   async remove(userId, ascentId) {
     const parsedAscentId = requireInteger(ascentId, 'ascentId');
 
+    const existing = await AscentModel.findByIdAndUserId(userId, parsedAscentId);
+    if (!existing) {
+      const error = new Error('Ascent not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
     const photos = await AscentPhotoModel.findAllByAscentIdAndUserId(
       parsedAscentId,
       userId
     );
 
-    const affectedRows = await AscentModel.deleteByIdAndUserId(userId, parsedAscentId);
-    if (affectedRows === 0) {
-      const error = new Error('Ascent not found');
-      error.statusCode = 404;
-      throw error;
-    }
+    await AscentModel.deleteByIdAndUserId(userId, parsedAscentId);
 
     await safeDeletePhotoBlobs(
       photos.map((photo) => photo.storage_path),
@@ -393,6 +410,20 @@ const AscentService = {
         ascentId: parsedAscentId,
       }
     );
+
+    const remainingAscents = await AscentModel.countByUserAndPeak(
+      userId,
+      existing.peak_id
+    );
+
+    if (remainingAscents === 0) {
+      await safeSideEffect(
+        'peakStatus.uncomplete',
+        PeakStatusService.upsertPeakStatus(userId, existing.peak_id, {
+          isCompleted: false,
+        })
+      );
+    }
 
     await safeSideEffect(
       'monthlyChallenge.recompute',
