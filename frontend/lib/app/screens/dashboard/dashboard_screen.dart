@@ -4,6 +4,7 @@ import 'package:cims/app/screens/dashboard/dashboard_controller.dart';
 import 'package:cims/app/screens/dashboard/widgets/dashboard_challenge_card.dart';
 import 'package:cims/app/screens/dashboard/widgets/dashboard_monthly_challenge_card.dart';
 import 'package:cims/app/screens/dashboard/widgets/dashboard_peak_section.dart';
+import 'package:cims/app/screens/dashboard/widgets/dashboard_recent_photos_carousel.dart';
 import 'package:cims/app/screens/main_navigation/main_bottom_navigation_tab.dart';
 import 'package:flutter/material.dart';
 
@@ -118,6 +119,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 18),
                     DashboardMonthlyChallengeCard(
                       challenge: summary.monthlyChallenge,
+                    ),
+                    const SizedBox(height: 18),
+                    DashboardRecentPhotosCarousel(
+                      photos: summary.recentPhotos,
+                      onViewGalleryTap: () {
+                        context.router.root.push(
+                          const UserPhotoGalleryRoute(),
+                        );
+                      },
                     ),
                     const SizedBox(height: 18),
                     DashboardPeakSection(

@@ -309,6 +309,56 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
     }
   }
 
+  // Aquest mètode recupera una pàgina de la galeria de fotos de l'usuari.
+  // La resposta és paginada perquè la pantalla pugui carregar més imatges quan calgui.
+  @override
+  Future<AscentPhotoGalleryPage> getUserPhotoGallery({
+    int limit = 30,
+    int offset = 0,
+  }) async {
+    try {
+      final response = await _getJson(
+        ApiEndpoints.ascentPhotosGallery,
+        queryParameters: {
+          'limit': limit.toString(),
+          'offset': offset.toString(),
+        },
+        requiresAuth: true,
+      );
+
+      if (response.statusCode == 200) {
+        final data = _tryParseJson(response.body);
+
+        if (data == null) {
+          throw const ApiException(
+            'La resposta de la galeria de fotos no és vàlida',
+            statusCode: 200,
+          );
+        }
+
+        return AscentPhotoGalleryPage.fromJson(data);
+      }
+
+      final data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'ha pogut carregar la galeria de fotos';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
+
   // Aquest mètode transforma una data en el format simple que fa servir
   // el backend per guardar ascensions sense hora.
   String _formatDateOnly(DateTime date) {
