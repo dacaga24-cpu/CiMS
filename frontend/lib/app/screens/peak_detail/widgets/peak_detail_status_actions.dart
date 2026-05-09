@@ -105,7 +105,7 @@ class _CompletedStatusSeal extends StatelessWidget {
     final title = isCompleted ? 'Cim completat' : 'Cim no completat';
 
     final subtitle = isCompleted
-        ? 'Aquest cim té almenys una ascensió registrada.'
+        ? null
         : 'Per completar-lo, registra una ascensió.';
 
     return Container(
@@ -141,16 +141,18 @@ class _CompletedStatusSeal extends StatelessWidget {
                     color: foregroundColor,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.3,
-                    fontWeight: FontWeight.w500,
-                    color: foregroundColor.withValues(alpha: 0.82),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.3,
+                      fontWeight: FontWeight.w500,
+                      color: foregroundColor.withValues(alpha: 0.82),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),

@@ -94,6 +94,55 @@ class _AscentEditScreenState extends State<AscentEditScreen> {
     }
   }
 
+  // Aquest mètode obre una foto existent en gran.
+  // Manté el formulari compacte amb miniatures i només amplia la imatge quan l’usuari la prem.
+  void _openPhotoPreview(AscentPhoto photo) {
+    final downloadUrl = photo.downloadUrl;
+
+    if (downloadUrl == null) {
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          insetPadding: const EdgeInsets.all(18),
+          backgroundColor: Colors.black,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(22),
+                child: InteractiveViewer(
+                  minScale: 1,
+                  maxScale: 4,
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: Image.network(
+                      downloadUrl,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: IconButton.filled(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  icon: const Icon(Icons.close),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   // Aquest mètode demana confirmació abans d’eliminar una foto.
   // La confirmació evita esborrats accidentals en una acció destructiva.
   Future<void> _confirmDeletePhoto(AscentPhoto photo) async {
@@ -215,6 +264,7 @@ class _AscentEditScreenState extends State<AscentEditScreen> {
                     AscentEditFormCard(
                       controller: controller,
                       onDateTap: _selectAscentDate,
+                      onPhotoTap: _openPhotoPreview,
                       onDeletePhotoTap: _confirmDeletePhoto,
                     ),
                     if (controller.errorMessage != null) ...[
