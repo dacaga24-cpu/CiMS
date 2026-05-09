@@ -65,6 +65,16 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     _maxAltitudeController = TextEditingController(
       text: widget.initialMaxAltitude?.toString() ?? '',
     );
+
+    _minAltitudeController.addListener(_handleAltitudeChanged);
+    _maxAltitudeController.addListener(_handleAltitudeChanged);
+  }
+
+  // Aquest mètode actualitza el panell quan canvien les altures.
+  // Permet mostrar l’avís d’error i bloquejar l’aplicació de filtres invàlids.
+  void _handleAltitudeChanged() {
+    if (!mounted) return;
+    setState(() {});
   }
 
   // Aquest mètode converteix el text introduït en una altitud numèrica.
@@ -76,6 +86,19 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     }
 
     return int.tryParse(trimmedValue);
+  }
+
+  // Aquest mètode comprova si el rang d'altura introduït és possible.
+  // Només marca error quan els dos camps tenen valor i la mínima supera la màxima.
+  bool get _hasInvalidAltitudeRange {
+    final minAltitude = _parseAltitude(_minAltitudeController.text);
+    final maxAltitude = _parseAltitude(_maxAltitudeController.text);
+
+    if (minAltitude == null || maxAltitude == null) {
+      return false;
+    }
+
+    return minAltitude > maxAltitude;
   }
 
   // Aquest mètode reinicia tots els filtres visibles del panell.
@@ -99,8 +122,12 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
   }
 
   // Aquest mètode recull els valors seleccionats i els envia a la pantalla principal.
-  // Primer tanca el panell perquè Google Maps no es reconstrueixi mentre el modal encara existeix.
+  // Si el rang d'altura no és possible, no permet aplicar el filtre.
   void _handleApply() {
+    if (_hasInvalidAltitudeRange) {
+      return;
+    }
+
     final minAltitude = _parseAltitude(_minAltitudeController.text);
     final maxAltitude = _parseAltitude(_maxAltitudeController.text);
     final selectedRegionId = _selectedRegionId;
@@ -123,6 +150,8 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
   // Evita mantenir recursos actius que ja no són necessaris.
   @override
   void dispose() {
+    _minAltitudeController.removeListener(_handleAltitudeChanged);
+    _maxAltitudeController.removeListener(_handleAltitudeChanged);
     _minAltitudeController.dispose();
     _maxAltitudeController.dispose();
     super.dispose();
@@ -133,6 +162,7 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final hasInvalidAltitudeRange = _hasInvalidAltitudeRange;
 
     // Aquesta construcció mostra el full inferior amb el formulari de filtres,
     // mantenint una presentació clara i adaptada al teclat quan apareix.
@@ -187,6 +217,17 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
                       minAltitudeController: _minAltitudeController,
                       maxAltitudeController: _maxAltitudeController,
                     ),
+                    if (hasInvalidAltitudeRange) ...[
+                      const SizedBox(height: 8),
+                      const Text(
+                        'L\'altura mínima no pot ser superior a l\'altura màxima.',
+                        style: TextStyle(
+                          color: Color(0xFFB42318),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 20),
                     PeaksStatusFilterSection(
                       selectedStatusFilter: _selectedStatusFilter,
@@ -200,6 +241,7 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
                     PeaksFiltersActions(
                       onClear: _handleClear,
                       onApply: _handleApply,
+                      canApply: !hasInvalidAltitudeRange,
                     ),
                   ],
                 ),
