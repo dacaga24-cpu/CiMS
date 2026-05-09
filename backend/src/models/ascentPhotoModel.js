@@ -90,71 +90,83 @@ const AscentPhotoModel = {
   // Retorna les fotos representatives més recents de l'usuari.
   // Només selecciona una foto per ascensió, prioritzant la foto principal i,
   // si no n'hi ha, la imatge més recent d'aquella ascensió.
-  async findRecentRepresentativeByUserId(userId, limit = 12) {
-    const sql = `
-      SELECT
-        ap.id,
-        ap.ascent_id,
-        a.peak_id,
-        p.name AS peak_name,
-        a.ascent_date,
-        ap.storage_path,
-        ap.is_primary,
-        ap.created_at
-      FROM ascent_photos ap
-      INNER JOIN ascents a ON a.id = ap.ascent_id
-      INNER JOIN peaks p ON p.id = a.peak_id
-      WHERE a.user_id = ?
-        AND NOT EXISTS (
-          SELECT 1
-          FROM ascent_photos ap2
-          WHERE ap2.ascent_id = ap.ascent_id
-            AND (
-              ap2.is_primary > ap.is_primary
-              OR (
-                ap2.is_primary = ap.is_primary
-                AND ap2.created_at > ap.created_at
-              )
-              OR (
-                ap2.is_primary = ap.is_primary
-                AND ap2.created_at = ap.created_at
-                AND ap2.id > ap.id
-              )
-            )
-        )
-      ORDER BY a.ascent_date DESC, a.id DESC
-      LIMIT ?
-    `;
+async findRecentRepresentativeByUserId(userId, limit = 12) {
+  const safeLimit = Number.isInteger(Number(limit))
+    ? Math.min(Math.max(Number(limit), 1), 50)
+    : 12;
 
-    const [rows] = await pool.execute(sql, [userId, limit]);
-    return rows;
-  },
+  const sql = `
+    SELECT
+      ap.id,
+      ap.ascent_id,
+      a.peak_id,
+      p.name AS peak_name,
+      a.ascent_date,
+      ap.storage_path,
+      ap.is_primary,
+      ap.created_at
+    FROM ascent_photos ap
+    INNER JOIN ascents a ON a.id = ap.ascent_id
+    INNER JOIN peaks p ON p.id = a.peak_id
+    WHERE a.user_id = ?
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ascent_photos ap2
+        WHERE ap2.ascent_id = ap.ascent_id
+          AND (
+            ap2.is_primary > ap.is_primary
+            OR (
+              ap2.is_primary = ap.is_primary
+              AND ap2.created_at > ap.created_at
+            )
+            OR (
+              ap2.is_primary = ap.is_primary
+              AND ap2.created_at = ap.created_at
+              AND ap2.id > ap.id
+            )
+          )
+      )
+    ORDER BY a.ascent_date DESC, a.id DESC
+    LIMIT ${safeLimit}
+  `;
+
+  const [rows] = await pool.execute(sql, [userId]);
+  return rows;
+},
 
   // Retorna les fotos de totes les ascensions de l'usuari.
   // S'utilitza per construir la galeria completa, ordenada per les ascensions
   // més recents i preparada per carregar-se de manera paginada.
   async findGalleryByUserId(userId, limit, offset = 0) {
-    const sql = `
-      SELECT
-        ap.id,
-        ap.ascent_id,
-        a.peak_id,
-        p.name AS peak_name,
-        a.ascent_date,
-        ap.storage_path,
-        ap.is_primary,
-        ap.created_at
-      FROM ascent_photos ap
-      INNER JOIN ascents a ON a.id = ap.ascent_id
-      INNER JOIN peaks p ON p.id = a.peak_id
-      WHERE a.user_id = ?
-      ORDER BY a.ascent_date DESC, a.id DESC, ap.created_at DESC, ap.id DESC
-      LIMIT ? OFFSET ?
-    `;
+  const safeLimit = Number.isInteger(Number(limit))
+    ? Math.min(Math.max(Number(limit), 1), 50)
+    : 12;
 
-    const [rows] = await pool.execute(sql, [userId, limit, offset]);
-    return rows;
-  },
+  const safeOffset = Number.isInteger(Number(offset))
+    ? Math.max(Number(offset), 0)
+    : 0;
+
+  const sql = `
+    SELECT
+      ap.id,
+      ap.ascent_id,
+      a.peak_id,
+      p.name AS peak_name,
+      a.ascent_date,
+      ap.storage_path,
+      ap.is_primary,
+      ap.created_at
+    FROM ascent_photos ap
+    INNER JOIN ascents a ON a.id = ap.ascent_id
+    INNER JOIN peaks p ON p.id = a.peak_id
+    WHERE a.user_id = ?
+    ORDER BY a.ascent_date DESC, a.id DESC, ap.created_at DESC, ap.id DESC
+    LIMIT ${safeLimit} OFFSET ${safeOffset}
+  `;
+
+  const [rows] = await pool.execute(sql, [userId]);
+  return rows;
+},
 };
 
 module.exports = AscentPhotoModel;
