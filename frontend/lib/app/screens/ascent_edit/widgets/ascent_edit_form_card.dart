@@ -10,6 +10,7 @@ class AscentEditFormCard extends StatelessWidget {
     super.key,
     required this.controller,
     required this.onDateTap,
+    required this.onDeletePhotoTap,
   });
 
   // Aquest controller aporta l’estat actual del formulari,
@@ -19,6 +20,9 @@ class AscentEditFormCard extends StatelessWidget {
   // Aquesta acció permet obrir el selector de data
   // des del mateix bloc del formulari.
   final VoidCallback onDateTap;
+
+  // Aquesta acció demana a la pantalla que confirmi l’eliminació d’una foto.
+  final ValueChanged<AscentPhoto> onDeletePhotoTap;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +34,9 @@ class AscentEditFormCard extends StatelessWidget {
           const SizedBox(height: 10),
           _DateSelectorField(
             value: controller.formattedAscentDate,
+            hasValue: controller.hasSelectedAscentDate,
             onTap: onDateTap,
+            onClearTap: controller.onClearAscentDateTap,
           ),
           const SizedBox(height: 24),
           const _SectionLabel('Notes i experiència'),
@@ -46,7 +52,9 @@ class AscentEditFormCard extends StatelessWidget {
             photos: controller.photos,
             isLoading: controller.isLoadingPhotos,
             errorMessage: controller.photosErrorMessage,
+            deletingPhotoId: controller.deletingPhotoId,
             onRetryTap: controller.onRetryPhotosTap,
+            onDeletePhotoTap: onDeletePhotoTap,
           ),
         ],
       ),
@@ -54,7 +62,6 @@ class AscentEditFormCard extends StatelessWidget {
   }
 }
 
-// Aquest text s’utilitza com a capçalera visual de cada bloc del formulari.
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.text);
 
@@ -74,16 +81,20 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// Aquest camp visual mostra la data actual de l’ascensió
-// i obre el calendari quan l’usuari el toca.
+// Aquest camp mostra la data seleccionada o permet deixar-la buida.
+// Això manté coherent l’edició amb els registres d’ascensió sense data.
 class _DateSelectorField extends StatelessWidget {
   const _DateSelectorField({
     required this.value,
+    required this.hasValue,
     required this.onTap,
+    required this.onClearTap,
   });
 
   final String value;
+  final bool hasValue;
   final VoidCallback onTap;
+  final VoidCallback onClearTap;
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +106,10 @@ class _DateSelectorField extends StatelessWidget {
         onTap: onTap,
         child: Container(
           height: 56,
-          padding: const EdgeInsets.symmetric(horizontal: 18),
+          padding: const EdgeInsets.only(
+            left: 18,
+            right: 8,
+          ),
           child: Row(
             children: [
               const Icon(
@@ -107,17 +121,31 @@ class _DateSelectorField extends StatelessWidget {
               Expanded(
                 child: Text(
                   value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF344054),
+                    color: hasValue
+                        ? const Color(0xFF344054)
+                        : const Color(0xFF98A2B3),
                   ),
                 ),
               ),
-              const Icon(
-                Icons.expand_more_rounded,
-                color: Color(0xFF98A2B3),
-              ),
+              if (hasValue)
+                IconButton(
+                  onPressed: onClearTap,
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Color(0xFF98A2B3),
+                  ),
+                )
+              else
+                const Padding(
+                  padding: EdgeInsets.only(right: 10),
+                  child: Icon(
+                    Icons.expand_more_rounded,
+                    color: Color(0xFF98A2B3),
+                  ),
+                ),
             ],
           ),
         ),
@@ -126,8 +154,6 @@ class _DateSelectorField extends StatelessWidget {
   }
 }
 
-// Aquest camp recull les notes de l’ascensió.
-// En edició ja apareix inicialitzat amb les notes guardades anteriorment.
 class _NotesField extends StatelessWidget {
   const _NotesField({
     required this.controller,
@@ -170,26 +196,30 @@ class _NotesField extends StatelessWidget {
 }
 
 // Aquest bloc mostra les fotos ja associades a l’ascensió.
-// Permet veure les imatges guardades sense barrejar la càrrega amb la resta del formulari.
+// Les imatges es mostren en format gran perquè siguin fàcils de revisar i gestionar.
 class _AscentEditPhotosSection extends StatelessWidget {
   const _AscentEditPhotosSection({
     required this.photos,
     required this.isLoading,
     required this.errorMessage,
+    required this.deletingPhotoId,
     required this.onRetryTap,
+    required this.onDeletePhotoTap,
   });
 
   final List<AscentPhoto> photos;
   final bool isLoading;
   final String? errorMessage;
+  final int? deletingPhotoId;
   final Future<void> Function() onRetryTap;
+  final ValueChanged<AscentPhoto> onDeletePhotoTap;
 
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
       return Container(
         width: double.infinity,
-        height: 150,
+        height: 190,
         decoration: BoxDecoration(
           color: const Color(0xFFF5F5F5),
           borderRadius: BorderRadius.circular(26),
@@ -256,65 +286,134 @@ class _AscentEditPhotosSection extends StatelessWidget {
       );
     }
 
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
+    return Column(
       children: [
-        for (final photo in photos)
-          _AscentEditPhotoThumbnail(
-            photo: photo,
+        for (var index = 0; index < photos.length; index++) ...[
+          _AscentEditPhotoCard(
+            photo: photos[index],
+            isDeleting: deletingPhotoId == photos[index].id,
+            onDeleteTap: () => onDeletePhotoTap(photos[index]),
           ),
+          if (index != photos.length - 1) const SizedBox(height: 12),
+        ],
       ],
     );
   }
 }
 
-// Aquesta miniatura representa una foto existent de l’ascensió.
-// Utilitza la URL temporal retornada pel backend per mostrar la imatge.
-class _AscentEditPhotoThumbnail extends StatelessWidget {
-  const _AscentEditPhotoThumbnail({
+// Aquesta targeta representa una foto existent de l’ascensió.
+// Inclou una acció d’eliminació perquè l’usuari pugui gestionar les imatges guardades.
+class _AscentEditPhotoCard extends StatelessWidget {
+  const _AscentEditPhotoCard({
     required this.photo,
+    required this.isDeleting,
+    required this.onDeleteTap,
   });
 
   final AscentPhoto photo;
+  final bool isDeleting;
+  final VoidCallback onDeleteTap;
 
   @override
   Widget build(BuildContext context) {
     final downloadUrl = photo.downloadUrl;
 
-    if (downloadUrl == null) {
-      return Container(
-        width: 92,
-        height: 92,
-        decoration: BoxDecoration(
-          color: const Color(0xFFE4E7EC),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: const Icon(
-          Icons.image_not_supported_outlined,
-          color: Color(0xFF667085),
-        ),
-      );
-    }
-
     return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: Image.network(
-        downloadUrl,
-        width: 92,
-        height: 92,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) {
-          return Container(
-            width: 92,
-            height: 92,
-            color: const Color(0xFFE4E7EC),
-            child: const Icon(
-              Icons.broken_image_outlined,
-              color: Color(0xFF667085),
+      borderRadius: BorderRadius.circular(24),
+      child: Stack(
+        children: [
+          AspectRatio(
+            aspectRatio: 16 / 10,
+            child: downloadUrl == null
+                ? const _PhotoFallback(
+                    icon: Icons.image_not_supported_outlined,
+                  )
+                : Image.network(
+                    downloadUrl,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) {
+                      return const _PhotoFallback(
+                        icon: Icons.broken_image_outlined,
+                      );
+                    },
+                  ),
+          ),
+          Positioned(
+            top: 10,
+            right: 10,
+            child: Material(
+              color: const Color(0xCC000000),
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: isDeleting ? null : onDeleteTap,
+                child: SizedBox(
+                  width: 42,
+                  height: 42,
+                  child: Center(
+                    child: isDeleting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.delete_outline_rounded,
+                            color: Colors.white,
+                          ),
+                  ),
+                ),
+              ),
             ),
-          );
-        },
+          ),
+          if (photo.isPrimary)
+            Positioned(
+              left: 10,
+              top: 10,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xCC18B56A),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'Principal',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhotoFallback extends StatelessWidget {
+  const _PhotoFallback({
+    required this.icon,
+  });
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFE4E7EC),
+      child: Icon(
+        icon,
+        size: 34,
+        color: const Color(0xFF667085),
       ),
     );
   }

@@ -34,6 +34,18 @@ const AscentPhotoController = {
       next(error);
     }
   },
+
+  // Elimina una foto d'ascensió de l'usuari autenticat.
+  // El servei comprova que la foto pertanyi realment a l'usuari abans
+  // d'esborrar-la de la base de dades i intentar eliminar-la del bucket.
+  async deletePhoto(req, res, next) {
+    try {
+      await AscentPhotoService.deletePhoto(req.userId, req.params.photoId);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  },
 };
 
 module.exports = AscentPhotoController;

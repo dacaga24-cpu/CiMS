@@ -84,10 +84,14 @@ class ApiEndpoints {
   static const String monthlyChallenges = '$api/monthly-challenges';
   static const String currentMonthlyChallenge = '$monthlyChallenges/current';
 
-  // Aquestes rutes permeten preparar la pujada de fotos associades a una ascensió.
-  // El backend retorna una URL temporal perquè el frontend pugui pujar la imatge directament.
+  // Aquestes rutes permeten preparar, consultar i eliminar fotos associades
+  // a les ascensions de l’usuari autenticat.
   static const String ascentPhotos = '$api/ascent-photos';
   static const String ascentPhotosGallery = '$ascentPhotos/me';
   static const String ascentPhotoSignedUploadUrl =
       '$ascentPhotos/signed-upload-url';
+
+  // Aquesta ajuda construeix la ruta d’una foto concreta d’ascensió.
+  // Permet eliminar una imatge a partir del seu identificador.
+  static String ascentPhotoById(int photoId) => '$ascentPhotos/$photoId';
 }

@@ -47,9 +47,9 @@ class _AscentHistoryScreenState extends State<AscentHistoryScreen> {
   }
 
   // Aquest mètode obre la pantalla d’edició de l’ascensió seleccionada.
-  // La pantalla nova rep també el context del cim per poder mostrar informació coherent.
+  // Si l’edició o eliminació modifica dades, es refresca l’historial en tornar.
   Future<void> _openAscentEdit(Ascent ascent) async {
-    await context.router.root.push(
+    final shouldRefresh = await context.router.root.push<bool>(
       AscentEditRoute(
         ascent: ascent,
         peakName: widget.peakName,
@@ -58,8 +58,10 @@ class _AscentHistoryScreenState extends State<AscentHistoryScreen> {
       ),
     );
 
-  await controller.onRefresh();
-}
+    if (shouldRefresh == true) {
+      await controller.onRefresh();
+    }
+  }
 
   // Aquest mètode construeix la pantalla completa amb una barra superior simple
   // i el contingut principal inspirat en el disseny de Figma.

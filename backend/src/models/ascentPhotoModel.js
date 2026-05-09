@@ -1,7 +1,7 @@
 const pool = require('../config/db');
 
 // Aquest model gestiona l'accés a les fotos associades a les ascensions.
-// Centralitza les consultes i insercions sobre ascent_photos, mantenint un
+// Centralitza les consultes i modificacions sobre ascent_photos, mantenint un
 // format de resposta coherent per als serveis que consumeixen aquestes dades.
 const AscentPhotoModel = {
 
@@ -16,6 +16,7 @@ const AscentPhotoModel = {
     const executor = connection || pool;
     const placeholders = photos.map(() => '(?, ?, ?)').join(', ');
     const params = [];
+
     for (const photo of photos) {
       params.push(ascentId, photo.storagePath, photo.isPrimary ? 1 : 0);
     }
@@ -27,8 +28,6 @@ const AscentPhotoModel = {
 
     const [insertResult] = await executor.execute(sql, params);
 
-    // Recupera les fotos que s'acaben d'inserir per retornar-les amb el
-    // mateix format que la resta de consultes del model.
     const firstId = insertResult.insertId;
     const lastId = firstId + photos.length - 1;
     const [rows] = await executor.execute(
@@ -58,6 +57,21 @@ const AscentPhotoModel = {
     return rows;
   },
 
+  // Retorna una foto concreta només si pertany a una ascensió de l'usuari.
+  // Serveix per validar la propietat abans de permetre eliminar-la.
+  async findByIdAndUserId(photoId, userId) {
+    const sql = `
+      SELECT ap.id, ap.ascent_id, ap.storage_path, ap.is_primary, ap.created_at
+      FROM ascent_photos ap
+      INNER JOIN ascents a ON a.id = ap.ascent_id
+      WHERE ap.id = ? AND a.user_id = ?
+      LIMIT 1
+    `;
+
+    const [rows] = await pool.execute(sql, [photoId, userId]);
+    return rows[0] || null;
+  },
+
   // Retorna la foto principal de cada ascensió indicada.
   // S'utilitza per mostrar una imatge resum als llistats sense haver de
   // carregar totes les fotos de cada ascensió.
@@ -75,8 +89,6 @@ const AscentPhotoModel = {
 
     const [rows] = await pool.execute(sql, ascentIds);
 
-    // Organitza les fotos per identificador d'ascensió perquè el servei les
-    // pugui associar ràpidament amb el seu registre corresponent.
     const byAscentId = new Map();
     for (const row of rows) {
       if (!byAscentId.has(row.ascent_id)) {
@@ -88,85 +100,115 @@ const AscentPhotoModel = {
   },
 
   // Retorna les fotos representatives més recents de l'usuari.
-  // Només selecciona una foto per ascensió, prioritzant la foto principal i,
-  // si no n'hi ha, la imatge més recent d'aquella ascensió.
-async findRecentRepresentativeByUserId(userId, limit = 12) {
-  const safeLimit = Number.isInteger(Number(limit))
-    ? Math.min(Math.max(Number(limit), 1), 50)
-    : 12;
+  // Només selecciona una foto per ascensió i només inclou ascensions amb data,
+  // perquè aquest bloc alimenta resums cronològics com el dashboard.
+  async findRecentRepresentativeByUserId(userId, limit = 12) {
+    const safeLimit = Number.isInteger(Number(limit))
+      ? Math.min(Math.max(Number(limit), 1), 50)
+      : 12;
 
-  const sql = `
-    SELECT
-      ap.id,
-      ap.ascent_id,
-      a.peak_id,
-      p.name AS peak_name,
-      a.ascent_date,
-      ap.storage_path,
-      ap.is_primary,
-      ap.created_at
-    FROM ascent_photos ap
-    INNER JOIN ascents a ON a.id = ap.ascent_id
-    INNER JOIN peaks p ON p.id = a.peak_id
-    WHERE a.user_id = ?
-      AND NOT EXISTS (
-        SELECT 1
-        FROM ascent_photos ap2
-        WHERE ap2.ascent_id = ap.ascent_id
-          AND (
-            ap2.is_primary > ap.is_primary
-            OR (
-              ap2.is_primary = ap.is_primary
-              AND ap2.created_at > ap.created_at
+    const sql = `
+      SELECT
+        ap.id,
+        ap.ascent_id,
+        a.peak_id,
+        p.name AS peak_name,
+        a.ascent_date,
+        ap.storage_path,
+        ap.is_primary,
+        ap.created_at
+      FROM ascent_photos ap
+      INNER JOIN ascents a ON a.id = ap.ascent_id
+      INNER JOIN peaks p ON p.id = a.peak_id
+      WHERE a.user_id = ?
+        AND a.ascent_date IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1
+          FROM ascent_photos ap2
+          WHERE ap2.ascent_id = ap.ascent_id
+            AND (
+              ap2.is_primary > ap.is_primary
+              OR (
+                ap2.is_primary = ap.is_primary
+                AND ap2.created_at > ap.created_at
+              )
+              OR (
+                ap2.is_primary = ap.is_primary
+                AND ap2.created_at = ap.created_at
+                AND ap2.id > ap.id
+              )
             )
-            OR (
-              ap2.is_primary = ap.is_primary
-              AND ap2.created_at = ap.created_at
-              AND ap2.id > ap.id
-            )
-          )
-      )
-    ORDER BY a.ascent_date DESC, a.id DESC
-    LIMIT ${safeLimit}
-  `;
+        )
+      ORDER BY a.ascent_date DESC, a.id DESC
+      LIMIT ${safeLimit}
+    `;
 
-  const [rows] = await pool.execute(sql, [userId]);
-  return rows;
-},
+    const [rows] = await pool.execute(sql, [userId]);
+    return rows;
+  },
 
   // Retorna les fotos de totes les ascensions de l'usuari.
-  // S'utilitza per construir la galeria completa, ordenada per les ascensions
-  // més recents i preparada per carregar-se de manera paginada.
+  // S'utilitza per construir la galeria completa. Aquí sí que es mantenen
+  // també les fotos d'ascensions sense data perquè l'usuari les pugui gestionar.
   async findGalleryByUserId(userId, limit, offset = 0) {
-  const safeLimit = Number.isInteger(Number(limit))
-    ? Math.min(Math.max(Number(limit), 1), 50)
-    : 12;
+    const safeLimit = Number.isInteger(Number(limit))
+      ? Math.min(Math.max(Number(limit), 1), 50)
+      : 12;
 
-  const safeOffset = Number.isInteger(Number(offset))
-    ? Math.max(Number(offset), 0)
-    : 0;
+    const safeOffset = Number.isInteger(Number(offset))
+      ? Math.max(Number(offset), 0)
+      : 0;
 
-  const sql = `
-    SELECT
-      ap.id,
-      ap.ascent_id,
-      a.peak_id,
-      p.name AS peak_name,
-      a.ascent_date,
-      ap.storage_path,
-      ap.is_primary,
-      ap.created_at
-    FROM ascent_photos ap
-    INNER JOIN ascents a ON a.id = ap.ascent_id
-    INNER JOIN peaks p ON p.id = a.peak_id
-    WHERE a.user_id = ?
-    ORDER BY a.ascent_date DESC, a.id DESC, ap.created_at DESC, ap.id DESC
-    LIMIT ${safeLimit} OFFSET ${safeOffset}
-  `;
+    const sql = `
+      SELECT
+        ap.id,
+        ap.ascent_id,
+        a.peak_id,
+        p.name AS peak_name,
+        a.ascent_date,
+        ap.storage_path,
+        ap.is_primary,
+        ap.created_at
+      FROM ascent_photos ap
+      INNER JOIN ascents a ON a.id = ap.ascent_id
+      INNER JOIN peaks p ON p.id = a.peak_id
+      WHERE a.user_id = ?
+      ORDER BY a.ascent_date DESC, a.id DESC, ap.created_at DESC, ap.id DESC
+      LIMIT ${safeLimit} OFFSET ${safeOffset}
+    `;
 
-  const [rows] = await pool.execute(sql, [userId]);
-  return rows;
-},
+    const [rows] = await pool.execute(sql, [userId]);
+    return rows;
+  },
+
+  // Elimina una foto concreta només si pertany a una ascensió de l'usuari.
+  // Aquesta comprovació evita que un usuari pugui eliminar imatges d'un altre compte.
+  async deleteByIdAndUserId(photoId, userId) {
+    const sql = `
+      DELETE ap
+      FROM ascent_photos ap
+      INNER JOIN ascents a ON a.id = ap.ascent_id
+      WHERE ap.id = ? AND a.user_id = ?
+    `;
+
+    const [result] = await pool.execute(sql, [photoId, userId]);
+    return result.affectedRows;
+  },
+
+  // Marca com a principal la primera foto disponible d'una ascensió.
+  // S'utilitza quan s'elimina la foto principal i encara queden altres imatges.
+  async promoteFirstPhotoAsPrimary(ascentId) {
+    const sql = `
+      UPDATE ascent_photos
+      SET is_primary = 1
+      WHERE ascent_id = ?
+      ORDER BY created_at ASC, id ASC
+      LIMIT 1
+    `;
+
+    const [result] = await pool.execute(sql, [ascentId]);
+    return result.affectedRows;
+  },
 };
 
 module.exports = AscentPhotoModel;

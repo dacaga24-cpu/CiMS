@@ -4,7 +4,7 @@ import 'package:cims/core/entity/ascent_photo_gallery.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta pantalla mostra la galeria completa de fotos de l'usuari.
-// Permet consultar totes les imatges associades a les seves ascensions amb càrrega paginada.
+// Permet consultar i eliminar les imatges associades a les seves ascensions amb càrrega paginada.
 @RoutePage()
 class UserPhotoGalleryScreen extends StatefulWidget {
   const UserPhotoGalleryScreen({super.key});
@@ -42,6 +42,57 @@ class _UserPhotoGalleryScreenState extends State<UserPhotoGalleryScreen> {
     if (isNearBottom) {
       _controller.loadMore();
     }
+  }
+
+  // Aquest mètode demana confirmació abans d’eliminar una foto de la galeria.
+  // La imatge s’elimina de l’ascensió i desapareix de la llista local si l’operació funciona.
+  Future<bool> _confirmDeletePhoto(AscentPhotoGalleryItem photo) async {
+    if (_controller.deletingPhotoId != null) {
+      return false;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Eliminar foto?'),
+          content: const Text(
+            'Aquesta foto s\'eliminarà de l\'ascensió. Aquesta acció no es pot desfer.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel·lar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Eliminar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || confirmed != true) {
+      return false;
+    }
+
+    await _controller.deletePhoto(photo.id);
+
+    if (!mounted) {
+      return false;
+    }
+
+    if (_controller.errorMessage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Foto eliminada correctament.'),
+        ),
+      );
+      return true;
+    }
+
+    return false;
   }
 
   // Aquest mètode allibera els recursos associats a la pantalla.
@@ -100,7 +151,10 @@ class _UserPhotoGalleryScreenState extends State<UserPhotoGalleryScreen> {
 
                             return _GalleryPhotoTile(
                               photo: photo,
+                              isDeleting:
+                                  _controller.deletingPhotoId == photo.id,
                               onTap: () => _openPhotoPreview(context, photo),
+                              onDeleteTap: () => _confirmDeletePhoto(photo),
                             );
                           },
                           childCount: _controller.photos.length,
@@ -153,7 +207,7 @@ class _UserPhotoGalleryScreenState extends State<UserPhotoGalleryScreen> {
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return Dialog(
           insetPadding: const EdgeInsets.all(18),
           backgroundColor: Colors.black,
@@ -184,9 +238,23 @@ class _UserPhotoGalleryScreenState extends State<UserPhotoGalleryScreen> {
               ),
               Positioned(
                 top: 8,
+                left: 8,
+                child: IconButton.filled(
+                  onPressed: () async {
+                    final deleted = await _confirmDeletePhoto(photo);
+
+                    if (deleted && dialogContext.mounted) {
+                      Navigator.of(dialogContext).pop();
+                    }
+                  },
+                  icon: const Icon(Icons.delete_outline_rounded),
+                ),
+              ),
+              Positioned(
+                top: 8,
                 right: 8,
                 child: IconButton.filled(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => Navigator.of(dialogContext).pop(),
                   icon: const Icon(Icons.close),
                 ),
               ),
@@ -250,21 +318,26 @@ class _GalleryHeader extends StatelessWidget {
 }
 
 // Aquesta peça representa una foto dins del grid de la galeria.
+// Inclou una acció d’eliminació per gestionar les imatges sense entrar a l’edició.
 class _GalleryPhotoTile extends StatelessWidget {
   const _GalleryPhotoTile({
     required this.photo,
+    required this.isDeleting,
     required this.onTap,
+    required this.onDeleteTap,
   });
 
   final AscentPhotoGalleryItem photo;
+  final bool isDeleting;
   final VoidCallback onTap;
+  final VoidCallback onDeleteTap;
 
   @override
   Widget build(BuildContext context) {
     final imageUrl = photo.downloadUrl;
 
     return GestureDetector(
-      onTap: imageUrl == null ? null : onTap,
+      onTap: imageUrl == null || isDeleting ? null : onTap,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
         child: Stack(
@@ -292,6 +365,38 @@ class _GalleryPhotoTile extends StatelessWidget {
                   );
                 },
               ),
+            Positioned(
+              top: 7,
+              right: 7,
+              child: Material(
+                color: const Color(0xCC000000),
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: isDeleting ? null : onDeleteTap,
+                  child: SizedBox(
+                    width: 34,
+                    height: 34,
+                    child: Center(
+                      child: isDeleting
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.delete_outline_rounded,
+                              size: 19,
+                              color: Colors.white,
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
             Positioned(
               left: 0,
               right: 0,
@@ -366,7 +471,7 @@ class _PhotoPreviewCaption extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              photo.ascentDate,
+              photo.displayAscentDate,
               style: const TextStyle(
                 color: Color(0xFFE5E7EB),
                 fontSize: 12,

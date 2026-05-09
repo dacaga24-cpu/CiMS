@@ -1,17 +1,27 @@
 import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/ascent_photo_gallery.dart';
+import 'package:cims/core/usecase/ascents/delete_ascent_photo_usecase.dart';
 import 'package:cims/core/usecase/get_user_photo_gallery_usecase.dart';
+import 'package:cims/app/client/api/api_client_impl.dart';
 import 'package:flutter/material.dart';
 
 // Aquest controller gestiona l'estat de la galeria de fotos de l'usuari.
-// Controla la càrrega inicial, la paginació, els errors i la llista acumulada d'imatges.
+// Controla la càrrega inicial, la paginació, els errors, l'eliminació
+// de fotos i la llista acumulada d'imatges.
 class UserPhotoGalleryController extends ChangeNotifier {
   UserPhotoGalleryController({
     GetUserPhotoGalleryUseCase? getUserPhotoGalleryUseCase,
-  }) : _getUserPhotoGalleryUseCase =
-            getUserPhotoGalleryUseCase ?? GetUserPhotoGalleryUseCase();
+    DeleteAscentPhotoUseCase? deleteAscentPhotoUseCase,
+  })  : _getUserPhotoGalleryUseCase =
+            getUserPhotoGalleryUseCase ?? GetUserPhotoGalleryUseCase(),
+        _deleteAscentPhotoUseCase =
+            deleteAscentPhotoUseCase ?? DeleteAscentPhotoUseCase(ApiClientImpl());
 
   final GetUserPhotoGalleryUseCase _getUserPhotoGalleryUseCase;
+
+  // Aquest cas d’ús permet eliminar una foto concreta de la galeria.
+  // El backend valida que la imatge pertanyi a l’usuari autenticat.
+  final DeleteAscentPhotoUseCase _deleteAscentPhotoUseCase;
 
   static const int _pageLimit = 30;
 
@@ -22,12 +32,17 @@ class UserPhotoGalleryController extends ChangeNotifier {
   bool _hasMore = true;
   int _nextOffset = 0;
   String? _errorMessage;
+  int? _deletingPhotoId;
 
   List<AscentPhotoGalleryItem> get photos => List.unmodifiable(_photos);
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
   bool get hasMore => _hasMore;
   String? get errorMessage => _errorMessage;
+
+  // Aquest valor indica quina foto s’està eliminant.
+  // Permet mostrar un indicador només sobre aquella imatge.
+  int? get deletingPhotoId => _deletingPhotoId;
 
   // Carrega la primera pàgina de la galeria.
   // Es fa servir quan la pantalla s'obre per primera vegada o quan es força una recàrrega.
@@ -91,6 +106,28 @@ class UserPhotoGalleryController extends ChangeNotifier {
     }
   }
 
+  // Aquest mètode elimina una foto concreta de la galeria.
+  // Si l’operació funciona, la imatge desapareix de la llista local sense recarregar tota la pantalla.
+  Future<void> deletePhoto(int photoId) async {
+    if (_isLoading || _isLoadingMore || _deletingPhotoId != null) {
+      return;
+    }
+
+    _deletingPhotoId = photoId;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _deleteAscentPhotoUseCase(photoId);
+      _photos.removeWhere((photo) => photo.id == photoId);
+    } catch (error) {
+      _errorMessage = _resolveDeleteErrorMessage(error);
+    } finally {
+      _deletingPhotoId = null;
+      notifyListeners();
+    }
+  }
+
   // Repeteix la càrrega segons l'estat actual de la pantalla.
   // Si encara no hi ha fotos, recupera la primera pàgina; si ja n'hi ha, intenta continuar.
   Future<void> retry() {
@@ -109,5 +146,14 @@ class UserPhotoGalleryController extends ChangeNotifier {
     }
 
     return 'No s\'ha pogut carregar la galeria de fotos';
+  }
+
+  // Converteix errors d’eliminació en missatges comprensibles per a la pantalla.
+  String _resolveDeleteErrorMessage(Object error) {
+    if (error is ApiException) {
+      return error.message;
+    }
+
+    return 'No s\'ha pogut eliminar la foto';
   }
 }

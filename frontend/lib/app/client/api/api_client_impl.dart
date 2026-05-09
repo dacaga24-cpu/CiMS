@@ -196,18 +196,23 @@ abstract class _ApiClientBase {
     }
   }
 
+  // Aquest mètode elimina una ascensió concreta de l’usuari autenticat.
+  // El backend comprova la propietat del registre i actualitza l’estat completat del cim si cal.
+  Future<void> deleteAscent(int ascentId);
+
   // Aquest mètode permet fer peticions DELETE JSON sobre endpoints autenticats.
-  // S’utilitza per accions destructives com la desactivació del compte.
+  // S’utilitza per accions destructives com eliminar fotos, ascensions o el compte.
+  // El body és opcional perquè alguns endpoints DELETE només necessiten l’identificador a la URL.
   Future<http.Response> _deleteJson(
     String endpoint, {
-    required Map<String, dynamic> body,
+    Map<String, dynamic>? body,
     bool requiresAuth = false,
   }) async {
     final response = await _client
         .delete(
           Uri.parse('$_baseUrl$endpoint'),
           headers: await _buildHeaders(requiresAuth: requiresAuth),
-          body: jsonEncode(body),
+          body: body == null ? null : jsonEncode(body),
         )
         .timeout(const Duration(seconds: 10));
 
