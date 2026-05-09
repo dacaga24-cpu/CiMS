@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 
 // Aquesta pantalla mostra el mapa de cims de l’aplicació.
 // Permet consultar els cims sobre Google Maps, aplicar cerca i filtres,
-// i obrir el detall d’un cim seleccionat.
+// modificar estats ràpids del cim seleccionat i obrir-ne el detall.
 @RoutePage()
 class PeaksMapScreen extends StatefulWidget {
   const PeaksMapScreen({
@@ -147,10 +147,19 @@ class _PeaksMapScreenState extends State<PeaksMapScreen> {
                     currentSearch: controller.currentSearch,
                     hasActiveFilters: controller.hasActiveFilters,
                     selectedStatusFilter: controller.selectedStatusFilter,
+                    statusForPeak: controller.statusForPeak,
                     onRefresh: controller.onRetryTap,
                     onRetryTap: controller.onRetryTap,
                     onPeakTap: controller.onPeakSelected,
                     onSelectedPeakDetailTap: controller.onSelectedPeakDetailTap,
+                    onSelectedPeakTargetTap:
+                        controller.isUpdatingSelectedPeakStatus
+                            ? null
+                            : controller.onSelectedPeakTargetTap,
+                    onSelectedPeakFavoriteTap:
+                        controller.isUpdatingSelectedPeakStatus
+                            ? null
+                            : controller.onSelectedPeakFavoriteTap,
                     onMapTap: controller.clearSelectedPeak,
                   ),
                 ),

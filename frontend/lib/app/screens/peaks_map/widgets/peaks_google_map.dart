@@ -3,6 +3,7 @@ import 'package:cims/app/screens/peaks_map/widgets/peaks_map_marker_factory.dart
 import 'package:cims/app/screens/peaks_map/widgets/peaks_map_selected_peak_card.dart';
 import 'package:cims/app/screens/peaks_map/widgets/peaks_map_summary_badge.dart';
 import 'package:cims/core/entity/peak.dart';
+import 'package:cims/core/entity/peak_status.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +19,9 @@ class PeaksGoogleMap extends StatefulWidget {
     required this.onPeakTap,
     required this.onSelectedPeakDetailTap,
     required this.onMapTap,
+    this.statusForPeak,
+    this.onSelectedPeakTargetTap,
+    this.onSelectedPeakFavoriteTap,
     this.height,
     this.showSummary = true,
     this.isInteractive = true,
@@ -31,6 +35,16 @@ class PeaksGoogleMap extends StatefulWidget {
   final ValueChanged<Peak> onPeakTap;
   final VoidCallback onSelectedPeakDetailTap;
   final VoidCallback onMapTap;
+
+  // Aquesta funció permet obtenir l’estat personal del cim seleccionat.
+  // S’utilitza per mostrar completat, objectiu i preferit a la targeta ràpida del mapa.
+  final PeakStatus? Function(int peakId)? statusForPeak;
+
+  // Aquestes accions permeten modificar objectiu i preferit des del detall ràpid.
+  // El completat no es modifica manualment perquè deriva de les ascensions.
+  final VoidCallback? onSelectedPeakTargetTap;
+  final VoidCallback? onSelectedPeakFavoriteTap;
+
   final double? height;
   final bool showSummary;
   final bool isInteractive;
@@ -63,9 +77,7 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
 
   // Identifica la petició de fit més recent. Quan l'usuari canvia de filtre
   // o de cerca diverses vegades seguides més ràpid del que dura una animació
-  // de càmera, només la última petició s'ha d'aplicar: les anteriors es
-  // queden amb un id diferent i ja no fan res quan finalment s'executa el
-  // postFrameCallback que tenien programat.
+  // de càmera, només la última petició s'ha d'aplicar.
   int _fitRequestId = 0;
 
   // Retorna només els cims que tenen coordenades disponibles.
@@ -81,11 +93,6 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
 
   // Detecta si ha canviat el cim seleccionat o la llista de cims des de fora
   // del widget. Quan canvia el seleccionat, centra la càmera sobre el cim.
-  // Quan canvia el conjunt de cims visibles (carrega inicial, cerca, o nous
-  // filtres aplicats), refà el fit perquè la càmera enfoqui la zona on són
-  // els cims actuals. La comparació per hash dels ids evita refer el fit
-  // quan només canvia un detall que no afecta el conjunt (per exemple, un
-  // estat personal d'un cim que repinta el marcador però no en mou cap).
   @override
   void didUpdateWidget(covariant PeaksGoogleMap oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -105,7 +112,9 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
     }
 
     final previousVisibleIdsHash = Object.hashAll(
-      oldWidget.peaks.where((peak) => peak.hasMapPosition).map((peak) => peak.id),
+      oldWidget.peaks
+          .where((peak) => peak.hasMapPosition)
+          .map((peak) => peak.id),
     );
     final currentVisibleIdsHash =
         Object.hashAll(currentVisible.map((peak) => peak.id));
@@ -150,6 +159,7 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
   // Això fa que tocar un marcador tingui una resposta visual clara.
   Future<void> _centerSelectedPeak() async {
     if (_disposed) return;
+
     final controller = _mapController;
     final peak = widget.selectedPeak;
 
@@ -172,14 +182,6 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
 
   // Ajusta la càmera perquè els cims carregats siguin visibles al mapa.
   // Si només hi ha un cim, centra directament sobre aquell punt.
-  //
-  // L'animació es programa per al següent frame perquè animateCamera al web
-  // pot ignorar la crida silenciosament si el div del mapa encara està
-  // recalculant mides (just després de tancar el bottom sheet de filtres,
-  // per exemple) o si Flutter encara no ha completat la reconstrucció
-  // actual. Esperar a postFrame dóna garanties que el mapa està llest i
-  // resol que el reajust no sempre s'aplicava al canviar filtre o cerca.
-  // El requestId descarta callbacks obsolets si l'usuari encadena canvis.
   void _fitVisiblePeaks() {
     if (_disposed) return;
     final requestId = ++_fitRequestId;
@@ -286,8 +288,6 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
 
   // Converteix els cims visibles en marcadors circulars de Google Maps.
   // El color depèn del filtre actiu i l'identificador també inclou aquest filtre.
-  // Això permet que un mateix cim pugui aparèixer amb colors diferents segons el filtre,
-  // sense que Google Maps Web intenti actualitzar un marcador eliminat.
   Set<Marker> _buildMarkers() {
     final markerIcon = _markersByFilter[widget.statusFilter] ??
         BitmapDescriptor.defaultMarkerWithHue(
@@ -324,6 +324,7 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
   @override
   Widget build(BuildContext context) {
     final visiblePeaks = _visiblePeaks;
+    final selectedPeak = widget.selectedPeak;
 
     if (!_areMarkersReady) {
       return const Center(
@@ -357,14 +358,17 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
                   }
                 : const <Factory<OneSequenceGestureRecognizer>>{},
           ),
-          if (widget.selectedPeak != null)
+          if (selectedPeak != null)
             Positioned(
               left: 18,
               right: 18,
               top: 18,
               child: PeaksMapSelectedPeakCard(
-                peak: widget.selectedPeak!,
+                peak: selectedPeak,
+                status: widget.statusForPeak?.call(selectedPeak.id),
                 onDetailTap: widget.onSelectedPeakDetailTap,
+                onTargetTap: widget.onSelectedPeakTargetTap,
+                onFavoriteTap: widget.onSelectedPeakFavoriteTap,
               ),
             ),
           if (widget.showSummary && visiblePeaks.isNotEmpty)

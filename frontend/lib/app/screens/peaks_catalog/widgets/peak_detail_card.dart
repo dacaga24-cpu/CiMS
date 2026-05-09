@@ -1,10 +1,12 @@
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_status_tags.dart';
+import 'package:cims/app/widgets/peaks/peak_circular_thumbnail.dart';
 import 'package:cims/core/entity/peak.dart';
 import 'package:cims/core/entity/peak_status.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget representa la targeta reutilitzable de cada cim del catàleg.
-// Mostra la informació essencial del cim i, si existeixen, els seus estats personals.
+// Mostra la informació essencial del cim, una miniatura visual i,
+// si existeixen, els seus estats personals.
 class PeakDetailCard extends StatelessWidget {
   const PeakDetailCard({
     super.key,
@@ -20,7 +22,7 @@ class PeakDetailCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   // Aquest mètode construeix la targeta visual del cim dins del catàleg.
-  // Combina les dades bàsiques del cim amb els estats personals de l’usuari.
+  // Combina les dades bàsiques del cim amb una miniatura i els estats personals.
   @override
   Widget build(BuildContext context) {
     final currentStatus = status;
@@ -33,11 +35,18 @@ class PeakDetailCard extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: 20,
+            horizontal: 18,
             vertical: 18,
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // Aquesta miniatura dona una referència visual ràpida del cim.
+              // De moment utilitza una imatge comuna per a totes les muntanyes.
+              const PeakCircularThumbnail(
+                size: 62,
+              ),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -50,7 +59,7 @@ class PeakDetailCard extends StatelessWidget {
                           TextSpan(
                             text: peak.name,
                             style: const TextStyle(
-                              fontSize: 23,
+                              fontSize: 22,
                               fontWeight: FontWeight.w700,
                               color: Color(0xFF1E1E1E),
                             ),
@@ -59,7 +68,7 @@ class PeakDetailCard extends StatelessWidget {
                           TextSpan(
                             text: '${peak.altitude} m',
                             style: const TextStyle(
-                              fontSize: 20,
+                              fontSize: 19,
                               fontWeight: FontWeight.w700,
                               color: Color(0xFF0B57D0),
                             ),
@@ -67,7 +76,7 @@ class PeakDetailCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
 
                     // Aquest bloc mostra la ubicació territorial del cim.
                     // Això permet identificar ràpidament a quina regió o regions pertany.
@@ -97,7 +106,7 @@ class PeakDetailCard extends StatelessWidget {
                     ),
 
                     // Aquest bloc mostra només els estats personals actius.
-                    // No es mostra l’estat pendent per evitar carregar visualment el catàleg.
+                    // No es mostra cap informació si el cim no té estats assignats.
                     if (currentStatus != null && currentStatus.hasAnyStatus) ...[
                       const SizedBox(height: 12),
                       PeakStatusTags(
@@ -107,13 +116,13 @@ class PeakDetailCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
 
               // Aquest element lateral reforça visualment que la targeta
               // es pot seleccionar per accedir a més informació.
               Container(
-                width: 42,
-                height: 42,
+                width: 38,
+                height: 38,
                 decoration: const BoxDecoration(
                   color: Color(0xFFF2F3F5),
                   shape: BoxShape.circle,
