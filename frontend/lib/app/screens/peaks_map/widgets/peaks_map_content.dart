@@ -1,6 +1,7 @@
 import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
 import 'package:cims/app/screens/peaks_map/widgets/peaks_google_map.dart';
 import 'package:cims/core/entity/peak.dart';
+import 'package:cims/core/entity/peak_status.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget concentra el contingut variable de la pantalla del mapa.
@@ -20,6 +21,9 @@ class PeaksMapContent extends StatelessWidget {
     required this.onSelectedPeakDetailTap,
     required this.onMapTap,
     required this.selectedStatusFilter,
+    required this.statusForPeak,
+    this.onSelectedPeakTargetTap,
+    this.onSelectedPeakFavoriteTap,
   });
 
   // Aquest bloc rep l’estat necessari per decidir què s’ha de mostrar.
@@ -32,12 +36,18 @@ class PeaksMapContent extends StatelessWidget {
   final bool hasActiveFilters;
   final PeakStatusFilter selectedStatusFilter;
 
+  // Aquesta funció permet obtenir l’estat personal de cada cim.
+  // S’utilitza per pintar completat, objectiu i preferit a la targeta ràpida.
+  final PeakStatus? Function(int peakId) statusForPeak;
+
   // Aquest bloc rep les accions que el contingut pot comunicar a la pantalla.
   // Així el widget mostra la interfície, però no decideix com es carreguen o naveguen les dades.
   final Future<void> Function() onRefresh;
   final Future<void> Function() onRetryTap;
   final ValueChanged<Peak> onPeakTap;
   final VoidCallback onSelectedPeakDetailTap;
+  final VoidCallback? onSelectedPeakTargetTap;
+  final VoidCallback? onSelectedPeakFavoriteTap;
   final VoidCallback onMapTap;
 
   // Construeix el contingut segons l’estat actual del mapa.
@@ -69,8 +79,11 @@ class PeaksMapContent extends StatelessWidget {
             selectedPeak: selectedPeak,
             onPeakTap: onPeakTap,
             onSelectedPeakDetailTap: onSelectedPeakDetailTap,
+            onSelectedPeakTargetTap: onSelectedPeakTargetTap,
+            onSelectedPeakFavoriteTap: onSelectedPeakFavoriteTap,
             onMapTap: onMapTap,
             statusFilter: selectedStatusFilter,
+            statusForPeak: statusForPeak,
           ),
         ),
 
