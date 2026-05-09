@@ -12,6 +12,7 @@ class DashboardPeakSection extends StatelessWidget {
     required this.peaks,
     required this.icon,
     required this.onPeakTap,
+    this.iconColor = const Color(0xFF0E63F4)
   });
 
   // Aquest bloc defineix el contingut i el comportament de la secció.
@@ -20,6 +21,7 @@ class DashboardPeakSection extends StatelessWidget {
   final String emptyMessage;
   final List<DashboardPeakItem> peaks;
   final IconData icon;
+  final Color iconColor;
   final ValueChanged<int> onPeakTap;
 
   // Aquest mètode construeix la secció visual amb títol, icona i contingut.
@@ -45,7 +47,7 @@ class DashboardPeakSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, color: const Color(0xFF0B57D0), size: 22),
+              Icon(icon, color: iconColor, size: 22),
               const SizedBox(width: 8),
               Text(
                 title,

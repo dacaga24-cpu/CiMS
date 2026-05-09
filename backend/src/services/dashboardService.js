@@ -8,14 +8,18 @@ const { fillMissingMonths } = require('../utils/statsHelpers');
 // necessàries per a una vista inicial.
 const DASHBOARD_LIST_LIMIT = 5;
 
+// Defineix quantes ascensions recents es mostren al dashboard.
+// Aquest bloc resumeix activitat real de l’usuari i només inclou ascensions amb data.
+const RECENT_ASCENTS_LIMIT = 5;
+
 // Defineix quants mesos es mostren a la sèrie mensual del dashboard.
 // Es manté el mateix període que a la pantalla d'estadístiques per donar una
 // lectura coherent del progrés de l'usuari.
 const MONTHLY_ASCENTS_WINDOW = 12;
 
 // Defineix quantes fotos recents es mostren al carrusel del dashboard.
-// Aquest bloc és només un resum visual; la galeria completa tindrà el seu
-// propi endpoint i podrà carregar més imatges.
+// Aquest bloc és només un resum visual; la galeria completa té el seu
+// propi endpoint i pot carregar més imatges.
 const RECENT_PHOTOS_LIMIT = 12;
 
 // Defineix la configuració del repte principal dels 100 cims.
@@ -25,8 +29,8 @@ const CHALLENGE_TARGET_PEAKS = 100;
 const CHALLENGE_TITLE = '100 Cims';
 
 // Aquest servei construeix les dades que necessita la pantalla principal.
-// Agrupa el progrés del repte, els cims pendents, els favorits, l'activitat
-// mensual i les fotos recents de les ascensions de l'usuari autenticat.
+// Agrupa el progrés del repte, els cims objectiu, els preferits,
+// l'activitat mensual, les últimes ascensions i les fotos recents.
 const DashboardService = {
 
   // Retorna el resum complet del dashboard per a un usuari concret.
@@ -39,12 +43,14 @@ const DashboardService = {
       pendingPeaksRaw,
       favoritePeaksRaw,
       monthlyAscentsRaw,
+      recentAscentsRaw,
       recentPhotosRaw,
     ] = await Promise.all([
       StatsModel.getChallengeProgress(userId),
       StatsModel.findFlaggedPeaks(userId, 'is_target', DASHBOARD_LIST_LIMIT),
       StatsModel.findFlaggedPeaks(userId, 'is_favorite', DASHBOARD_LIST_LIMIT),
       StatsModel.getMonthlyAscentsRaw(userId, MONTHLY_ASCENTS_WINDOW),
+      StatsModel.getRecentAscentsRaw(userId, RECENT_ASCENTS_LIMIT),
       AscentPhotoModel.findRecentRepresentativeByUserId(
         userId,
         RECENT_PHOTOS_LIMIT
@@ -52,8 +58,18 @@ const DashboardService = {
     ]);
 
     const peakIdsForRegions = new Set();
-    for (const peak of pendingPeaksRaw) peakIdsForRegions.add(peak.peakId);
-    for (const peak of favoritePeaksRaw) peakIdsForRegions.add(peak.peakId);
+
+    for (const peak of pendingPeaksRaw) {
+      peakIdsForRegions.add(peak.peakId);
+    }
+
+    for (const peak of favoritePeaksRaw) {
+      peakIdsForRegions.add(peak.peakId);
+    }
+
+    for (const ascent of recentAscentsRaw) {
+      peakIdsForRegions.add(ascent.peakId);
+    }
 
     const regionsByPeakId = peakIdsForRegions.size > 0
       ? await StatsModel.getRegionsForPeaks([...peakIdsForRegions])
@@ -69,6 +85,7 @@ const DashboardService = {
       pendingPeaks: enrichListWithRegions(pendingPeaksRaw, regionsByPeakId),
       favoritePeaks: enrichListWithRegions(favoritePeaksRaw, regionsByPeakId),
       monthlyAscents,
+      recentAscents: enrichListWithRegions(recentAscentsRaw, regionsByPeakId),
       recentPhotos: await enrichRecentPhotosWithDownloadUrls(recentPhotosRaw),
     };
   },
@@ -96,12 +113,12 @@ function composeChallenge(raw) {
 }
 
 // Aquesta funció afegeix les comarques corresponents a cada cim del resum.
-// Si un cim no té comarques associades, retorna una llista buida per mantenir
-// una resposta estable i fàcil de consumir des del frontend.
-function enrichListWithRegions(peaks, regionsByPeakId) {
-  return peaks.map((peak) => ({
-    ...peak,
-    regions: regionsByPeakId.get(peak.peakId) || [],
+// S’utilitza tant per llistes de cims com per ascensions recents, ja que
+// totes dues respostes tenen un peakId associat.
+function enrichListWithRegions(items, regionsByPeakId) {
+  return items.map((item) => ({
+    ...item,
+    regions: regionsByPeakId.get(item.peakId) || [],
   }));
 }
 

@@ -1,8 +1,10 @@
+import 'package:cims/app/widgets/peaks/peak_circular_thumbnail.dart';
 import 'package:cims/core/entity/dashboard_summary.dart';
 import 'package:flutter/material.dart';
 
 // Aquest element representa un cim dins d’una secció del dashboard.
-// Mostra la informació mínima necessària perquè l’usuari pugui identificar-lo ràpidament.
+// Mostra una miniatura reutilitzable i la informació mínima necessària
+// perquè l’usuari pugui identificar-lo ràpidament.
 class DashboardPeakTile extends StatelessWidget {
   const DashboardPeakTile({
     super.key,
@@ -15,8 +17,8 @@ class DashboardPeakTile extends StatelessWidget {
   final DashboardPeakItem peak;
   final VoidCallback onTap;
 
-  // Aquest mètode construeix l’element visual del cim amb el nom, les dades complementàries
-  // i un accés interactiu cap al seu detall.
+  // Aquest mètode construeix l’element visual del cim amb miniatura,
+  // nom, dades complementàries i accés interactiu cap al detall.
   @override
   Widget build(BuildContext context) {
     final details = [
@@ -32,17 +34,10 @@ class DashboardPeakTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 7),
         child: Row(
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE7F4EC),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.terrain_rounded,
-                color: Color(0xFF0B57D0),
-              ),
+            // Aquesta miniatura manté la mateixa representació visual dels cims
+            // que ja s’utilitza al catàleg i al detall ràpid del mapa.
+            const PeakCircularThumbnail(
+              size: 48,
             ),
             const SizedBox(width: 12),
             Expanded(
