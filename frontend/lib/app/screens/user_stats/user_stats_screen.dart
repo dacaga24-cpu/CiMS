@@ -6,7 +6,6 @@ import 'package:cims/app/screens/user_stats/widgets/stats_error_state.dart';
 import 'package:cims/app/screens/user_stats/widgets/stats_history_card.dart';
 import 'package:cims/app/screens/user_stats/widgets/stats_loading_state.dart';
 import 'package:cims/app/screens/user_stats/widgets/stats_most_ascended_card.dart';
-import 'package:cims/app/screens/user_stats/widgets/stats_recent_ascents_list.dart';
 import 'package:cims/app/screens/user_stats/widgets/stats_total_meters_card.dart';
 import 'package:flutter/material.dart';
 
@@ -138,11 +137,6 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
                 current: controller.challengeCurrent,
                 target: controller.challengeTarget,
                 percentage: controller.challengePercentage,
-              ),
-              const SizedBox(height: 28),
-              StatsRecentAscentsList(
-                ascents: stats.recentAscents,
-                onAscentTap: controller.onRecentAscentTap,
               ),
             ],
           ),

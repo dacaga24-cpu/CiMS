@@ -4,8 +4,11 @@ import 'package:cims/app/screens/dashboard/dashboard_controller.dart';
 import 'package:cims/app/screens/dashboard/widgets/dashboard_challenge_card.dart';
 import 'package:cims/app/screens/dashboard/widgets/dashboard_monthly_challenge_card.dart';
 import 'package:cims/app/screens/dashboard/widgets/dashboard_peak_section.dart';
+import 'package:cims/app/screens/dashboard/widgets/dashboard_recent_ascents_section.dart';
 import 'package:cims/app/screens/dashboard/widgets/dashboard_recent_photos_carousel.dart';
 import 'package:cims/app/screens/main_navigation/main_bottom_navigation_tab.dart';
+import 'package:cims/core/entity/dashboard_summary.dart';
+import 'package:cims/core/session/app_session.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta pantalla mostra el resum principal de l’usuari després d’iniciar sessió.
@@ -64,6 +67,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         );
         return;
     }
+  }
+
+  // Aquest mètode obre l'historial del cim associat a una ascensió recent.
+  // Permet consultar o editar els registres d'aquell cim des del dashboard.
+  void _openAscentHistory(DashboardRecentAscent ascent) {
+    context.router.root.push(
+      AscentHistoryRoute(
+        peakId: ascent.peakId,
+        peakName: ascent.peakName,
+        altitude: ascent.altitude ?? 0,
+        regions: ascent.regionName == null ? const [] : [ascent.regionName!],
+      ),
+    );
   }
 
   // Aquest mètode allibera el controller i elimina l’escolta activa.
@@ -131,19 +147,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(height: 18),
                     DashboardPeakSection(
-                      title: 'Pendents de coronar',
-                      emptyMessage: 'Encara no tens cims pendents.',
+                      title: 'Últims objectius',
+                      emptyMessage: 'Encara no tens cap cim com a objectiu.',
                       peaks: summary.pendingPeaks,
                       icon: Icons.flag_rounded,
+                      iconColor: const Color(0xFFF97316),
                       onPeakTap: _controller.openPeakDetail,
                     ),
                     const SizedBox(height: 18),
                     DashboardPeakSection(
-                      title: 'Els meus preferits',
+                      title: 'Últims preferits',
                       emptyMessage: 'Encara no tens cims preferits.',
                       peaks: summary.favoritePeaks,
                       icon: Icons.favorite_rounded,
+                      iconColor: const Color(0xFFE84A4A),
                       onPeakTap: _controller.openPeakDetail,
+                    ),
+                    const SizedBox(height: 18),
+                    DashboardRecentAscentsSection(
+                      ascents: summary.recentAscents,
+                      onAscentTap: _openAscentHistory,
                     ),
                   ],
                 ),
@@ -162,30 +185,39 @@ class _DashboardHeader extends StatelessWidget {
   const _DashboardHeader();
 
   // Aquest mètode construeix el títol principal i el text introductori del dashboard.
-  // Ajuda l’usuari a entendre ràpidament el propòsit de la pantalla.
+  // Llegeix el nom del perfil compartit perquè la benvinguda sigui personal.
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Dashboard',
-          style: TextStyle(
-            color: Color(0xFF1F2933),
-            fontSize: 30,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        SizedBox(height: 6),
-        Text(
-          'Segueix el teu progrés i prepara els propers cims.',
-          style: TextStyle(
-            color: Color(0xFF6B7280),
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
+    return AnimatedBuilder(
+      animation: AppSession.userProfileStore,
+      builder: (context, _) {
+        final user = AppSession.userProfileStore.user;
+        final firstName = user?.firstName.trim() ?? '';
+        final greetingName = firstName.isEmpty ? 'explorador' : firstName;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Bon dia, $greetingName',
+              style: const TextStyle(
+                color: Color(0xFF1F2933),
+                fontSize: 30,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Segueix el teu progrés i prepara els propers cims.',
+              style: TextStyle(
+                color: Color(0xFF6B7280),
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
