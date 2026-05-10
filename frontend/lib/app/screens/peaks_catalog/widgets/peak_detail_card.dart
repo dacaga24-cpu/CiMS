@@ -22,7 +22,7 @@ class PeakDetailCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   // Aquest mètode construeix la targeta visual del cim dins del catàleg.
-  // Combina les dades bàsiques del cim amb una miniatura i els estats personals.
+  // Separa nom, altitud i comarca en línies pròpies per mantenir una lectura uniforme.
   @override
   Widget build(BuildContext context) {
     final currentStatus = status;
@@ -38,100 +38,110 @@ class PeakDetailCard extends StatelessWidget {
             horizontal: 18,
             vertical: 18,
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Aquesta miniatura dona una referència visual ràpida del cim.
-              // De moment utilitza una imatge comuna per a totes les muntanyes.
-              const PeakCircularThumbnail(
-                size: 62,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Aquest bloc destaca el nom del cim i la seva altitud
-                    // com a informació principal de cada element del llistat.
-                    RichText(
-                      text: TextSpan(
-                        children: [
-                          TextSpan(
-                            text: peak.name,
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1E1E1E),
-                            ),
-                          ),
-                          const TextSpan(text: '  '),
-                          TextSpan(
-                            text: '${peak.altitude} m',
-                            style: const TextStyle(
-                              fontSize: 19,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF0B57D0),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Aquest bloc mostra la ubicació territorial del cim.
-                    // Això permet identificar ràpidament a quina regió o regions pertany.
-                    Row(
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Aquesta miniatura dona una referència visual ràpida del cim.
+                  // De moment utilitza una imatge comuna per a totes les muntanyes.
+                  const PeakCircularThumbnail(
+                    size: 62,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Padding(
-                          padding: EdgeInsets.only(top: 2),
-                          child: Icon(
-                            Icons.location_on_outlined,
-                            size: 16,
-                            color: Color(0xFF9AA3B2),
+                        // Aquest text mostra només el nom del cim.
+                        // L'altitud queda en una línia separada per evitar salts visuals irregulars.
+                        Text(
+                          peak.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            height: 1.1,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1E1E1E),
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            peak.formattedRegions,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF7B8596),
-                            ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${peak.altitude} m',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 21,
+                            height: 1.05,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0B57D0),
                           ),
+                        ),
+                        const SizedBox(height: 9),
+
+                        // Aquest bloc mostra la ubicació territorial del cim.
+                        // La comarca queda sempre en una tercera línia estable.
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 2),
+                              child: Icon(
+                                Icons.location_on_outlined,
+                                size: 16,
+                                color: Color(0xFF9AA3B2),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                peak.formattedRegions,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF7B8596),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
+                  ),
+                  const SizedBox(width: 12),
 
-                    // Aquest bloc mostra només els estats personals actius.
-                    // No es mostra cap informació si el cim no té estats assignats.
-                    if (currentStatus != null && currentStatus.hasAnyStatus) ...[
-                      const SizedBox(height: 12),
-                      PeakStatusTags(
-                        status: currentStatus,
-                      ),
-                    ],
-                  ],
-                ),
+                  // Aquest element lateral reforça visualment que la targeta
+                  // es pot seleccionar per accedir a més informació.
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF2F3F5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.chevron_right_rounded,
+                      color: Color(0xFF9EA6B4),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
 
-              // Aquest element lateral reforça visualment que la targeta
-              // es pot seleccionar per accedir a més informació.
-              Container(
-                width: 38,
-                height: 38,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF2F3F5),
-                  shape: BoxShape.circle,
+              // Aquest bloc mostra els estats personals actius alineats amb el text principal.
+              // Això evita que les etiquetes quedin comprimides al costat de la miniatura.
+              if (currentStatus != null && currentStatus.hasAnyStatus) ...[
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.only(left: 78),
+                  child: PeakStatusTags(
+                    status: currentStatus,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Color(0xFF9EA6B4),
-                ),
-              ),
+              ],
             ],
           ),
         ),

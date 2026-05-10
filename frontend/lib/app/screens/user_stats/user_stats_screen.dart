@@ -105,19 +105,6 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
               ),
               const SizedBox(height: 22),
 
-              StatsRangeSelector(
-                options: controller.rangeOptions,
-                selectedRange: controller.selectedRange,
-                onRangeSelected: controller.onRangeChanged,
-              ),
-              const SizedBox(height: 14),
-
-              StatsTotalMetersCard(
-                totalMeters: stats.totalAltitudeMeters,
-                comparisonLabel: controller.monthlyComparisonLabel,
-              ),
-              const SizedBox(height: 14),
-
               StatsHistoryCard(
                 totalAscents: stats.totalAscents,
                 monthlyAscents: stats.monthlyAscents,
@@ -129,6 +116,19 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
                 current: stats.monthlyStreak.current,
                 best: stats.monthlyStreak.best,
               ),
+
+                            StatsRangeSelector(
+                options: controller.rangeOptions,
+                selectedRange: controller.selectedRange,
+                onRangeSelected: controller.onRangeChanged,
+              ),
+              const SizedBox(height: 14),
+
+              StatsTotalMetersCard(
+                totalMeters: stats.totalAltitudeMeters,
+                comparisonLabel: controller.monthlyComparisonLabel,
+              ),
+              const SizedBox(height: 14),
             ],
           ),
         );
@@ -175,7 +175,7 @@ class _StatsMonthlyStreakCard extends StatelessWidget {
             ),
             child: const Icon(
               Icons.local_fire_department_rounded,
-              color: Color(0xFF18B56A),
+              color: Color(0xFFF97316),
               size: 30,
             ),
           ),
@@ -190,7 +190,7 @@ class _StatsMonthlyStreakCard extends StatelessWidget {
                     fontSize: 10,
                     letterSpacing: 0.6,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFF18B56A),
+                    color: Color(0xFFF97316),
                   ),
                 ),
                 const SizedBox(height: 5),

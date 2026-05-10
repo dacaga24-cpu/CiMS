@@ -105,7 +105,7 @@ class StatsHistoryCard extends StatelessWidget {
                     child: _StatsMonthBar(
                       month: months[index],
                       maxValue: maxValue,
-                      highlighted: index >= months.length - 3,
+                      hasActivity: months[index].total > 0,
                     ),
                   ),
                   if (index != months.length - 1) const SizedBox(width: 5),
@@ -121,9 +121,8 @@ class StatsHistoryCard extends StatelessWidget {
   // Aquest getter limita el gràfic al nombre de mesos configurat.
   // Si no hi ha dades suficients, completa el principi amb mesos sense activitat.
   List<MonthlyAscentsStats> get _visibleMonths {
-    final sortedMonths = monthlyAscents
-        .where((month) => month.month.isNotEmpty)
-        .toList();
+    final sortedMonths =
+        monthlyAscents.where((month) => month.month.isNotEmpty).toList();
 
     if (sortedMonths.isEmpty) {
       return _emptyRecentMonths();
@@ -231,14 +230,14 @@ class _StatsMonthBar extends StatelessWidget {
   const _StatsMonthBar({
     required this.month,
     required this.maxValue,
-    required this.highlighted,
+    required this.hasActivity,
   });
 
   // Aquestes dades defineixen el valor mensual, l’escala del gràfic
-  // i si la barra forma part del tram més recent.
+  // i si el mes té activitat registrada.
   final MonthlyAscentsStats month;
   final int maxValue;
-  final bool highlighted;
+  final bool hasActivity;
 
   @override
   Widget build(BuildContext context) {
@@ -246,10 +245,10 @@ class _StatsMonthBar extends StatelessWidget {
     final barHeight = value == 0 ? 24.0 : 30 + (54 * (value / maxValue));
 
     final barColor =
-        highlighted ? const Color(0xFF0F5ADB) : const Color(0xFFDDE5F2);
+        hasActivity ? const Color(0xFF0F5ADB) : const Color(0xFFDDE5F2);
 
     final textColor =
-        highlighted ? Colors.white : const Color(0xFF344054);
+        hasActivity ? Colors.white : const Color(0xFF344054);
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
