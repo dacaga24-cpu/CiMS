@@ -1,9 +1,9 @@
 // Aquest enum representa les seccions principals accessibles des del menú inferior.
-// Serveix per identificar de manera clara quina pestanya de navegació
-// està activa o s’ha seleccionat dins de l’aplicació.
+// L'ordre dels valors ha de coincidir amb l'ordre de les rutes definides
+// a MainNavigationScreen i amb l'ordre visual del tab bar.
 enum MainBottomNavigationTab {
+  dashboard,
   map,
   catalog,
-  dashboard,
   stats,
 }

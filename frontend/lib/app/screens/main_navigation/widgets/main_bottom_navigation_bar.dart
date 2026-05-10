@@ -11,14 +11,9 @@ class MainBottomNavigationBar extends StatelessWidget {
     required this.onTabSelected,
   });
 
-  // Aquestes propietats permeten saber quina secció està activa
-  // i notificar a la pantalla principal quan l’usuari canvia de pestanya.
   final MainBottomNavigationTab selectedTab;
   final ValueChanged<MainBottomNavigationTab> onTabSelected;
 
-  // Aquest mètode construeix el menú inferior fix de l’aplicació.
-  // Des d’aquí l’usuari pot moure’s entre les seccions principals
-  // accessibles des de la navegació base.
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -38,13 +33,15 @@ class MainBottomNavigationBar extends StatelessWidget {
               ),
             ],
           ),
-
-          // Aquest bloc defineix les quatre opcions principals del menú inferior.
-          // Cada element actualitza la secció activa i reflecteix visualment
-          // quina pantalla està seleccionada en cada moment.
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
+              _NavigationItem(
+                icon: Icons.grid_view_rounded,
+                label: 'INICI',
+                isSelected: selectedTab == MainBottomNavigationTab.dashboard,
+                onTap: () => onTabSelected(MainBottomNavigationTab.dashboard),
+              ),
               _NavigationItem(
                 icon: Icons.map_outlined,
                 label: 'MAPA',
@@ -56,12 +53,6 @@ class MainBottomNavigationBar extends StatelessWidget {
                 label: 'LLISTAT',
                 isSelected: selectedTab == MainBottomNavigationTab.catalog,
                 onTap: () => onTabSelected(MainBottomNavigationTab.catalog),
-              ),
-              _NavigationItem(
-                icon: Icons.grid_view_rounded,
-                label: 'INICI',
-                isSelected: selectedTab == MainBottomNavigationTab.dashboard,
-                onTap: () => onTabSelected(MainBottomNavigationTab.dashboard),
               ),
               _NavigationItem(
                 icon: Icons.bar_chart_rounded,
@@ -87,20 +78,13 @@ class _NavigationItem extends StatelessWidget {
     required this.onTap,
   });
 
-  // Aquest bloc reuneix la informació visual i l’acció associada
-  // a una única opció del menú inferior.
   final IconData icon;
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
 
-  // Aquest mètode construeix una sola opció del menú inferior.
-  // Mostra la icona, el text i l’estat visual actiu o inactiu
-  // segons la secció seleccionada.
   @override
   Widget build(BuildContext context) {
-    // Aquest color permet diferenciar de manera clara
-    // si l’opció està seleccionada o no.
     final activeColor =
         isSelected ? const Color(0xFF0B57D0) : const Color(0xFF9AA3B2);
 
@@ -122,9 +106,6 @@ class _NavigationItem extends StatelessWidget {
                   color: activeColor,
                 ),
                 const SizedBox(height: 6),
-
-                // Aquest bloc evita que els textos llargs del menú ocupin dues línies.
-                // Així es manté l’alçada del menú estable en pantalles estretes.
                 Flexible(
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
