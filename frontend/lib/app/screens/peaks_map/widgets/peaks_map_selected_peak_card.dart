@@ -62,15 +62,28 @@ class PeaksMapSelectedPeakCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      peak.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF17212B),
-                      ),
+                    // Aquest bloc situa el nom del cim i el segell de completat
+                    // a la mateixa alçada per donar una lectura ràpida de l’estat.
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            peak.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF17212B),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _CompletedMiniSeal(
+                          isCompleted: currentStatus.isCompleted,
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -84,16 +97,12 @@ class PeaksMapSelectedPeakCard extends StatelessWidget {
                         color: Color(0xFF5B6573),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    _CompletedMiniSeal(
-                      isCompleted: currentStatus.isCompleted,
-                    ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
@@ -216,39 +225,39 @@ class _MapStatusButton extends StatelessWidget {
             ? color
             : const Color(0xFF98A2B3);
 
-    return Material(
-      color: backgroundColor,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 9,
-            vertical: 10,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 15,
-                color: foregroundColor,
-              ),
-              const SizedBox(width: 5),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: foregroundColor,
+    return SizedBox(
+      height: 38,
+      child: Material(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 9),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 15,
+                  color: foregroundColor,
+                ),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: foregroundColor,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
