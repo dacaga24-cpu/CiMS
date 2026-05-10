@@ -5,6 +5,7 @@ import 'package:cims/app/screens/user_stats/widgets/stats_error_state.dart';
 import 'package:cims/app/screens/user_stats/widgets/stats_history_card.dart';
 import 'package:cims/app/screens/user_stats/widgets/stats_loading_state.dart';
 import 'package:cims/app/screens/user_stats/widgets/stats_most_ascended_card.dart';
+import 'package:cims/app/screens/user_stats/widgets/stats_range_selector.dart';
 import 'package:cims/app/screens/user_stats/widgets/stats_total_meters_card.dart';
 import 'package:flutter/material.dart';
 
@@ -91,30 +92,135 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
                 ),
               ),
               const SizedBox(height: 28),
-              StatsHistoryCard(
-                totalAscents: stats.totalAscents,
-                monthlyAscents: stats.monthlyAscents,
-                monthsToShow: 6,
-              ),
-              const SizedBox(height: 14),
-              StatsTotalMetersCard(
-                totalMeters: stats.totalAltitudeMeters,
-                comparisonLabel: controller.monthlyComparisonLabel,
-              ),
-              const SizedBox(height: 22),
+
               StatsMostAscendedCard(
-                mostAscendedPeak: stats.mostAscendedPeak,
+                topAscendedPeaks: stats.topAscendedPeaks,
               ),
               const SizedBox(height: 14),
+
               StatsChallengeCard(
                 current: controller.challengeCurrent,
                 target: controller.challengeTarget,
                 percentage: controller.challengePercentage,
               ),
+              const SizedBox(height: 22),
+
+              StatsRangeSelector(
+                options: controller.rangeOptions,
+                selectedRange: controller.selectedRange,
+                onRangeSelected: controller.onRangeChanged,
+              ),
+              const SizedBox(height: 14),
+
+              StatsTotalMetersCard(
+                totalMeters: stats.totalAltitudeMeters,
+                comparisonLabel: controller.monthlyComparisonLabel,
+              ),
+              const SizedBox(height: 14),
+
+              StatsHistoryCard(
+                totalAscents: stats.totalAscents,
+                monthlyAscents: stats.monthlyAscents,
+                monthsToShow: 12,
+              ),
+              const SizedBox(height: 14),
+
+              _StatsMonthlyStreakCard(
+                current: stats.monthlyStreak.current,
+                best: stats.monthlyStreak.best,
+              ),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+// Aquesta targeta mostra la ratxa mensual d'ascensions.
+// Una ratxa compta mesos consecutius amb almenys una ascensió registrada.
+class _StatsMonthlyStreakCard extends StatelessWidget {
+  const _StatsMonthlyStreakCard({
+    required this.current,
+    required this.best,
+  });
+
+  final int current;
+  final int best;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFC),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F000000),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F7EF),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Icon(
+              Icons.local_fire_department_rounded,
+              color: Color(0xFF18B56A),
+              size: 30,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'RATXA MENSUAL',
+                  style: TextStyle(
+                    fontSize: 10,
+                    letterSpacing: 0.6,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF18B56A),
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  current == 1
+                      ? '1 mes seguit amb ascensions'
+                      : '$current mesos seguits amb ascensions',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    height: 1.15,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF181818),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  best == 1
+                      ? 'Millor ratxa: 1 mes'
+                      : 'Millor ratxa: $best mesos',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
