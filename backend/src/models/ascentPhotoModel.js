@@ -1,8 +1,8 @@
 const pool = require('../config/db');
 
 // Aquest model gestiona l'accés a les fotos associades a les ascensions.
-// Centralitza les consultes i modificacions sobre ascent_photos, mantenint un
-// format de resposta coherent per als serveis que consumeixen aquestes dades.
+// Centralitza les consultes i modificacions sobre ascent_photos, mantenint
+// un format coherent per als serveis que consumeixen aquestes dades.
 const AscentPhotoModel = {
 
   // Insereix diverses fotos vinculades a una mateixa ascensió.
@@ -30,6 +30,7 @@ const AscentPhotoModel = {
 
     const firstId = insertResult.insertId;
     const lastId = firstId + photos.length - 1;
+
     const [rows] = await executor.execute(
       `SELECT id, ascent_id, storage_path, is_primary, created_at
        FROM ascent_photos
@@ -42,8 +43,8 @@ const AscentPhotoModel = {
   },
 
   // Retorna totes les fotos d'una ascensió concreta.
-  // La consulta comprova també que l'ascensió pertanyi a l'usuari autenticat,
-  // evitant que es puguin consultar imatges d'altres comptes.
+  // La consulta comprova que l'ascensió pertanyi a l'usuari autenticat
+  // per evitar l'accés a imatges d'altres comptes.
   async findAllByAscentIdAndUserId(ascentId, userId) {
     const sql = `
       SELECT ap.id, ap.ascent_id, ap.storage_path, ap.is_primary, ap.created_at
@@ -58,7 +59,7 @@ const AscentPhotoModel = {
   },
 
   // Retorna una foto concreta només si pertany a una ascensió de l'usuari.
-  // Serveix per validar la propietat abans de permetre eliminar-la.
+  // Serveix per validar la propietat abans de permetre operacions destructives.
   async findByIdAndUserId(photoId, userId) {
     const sql = `
       SELECT ap.id, ap.ascent_id, ap.storage_path, ap.is_primary, ap.created_at
@@ -90,6 +91,7 @@ const AscentPhotoModel = {
     const [rows] = await pool.execute(sql, ascentIds);
 
     const byAscentId = new Map();
+
     for (const row of rows) {
       if (!byAscentId.has(row.ascent_id)) {
         byAscentId.set(row.ascent_id, row);
@@ -99,10 +101,11 @@ const AscentPhotoModel = {
     return byAscentId;
   },
 
-  // Retorna les fotos representatives més recents de l'usuari.
-  // Només selecciona una foto per ascensió i només inclou ascensions amb data,
-  // perquè aquest bloc alimenta resums cronològics com el dashboard.
-  async findRecentRepresentativeByUserId(userId, limit = 12) {
+  // Retorna les últimes fotos reals pujades per l'usuari.
+  // No limita el resultat a una foto per ascensió, perquè el dashboard
+  // mostra activitat fotogràfica recent i pot incloure diverses imatges
+  // d'una mateixa ascensió.
+  async findRecentByUserId(userId, limit = 12) {
     const safeLimit = Number.isInteger(Number(limit))
       ? Math.min(Math.max(Number(limit), 1), 50)
       : 12;
@@ -121,25 +124,7 @@ const AscentPhotoModel = {
       INNER JOIN ascents a ON a.id = ap.ascent_id
       INNER JOIN peaks p ON p.id = a.peak_id
       WHERE a.user_id = ?
-        AND a.ascent_date IS NOT NULL
-        AND NOT EXISTS (
-          SELECT 1
-          FROM ascent_photos ap2
-          WHERE ap2.ascent_id = ap.ascent_id
-            AND (
-              ap2.is_primary > ap.is_primary
-              OR (
-                ap2.is_primary = ap.is_primary
-                AND ap2.created_at > ap.created_at
-              )
-              OR (
-                ap2.is_primary = ap.is_primary
-                AND ap2.created_at = ap.created_at
-                AND ap2.id > ap.id
-              )
-            )
-        )
-      ORDER BY a.ascent_date DESC, a.id DESC
+      ORDER BY ap.created_at DESC, ap.id DESC
       LIMIT ${safeLimit}
     `;
 
@@ -148,8 +133,8 @@ const AscentPhotoModel = {
   },
 
   // Retorna les fotos de totes les ascensions de l'usuari.
-  // S'utilitza per construir la galeria completa. Aquí sí que es mantenen
-  // també les fotos d'ascensions sense data perquè l'usuari les pugui gestionar.
+  // S'utilitza per construir la galeria completa, ordenada per les ascensions
+  // més recents i preparada per carregar-se de manera paginada.
   async findGalleryByUserId(userId, limit, offset = 0) {
     const safeLimit = Number.isInteger(Number(limit))
       ? Math.min(Math.max(Number(limit), 1), 50)

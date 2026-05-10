@@ -1,18 +1,20 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:cims/app/router/app_router.dart';
 import 'package:cims/app/screens/dashboard/dashboard_controller.dart';
-import 'package:cims/app/screens/dashboard/widgets/dashboard_challenge_card.dart';
 import 'package:cims/app/screens/dashboard/widgets/dashboard_monthly_challenge_card.dart';
 import 'package:cims/app/screens/dashboard/widgets/dashboard_peak_section.dart';
 import 'package:cims/app/screens/dashboard/widgets/dashboard_recent_ascents_section.dart';
 import 'package:cims/app/screens/dashboard/widgets/dashboard_recent_photos_carousel.dart';
 import 'package:cims/app/screens/main_navigation/main_bottom_navigation_tab.dart';
+import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
+import 'package:cims/app/screens/peaks_catalog/models/peaks_filter_state.dart';
 import 'package:cims/core/entity/dashboard_summary.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta pantalla mostra el resum principal de l’usuari després d’iniciar sessió.
-// Actua com a entrada visual a l’aplicació i resumeix progrés, objectius, favorits i reptes.
+// Actua com a entrada visual a l’aplicació i resumeix reptes, objectius,
+// favorits, fotos recents i últimes ascensions.
 @RoutePage()
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -82,6 +84,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // Aquest mètode aplica un filtre d’estat al catàleg i porta l’usuari al llistat.
+  // Permet veure tots els cims objectiu, preferits o completats des del dashboard.
+  void _openCatalogWithStatusFilter(PeakStatusFilter statusFilter) {
+    PeaksFilterState.shared.clear();
+
+    PeaksFilterState.shared.apply(
+      statusFilter: statusFilter,
+    );
+
+    AutoTabsRouter.of(context).setActiveIndex(
+      MainBottomNavigationTab.catalog.index,
+    );
+  }
+
   // Aquest mètode allibera el controller i elimina l’escolta activa.
   // Evita mantenir referències de la pantalla quan ja no s’està mostrant.
   @override
@@ -128,11 +144,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     const _DashboardHeader(),
                     const SizedBox(height: 22),
-                    DashboardChallengeCard(
-                      challenge: summary.challengeProgress,
-                      onViewStats: _controller.openStats,
-                    ),
-                    const SizedBox(height: 18),
                     DashboardMonthlyChallengeCard(
                       challenge: summary.monthlyChallenge,
                     ),
@@ -153,6 +164,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       icon: Icons.flag_rounded,
                       iconColor: const Color(0xFFF97316),
                       onPeakTap: _controller.openPeakDetail,
+                      onViewAllTap: () => _openCatalogWithStatusFilter(
+                        PeakStatusFilter.target,
+                      ),
                     ),
                     const SizedBox(height: 18),
                     DashboardPeakSection(
@@ -162,11 +176,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       icon: Icons.favorite_rounded,
                       iconColor: const Color(0xFFE84A4A),
                       onPeakTap: _controller.openPeakDetail,
+                      onViewAllTap: () => _openCatalogWithStatusFilter(
+                        PeakStatusFilter.favorite,
+                      ),
                     ),
                     const SizedBox(height: 18),
                     DashboardRecentAscentsSection(
                       ascents: summary.recentAscents,
                       onAscentTap: _openAscentHistory,
+                      onViewAllTap: () => _openCatalogWithStatusFilter(
+                        PeakStatusFilter.completed,
+                      ),
                     ),
                   ],
                 ),

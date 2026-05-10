@@ -3,20 +3,26 @@ import 'package:cims/core/entity/dashboard_summary.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta secció mostra les últimes ascensions dins del dashboard.
-// Representa activitat recent de cims completats i utilitza la miniatura
-// reutilitzable perquè sigui coherent amb catàleg, mapa i altres llistats.
+// Representa activitat recent de cims completats i permet accedir
+// al catàleg filtrat per veure tots els cims completats.
 class DashboardRecentAscentsSection extends StatelessWidget {
   const DashboardRecentAscentsSection({
     super.key,
     required this.ascents,
     required this.onAscentTap,
+    this.onViewAllTap,
   });
 
+  // Aquestes dades defineixen les ascensions recents i les accions disponibles.
+  // L'acció de veure tots porta al catàleg amb el filtre de cims completats.
   final List<DashboardRecentAscent> ascents;
   final ValueChanged<DashboardRecentAscent> onAscentTap;
+  final VoidCallback? onViewAllTap;
 
   @override
   Widget build(BuildContext context) {
+    const iconColor = Color(0xFF18B56A);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -34,22 +40,44 @@ class DashboardRecentAscentsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.verified_rounded,
-                color: Color(0xFF18B56A),
+                color: iconColor,
                 size: 22,
               ),
-              SizedBox(width: 8),
-              Text(
-                'Últimes ascensions',
-                style: TextStyle(
-                  color: Color(0xFF1F2933),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Últimes ascensions',
+                  style: TextStyle(
+                    color: Color(0xFF1F2933),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
+              if (onViewAllTap != null)
+                TextButton(
+                  onPressed: onViewAllTap,
+                  style: TextButton.styleFrom(
+                    foregroundColor: iconColor,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text(
+                    'Veure tots',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 14),

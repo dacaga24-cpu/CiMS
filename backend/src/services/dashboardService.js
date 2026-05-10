@@ -4,39 +4,31 @@ const StorageService = require('./storageService');
 const { fillMissingMonths } = require('../utils/statsHelpers');
 
 // Defineix quants cims es mostren a les llistes resum del dashboard.
-// Aquest valor manté la pantalla lleugera i evita retornar més dades de les
-// necessàries per a una vista inicial.
+// Aquest valor manté la pantalla lleugera i evita retornar més dades de les necessàries.
 const DASHBOARD_LIST_LIMIT = 5;
 
 // Defineix quantes ascensions recents es mostren al dashboard.
-// Aquest bloc resumeix activitat real de l’usuari i només inclou ascensions amb data.
+// Aquest bloc resumeix l'activitat real de l'usuari i només inclou ascensions amb data.
 const RECENT_ASCENTS_LIMIT = 5;
 
-// Defineix quants mesos es mostren a la sèrie mensual del dashboard.
-// Es manté el mateix període que a la pantalla d'estadístiques per donar una
-// lectura coherent del progrés de l'usuari.
+// Defineix quants mesos es mantenen al resum mensual.
+// Es conserva per compatibilitat amb el contracte de dades del dashboard.
 const MONTHLY_ASCENTS_WINDOW = 12;
 
 // Defineix quantes fotos recents es mostren al carrusel del dashboard.
-// Aquest bloc és només un resum visual; la galeria completa té el seu
-// propi endpoint i pot carregar més imatges.
+// Es retornen les últimes fotos reals, encara que pertanyin a una mateixa ascensió.
 const RECENT_PHOTOS_LIMIT = 12;
 
 // Defineix la configuració del repte principal dels 100 cims.
-// De moment és un repte fix de l'aplicació; si més endavant hi ha reptes
-// personalitzats, aquesta informació s'hauria de moure a la base de dades.
+// Es manté a la resposta per compatibilitat amb el frontend i altres pantalles.
 const CHALLENGE_TARGET_PEAKS = 100;
 const CHALLENGE_TITLE = '100 Cims';
 
 // Aquest servei construeix les dades que necessita la pantalla principal.
-// Agrupa el progrés del repte, els cims objectiu, els preferits,
-// l'activitat mensual, les últimes ascensions i les fotos recents.
+// Agrupa objectius, preferits, activitat recent, fotos recents i dades de compatibilitat.
 const DashboardService = {
-
   // Retorna el resum complet del dashboard per a un usuari concret.
-  // Les dades principals es consulten en paral·lel per reduir el temps de
-  // resposta i després s'enriqueixen només amb la informació necessària per
-  // pintar la pantalla.
+  // Les consultes independents s'executen en paral·lel i després s'enriqueixen amb comarques.
   async getDashboard(userId) {
     const [
       challengeRaw,
@@ -51,10 +43,7 @@ const DashboardService = {
       StatsModel.findFlaggedPeaks(userId, 'is_favorite', DASHBOARD_LIST_LIMIT),
       StatsModel.getMonthlyAscentsRaw(userId, MONTHLY_ASCENTS_WINDOW),
       StatsModel.getRecentAscentsRaw(userId, RECENT_ASCENTS_LIMIT),
-      AscentPhotoModel.findRecentRepresentativeByUserId(
-        userId,
-        RECENT_PHOTOS_LIMIT
-      ),
+      AscentPhotoModel.findRecentByUserId(userId, RECENT_PHOTOS_LIMIT),
     ]);
 
     const peakIdsForRegions = new Set();
@@ -91,9 +80,8 @@ const DashboardService = {
   },
 };
 
-// Aquesta funció adapta la informació del repte al format que espera el
-// frontend. Calcula el progrés restant i el percentatge perquè la interfície
-// només hagi de mostrar les dades, no calcular-les.
+// Aquesta funció adapta la informació del repte al format que espera el frontend.
+// Calcula el progrés restant i el percentatge a partir de les dades agregades.
 function composeChallenge(raw) {
   const completed = Math.min(raw.completed, CHALLENGE_TARGET_PEAKS);
   const remaining = Math.max(CHALLENGE_TARGET_PEAKS - completed, 0);
@@ -112,9 +100,8 @@ function composeChallenge(raw) {
   };
 }
 
-// Aquesta funció afegeix les comarques corresponents a cada cim del resum.
-// S’utilitza tant per llistes de cims com per ascensions recents, ja que
-// totes dues respostes tenen un peakId associat.
+// Aquesta funció afegeix les comarques corresponents a cada element amb peakId.
+// S'utilitza tant per cims resumits com per ascensions recents.
 function enrichListWithRegions(items, regionsByPeakId) {
   return items.map((item) => ({
     ...item,
@@ -123,8 +110,7 @@ function enrichListWithRegions(items, regionsByPeakId) {
 }
 
 // Aquesta funció prepara les fotos recents perquè siguin visibles al dashboard.
-// Cada foto rep una URL temporal de descàrrega, mantenint el bucket privat i
-// retornant al frontend només l'accés necessari per mostrar la imatge.
+// Cada foto rep una URL temporal de descàrrega sense fer públic el bucket.
 async function enrichRecentPhotosWithDownloadUrls(photos) {
   return Promise.all(
     photos.map(async (photo) => {
