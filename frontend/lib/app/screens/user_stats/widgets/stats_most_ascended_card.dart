@@ -1,24 +1,23 @@
+import 'package:cims/app/widgets/peaks/peak_circular_thumbnail.dart';
 import 'package:cims/core/entity/user_stats.dart';
 import 'package:flutter/material.dart';
 
-// Aquesta targeta mostra el cim que l’usuari ha repetit més vegades.
+// Aquesta targeta mostra els tres cims que l’usuari ha coronat més vegades.
 // Si encara no hi ha dades suficients, mostra un estat neutre.
 class StatsMostAscendedCard extends StatelessWidget {
   const StatsMostAscendedCard({
     super.key,
-    required this.mostAscendedPeak,
+    required this.topAscendedPeaks,
   });
 
-  // Aquesta dada conté el cim amb més ascensions registrades per l’usuari.
-  // Pot ser nul·la quan encara no hi ha historial suficient per calcular-la.
-  final MostAscendedPeakStats? mostAscendedPeak;
+  // Aquesta llista conté els cims amb més ascensions registrades.
+  // El backend ja els retorna ordenats de més a menys repeticions.
+  final List<MostAscendedPeakStats> topAscendedPeaks;
 
-  // Aquest mètode construeix la targeta del cim més repetit.
-  // Mostra la informació real quan existeix i un missatge orientatiu quan encara no hi ha dades.
+  // Aquest mètode construeix la targeta del top 3 de cims més coronats.
+  // Mostra el rànquing quan hi ha dades i un missatge orientatiu quan encara no n’hi ha.
   @override
   Widget build(BuildContext context) {
-    final peak = mostAscendedPeak;
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -33,40 +32,83 @@ class StatsMostAscendedCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _PeakAvatar(imageUrl: peak?.imageUrl),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'MÉS COPS CORONAT',
-                  style: TextStyle(
-                    fontSize: 10,
-                    letterSpacing: 0.6,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF0F5ADB),
-                  ),
+          const Text(
+            'TOP 3 CIMS MÉS CORONATS',
+            style: TextStyle(
+              fontSize: 10,
+              letterSpacing: 0.6,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF0F5ADB),
+            ),
+          ),
+          const SizedBox(height: 14),
+          if (topAscendedPeaks.isEmpty)
+            const _EmptyTopAscendedState()
+          else
+            for (var index = 0; index < topAscendedPeaks.length; index++) ...[
+              _TopAscendedPeakRow(
+                position: index + 1,
+                peak: topAscendedPeaks[index],
+              ),
+              if (index != topAscendedPeaks.length - 1)
+                const SizedBox(height: 12),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+// Aquest element representa un cim dins del rànquing.
+// Mostra la posició, la miniatura, el nom, les comarques, l’altitud i el nombre d’ascensions.
+class _TopAscendedPeakRow extends StatelessWidget {
+  const _TopAscendedPeakRow({
+    required this.position,
+    required this.peak,
+  });
+
+  final int position;
+  final MostAscendedPeakStats peak;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitleParts = <String>[
+      if (peak.formattedRegions.isNotEmpty) peak.formattedRegions,
+      if (peak.peakAltitude != null) '${_formatNumber(peak.peakAltitude!)} m',
+    ];
+
+    return Row(
+      children: [
+        _RankingBadge(position: position),
+        const SizedBox(width: 10),
+        const PeakCircularThumbnail(
+          size: 48,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                peak.peakName.isEmpty ? 'Cim sense nom' : peak.peakName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 15,
+                  height: 1.15,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF181818),
                 ),
-                const SizedBox(height: 5),
+              ),
+              if (subtitleParts.isNotEmpty) ...[
+                const SizedBox(height: 3),
                 Text(
-                  peak?.peakName.isNotEmpty == true
-                      ? peak!.peakName
-                      : 'Encara sense repeticions',
-                  style: const TextStyle(
-                    fontSize: 17,
-                    height: 1.1,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF181818),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  peak == null
-                      ? 'Registra ascensions per veure aquesta dada'
-                      : '${peak.totalAscents} ascensions',
+                  subtitleParts.join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -74,67 +116,127 @@ class StatsMostAscendedCard extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
+            ],
           ),
-        ],
+        ),
+        const SizedBox(width: 10),
+        _AscentsCounter(totalAscents: peak.totalAscents),
+      ],
+    );
+  }
+
+  String _formatNumber(int value) {
+    final text = value.toString();
+    final buffer = StringBuffer();
+
+    for (var i = 0; i < text.length; i++) {
+      final positionFromEnd = text.length - i;
+
+      buffer.write(text[i]);
+
+      if (positionFromEnd > 1 && positionFromEnd % 3 == 1) {
+        buffer.write('.');
+      }
+    }
+
+    return buffer.toString();
+  }
+}
+
+// Aquest indicador mostra la posició del cim dins del top.
+// Ajuda a llegir el rànquing de manera ràpida.
+class _RankingBadge extends StatelessWidget {
+  const _RankingBadge({
+    required this.position,
+  });
+
+  final int position;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 26,
+      height: 26,
+      decoration: const BoxDecoration(
+        color: Color(0xFFEAF1FF),
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Text(
+          '$position',
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+            color: Color(0xFF0F5ADB),
+          ),
+        ),
       ),
     );
   }
 }
 
-// Aquest avatar mostra una imatge del cim si el backend la facilita.
-// Si no hi ha imatge, es mostra una icona de muntanya.
-class _PeakAvatar extends StatelessWidget {
-  const _PeakAvatar({
-    required this.imageUrl,
+// Aquest bloc mostra el nombre d’ascensions registrades per al cim.
+// Manté el recompte separat de la informació descriptiva del cim.
+class _AscentsCounter extends StatelessWidget {
+  const _AscentsCounter({
+    required this.totalAscents,
   });
 
-  // Aquesta URL permet mostrar una imatge representativa del cim.
-  // Si no està disponible o falla la càrrega, el widget utilitza una alternativa visual.
-  final String? imageUrl;
+  final int totalAscents;
 
-  // Aquest mètode decideix si es mostra la imatge del cim o l’avatar per defecte.
   @override
   Widget build(BuildContext context) {
-    final url = imageUrl;
-
-    if (url != null && url.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: Image.network(
-          url,
-          width: 56,
-          height: 56,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const _FallbackPeakAvatar(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          '$totalAscents',
+          style: const TextStyle(
+            fontSize: 18,
+            height: 1,
+            fontWeight: FontWeight.w900,
+            color: Color(0xFF0F5ADB),
+          ),
         ),
-      );
-    }
-
-    return const _FallbackPeakAvatar();
+        const SizedBox(height: 2),
+        Text(
+          totalAscents == 1 ? 'cop' : 'cops',
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF6B7280),
+          ),
+        ),
+      ],
+    );
   }
 }
 
-// Aquest widget ofereix una representació visual neutra quan no hi ha imatge del cim.
-// Manté la targeta completa i coherent encara que el backend no enviï cap fotografia.
-class _FallbackPeakAvatar extends StatelessWidget {
-  const _FallbackPeakAvatar();
+// Aquest estat s’utilitza quan encara no hi ha ascensions suficients.
+// Dona una explicació clara sense deixar la targeta buida.
+class _EmptyTopAscendedState extends StatelessWidget {
+  const _EmptyTopAscendedState();
 
-  // Aquest mètode construeix l’avatar per defecte amb una icona de muntanya.
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        color: const Color(0xFFEAF1FF),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: const Icon(
-        Icons.terrain_rounded,
-        color: Color(0xFF0F5ADB),
-        size: 28,
-      ),
+    return const Row(
+      children: [
+        PeakCircularThumbnail(
+          size: 48,
+        ),
+        SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            'Registra ascensions per veure els teus cims més coronats.',
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF6B7280),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

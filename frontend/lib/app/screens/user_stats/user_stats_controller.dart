@@ -6,6 +6,51 @@ import 'package:cims/core/store/user_stats_refresh_store.dart';
 import 'package:cims/core/usecase/get_user_stats_usecase.dart';
 import 'package:flutter/material.dart';
 
+// Aquest model defineix una opció del selector temporal d'estadístiques.
+// El valor s'envia al backend i l'etiqueta es mostra a la interfície.
+class UserStatsRangeOption {
+  const UserStatsRangeOption({
+    required this.value,
+    required this.label,
+  });
+
+  final String value;
+  final String label;
+
+  static const month = UserStatsRangeOption(
+    value: 'month',
+    label: 'Mes',
+  );
+
+  static const quarter = UserStatsRangeOption(
+    value: 'quarter',
+    label: 'Trimestre',
+  );
+
+  static const sixMonths = UserStatsRangeOption(
+    value: 'six_months',
+    label: '6 mesos',
+  );
+
+  static const year = UserStatsRangeOption(
+    value: 'year',
+    label: 'Any',
+  );
+
+  static const total = UserStatsRangeOption(
+    value: 'total',
+    label: 'Total',
+  );
+
+  static const values = [
+    month,
+    quarter,
+    sixMonths,
+    year,
+    total,
+  ];
+}
+
 // Aquest controller gestiona l’estat de la pantalla d’estadístiques.
 // Carrega les dades reals del backend i prepara la informació perquè la UI
 // només hagi de representar càrrega, error o contingut.
@@ -38,6 +83,25 @@ class UserStatsController extends ChangeNotifier {
 
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
+
+  // Aquest valor indica quin rang temporal s’aplica a les mètriques variables.
+  // Per defecte es mostra l’últim any, perquè dona una lectura útil i recent.
+  String _selectedRange = UserStatsRangeOption.year.value;
+  String get selectedRange => _selectedRange;
+
+  // Aquestes opcions alimenten el selector temporal de la pantalla.
+  List<UserStatsRangeOption> get rangeOptions => UserStatsRangeOption.values;
+
+  // Aquest getter retorna l’etiqueta visible del rang temporal seleccionat.
+  String get selectedRangeLabel {
+    for (final option in rangeOptions) {
+      if (option.value == _selectedRange) {
+        return option.label;
+      }
+    }
+
+    return UserStatsRangeOption.year.label;
+  }
 
   // Aquestes banderes internes eviten actualitzacions insegures i càrregues repetides.
   // Són importants perquè la pantalla pot reconstruir-se sense haver de repetir la petició inicial.
@@ -84,38 +148,22 @@ class UserStatsController extends ChangeNotifier {
     return ((challengeCurrent / challengeTarget) * 100).round().clamp(0, 100);
   }
 
-  // Aquest getter genera un text breu de comparativa recent.
-  // De moment utilitza l’evolució mensual d’ascensions perquè el backend encara
-  // no retorna metres acumulats per mes.
+  // Aquest getter genera un text breu per contextualitzar els metres totals.
+  // El text depèn del rang temporal seleccionat a la pantalla.
   String get monthlyComparisonLabel {
-    final monthlyAscents = _stats?.monthlyAscents ?? const [];
-
-    if (monthlyAscents.length < 2) {
-      return 'Dades acumulades del teu historial';
+    switch (_selectedRange) {
+      case 'month':
+        return 'Metres acumulats durant l’últim mes';
+      case 'quarter':
+        return 'Metres acumulats durant l’últim trimestre';
+      case 'six_months':
+        return 'Metres acumulats durant els últims 6 mesos';
+      case 'total':
+        return 'Metres acumulats en tot l’historial';
+      case 'year':
+      default:
+        return 'Metres acumulats durant l’últim any';
     }
-
-    final previous = monthlyAscents[monthlyAscents.length - 2].total;
-    final current = monthlyAscents.last.total;
-
-    if (previous == 0 && current > 0) {
-      return '+100% des del mes passat';
-    }
-
-    if (previous == 0) {
-      return 'Sense variació respecte al mes passat';
-    }
-
-    final variation = (((current - previous) / previous) * 100).round();
-
-    if (variation > 0) {
-      return '+$variation% des del mes passat';
-    }
-
-    if (variation < 0) {
-      return '$variation% respecte al mes passat';
-    }
-
-    return 'Sense variació respecte al mes passat';
   }
 
   // Aquest mètode carrega les dades només una vegada quan la pantalla entra en ús.
@@ -124,6 +172,22 @@ class UserStatsController extends ChangeNotifier {
 
     _hasLoaded = true;
     await loadStats();
+  }
+
+  // Aquest mètode actualitza el rang temporal i recarrega les estadístiques.
+  // Si l’usuari selecciona el mateix rang, no es fa cap petició innecessària.
+  Future<void> onRangeChanged(String range) async {
+    if (!_isValidRange(range) || range == _selectedRange) {
+      return;
+    }
+
+    _selectedRange = range;
+    await loadStats();
+  }
+
+  // Aquest mètode comprova que el rang seleccionat sigui un dels valors permesos.
+  bool _isValidRange(String range) {
+    return rangeOptions.any((option) => option.value == range);
   }
 
   // Aquest mètode s’executa quan una altra part de l’aplicació indica
@@ -144,7 +208,12 @@ class UserStatsController extends ChangeNotifier {
     }
 
     try {
-      _stats = await _getUserStatsUseCase.execute();
+      final loadedStats = await _getUserStatsUseCase.execute(
+        range: _selectedRange,
+      );
+
+      _stats = loadedStats;
+      _selectedRange = loadedStats.selectedRange;
     } on ApiUnauthorizedException {
       // La sessió caducada ja es gestiona de manera centralitzada.
       // Per això no cal mostrar cap error propi en aquesta pantalla.

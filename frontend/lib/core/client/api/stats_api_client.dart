@@ -5,12 +5,11 @@ import 'package:cims/core/entity/user_stats.dart';
 // amb les estadístiques personals de l’usuari autenticat.
 abstract class StatsApiClient {
   // Aquest mètode recupera el resum d’estadístiques de l’usuari.
-  // El backend utilitza el token de sessió per saber de quin usuari
-  // ha de calcular les dades.
-  Future<UserStats> getUserStats();
+  // El rang temporal permet ajustar mètriques variables com els metres totals.
+  Future<UserStats> getUserStats({
+    String? range,
+  });
 
   // Aquest mètode recupera les dades necessàries per construir el dashboard.
-  // Utilitza el mateix endpoint d’estadístiques, però transforma la resposta
-  // en una entitat adaptada a la pantalla inicial.
   Future<DashboardSummary> getDashboardSummary();
 }

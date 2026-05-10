@@ -26,47 +26,61 @@ const StatsModel = {
   },
 
   // Retorna la suma d'altitud acumulada per les ascensions amb data.
-  // Les ascensions sense data no es tenen en compte perquè no formen part
-  // de l'activitat cronològica ni del recompte de progrés temporal.
-  async getTotalAltitudeMeters(userId) {
+  // Accepta un rang temporal opcional per alimentar el selector de la pantalla
+  // d'estadístiques sense duplicar consultes específiques.
+  async getTotalAltitudeMeters(userId, range = 'total') {
+    const rangeCondition = buildAscentDateRangeCondition(range);
+
     const sql = `
       SELECT COALESCE(SUM(p.altitude), 0) AS total_altitude
       FROM ascents a
       INNER JOIN peaks p ON p.id = a.peak_id
       WHERE a.user_id = ?
         AND a.ascent_date IS NOT NULL
+        ${rangeCondition}
     `;
 
     const [rows] = await pool.execute(sql, [userId]);
     return rows[0] ? Number(rows[0].total_altitude) : 0;
   },
 
-  // Retorna el cim amb més ascensions datades de l'usuari.
-  // Només es compten registres amb data perquè aquest indicador representa
-  // activitat registrada dins de l'historial real.
-  async getMostAscendedPeak(userId) {
+  // Retorna els cims més coronats per l'usuari.
+  // Es fa servir per mostrar el top 3 de cims amb més ascensions registrades.
+  async getTopAscendedPeaks(userId, limit = 3) {
+    const safeLimit = Number.isInteger(limit) && limit > 0
+      ? Math.min(limit, 10)
+      : 3;
+
     const sql = `
-      SELECT a.peak_id, p.name AS peak_name, p.altitude AS peak_altitude, COUNT(*) AS ascent_count
+      SELECT
+        a.peak_id,
+        p.name AS peak_name,
+        p.altitude AS peak_altitude,
+        COUNT(*) AS ascent_count
       FROM ascents a
       INNER JOIN peaks p ON p.id = a.peak_id
       WHERE a.user_id = ?
         AND a.ascent_date IS NOT NULL
       GROUP BY a.peak_id, p.name, p.altitude
-      ORDER BY ascent_count DESC, p.altitude DESC
-      LIMIT 1
+      ORDER BY ascent_count DESC, p.altitude DESC, p.name ASC
+      LIMIT ${safeLimit}
     `;
 
     const [rows] = await pool.execute(sql, [userId]);
-    if (rows.length === 0) {
-      return null;
-    }
+    return rows.map((row) => ({
+      peakId: Number(row.peak_id),
+      peakName: row.peak_name,
+      peakAltitude: Number(row.peak_altitude),
+      count: Number(row.ascent_count),
+    }));
+  },
 
-    return {
-      peakId: Number(rows[0].peak_id),
-      peakName: rows[0].peak_name,
-      peakAltitude: Number(rows[0].peak_altitude),
-      count: Number(rows[0].ascent_count),
-    };
+  // Retorna el cim amb més ascensions datades de l'usuari.
+  // Es manté per compatibilitat amb el contracte anterior, però internament
+  // aprofita el mateix criteri que el top de cims més coronats.
+  async getMostAscendedPeak(userId) {
+    const peaks = await this.getTopAscendedPeaks(userId, 1);
+    return peaks.length === 0 ? null : peaks[0];
   },
 
   // Retorna el nombre d'ascensions agrupades per any i mes.
@@ -90,6 +104,30 @@ const StatsModel = {
     `;
 
     const [rows] = await pool.execute(sql, [userId, monthsBack - 1]);
+    return rows.map((row) => ({
+      year: Number(row.year),
+      month: Number(row.month),
+      count: Number(row.ascent_count),
+    }));
+  },
+
+  // Retorna tots els mesos amb activitat de l'usuari.
+  // Aquesta informació permet calcular ratxes mensuals actuals i històriques
+  // des del servei sense traslladar aquesta lògica a la base de dades.
+  async getMonthlyActivityRaw(userId) {
+    const sql = `
+      SELECT
+        YEAR(ascent_date) AS year,
+        MONTH(ascent_date) AS month,
+        COUNT(*) AS ascent_count
+      FROM ascents
+      WHERE user_id = ?
+        AND ascent_date IS NOT NULL
+      GROUP BY YEAR(ascent_date), MONTH(ascent_date)
+      ORDER BY year ASC, month ASC
+    `;
+
+    const [rows] = await pool.execute(sql, [userId]);
     return rows.map((row) => ({
       year: Number(row.year),
       month: Number(row.month),
@@ -144,8 +182,8 @@ const StatsModel = {
   },
 
   // Retorna les últimes ascensions datades de l'usuari amb informació del cim.
-  // Les ascensions sense data es gestionen en una secció separada i no apareixen
-  // dins del llistat cronològic.
+  // Les ascensions sense data es gestionen fora del llistat cronològic perquè
+  // no tenen posició temporal clara.
   async getRecentAscentsRaw(userId, limit) {
     const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : 5;
 
@@ -229,5 +267,31 @@ const StatsModel = {
     return result;
   },
 };
+
+// Aquesta funció construeix la condició temporal per a consultes d'ascensions.
+// Només accepta valors interns controlats pel servei per evitar SQL dinàmic insegur.
+function buildAscentDateRangeCondition(range) {
+  switch (range) {
+    case 'month':
+      return `
+        AND a.ascent_date >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+      `;
+    case 'quarter':
+      return `
+        AND a.ascent_date >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
+      `;
+    case 'six_months':
+      return `
+        AND a.ascent_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+      `;
+    case 'year':
+      return `
+        AND a.ascent_date >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+      `;
+    case 'total':
+    default:
+      return '';
+  }
+}
 
 module.exports = StatsModel;
