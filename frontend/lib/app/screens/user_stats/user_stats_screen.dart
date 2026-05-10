@@ -116,6 +116,7 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
                 current: stats.monthlyStreak.current,
                 best: stats.monthlyStreak.best,
               ),
+              const SizedBox(height: 14),
 
                             StatsRangeSelector(
                 options: controller.rangeOptions,
@@ -128,7 +129,6 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
                 totalMeters: stats.totalAltitudeMeters,
                 comparisonLabel: controller.monthlyComparisonLabel,
               ),
-              const SizedBox(height: 14),
             ],
           ),
         );
