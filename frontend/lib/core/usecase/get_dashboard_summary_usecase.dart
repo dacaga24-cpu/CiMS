@@ -11,8 +11,20 @@ class GetDashboardSummaryUseCase {
   final ApiClient _apiClient;
 
   // Aquest mètode demana al backend el resum complet del dashboard.
-  // Manté la pantalla separada de la comunicació directa amb l’API.
-  Future<DashboardSummary> execute() {
-    return _apiClient.getDashboardSummary();
+  // També incorpora el repte mensual, que arriba des d’un endpoint separat,
+  // perquè la targeta del dashboard mostri dades reals i no valors buits.
+  Future<DashboardSummary> execute() async {
+    final dashboard = await _apiClient.getDashboardSummary();
+
+    try {
+      final monthlyChallenge = await _apiClient.getCurrentMonthlyChallenge();
+      return dashboard.copyWith(monthlyChallenge: monthlyChallenge);
+    } on ApiException catch (error) {
+      if (error.statusCode == 401) {
+        rethrow;
+      }
+
+      return dashboard;
+    }
   }
 }
