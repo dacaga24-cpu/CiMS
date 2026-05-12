@@ -3,6 +3,7 @@ import 'package:cims/core/entity/peak_hourly_weather.dart';
 import 'package:cims/core/entity/peak_weather.dart';
 import 'package:cims/core/entity/weather_condition.dart';
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 // Aquest widget mostra la previsió meteorològica del cim en forma de
 // targeta. Combina un carrusel de fins a 7 dies i un panell horari que
@@ -171,7 +172,7 @@ class PeakDetailWeatherCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          height: 140,
+          height: 156,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -256,6 +257,17 @@ class _DayPill extends StatelessWidget {
             ? accent.withValues(alpha: 0.4)
             : null;
 
+    // Es valora la severitat del vent del bloc diürn (o nocturn com a
+    // fallback) per pintar una etiqueta destacada quan supera el
+    // llindar moderat. Quan el vent és tranquil, la línia inferior
+    // queda buida però es reserva l'espai perquè totes les pílules
+    // mantinguin la mateixa altura i el carrusel no quedi irregular.
+    final windBlock = day.daytime ?? day.nighttime;
+    final windSeverity = windSeverityFor(
+      speedKmh: windBlock?.windSpeedKmh,
+      gustKmh: windBlock?.windGustKmh,
+    );
+
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(18),
@@ -268,7 +280,10 @@ class _DayPill extends StatelessWidget {
             color: background,
             borderRadius: BorderRadius.circular(18),
             border: borderColor != null
-                ? Border.all(color: borderColor, width: isExpanded ? 1.6 : 1.2)
+                ? Border.all(
+                    color: borderColor,
+                    width: isExpanded ? 1.6 : 1.2,
+                  )
                 : null,
           ),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
@@ -296,10 +311,10 @@ class _DayPill extends StatelessWidget {
                   ),
                 ],
               ),
-              Icon(
-                weatherIconFor(type),
-                color: accent,
+              weatherIconWidget(
+                type,
                 size: 28,
+                color: accent,
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -322,9 +337,67 @@ class _DayPill extends StatelessWidget {
                   ),
                 ],
               ),
+              _DayWindLine(severity: windSeverity),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// Aquest widget pinta la línia inferior amb l'indicador de vent del
+// dia. Quan el vent és calm, retorna un espai reservat de la mateixa
+// altura: així totes les pílules del carrusel mantenen la mateixa
+// dimensió, encara que només algunes mostrin badge.
+class _DayWindLine extends StatelessWidget {
+  const _DayWindLine({required this.severity});
+
+  final WindSeverity severity;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!severity.shouldHighlight) {
+      return const SizedBox(height: 16);
+    }
+    final color = windSeverityColor(severity);
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      // Padding reduït (4 px horitzontal en lloc de 6) i icona-text amb
+      // separació mínima per encabir "Molt fort" dins dels 62 px d'amplada
+      // útil de la pílula diària. La separació prèvia provocava 5-6 px
+      // d'overflow horitzontal amb "Vent fort".
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Symbols.air,
+            size: 12,
+            color: color,
+          ),
+          const SizedBox(width: 2),
+          // Flexible amb FittedBox actua de xarxa de seguretat per a
+          // fonts del dispositiu lleugerament més amples del calculat.
+          // En el cas normal, el text es pinta sense escalat.
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                severity.shortLabel,
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -463,6 +536,10 @@ class _HourlyPill extends StatelessWidget {
     final type = hour.condition?.normalized ?? WeatherConditionType.unknown;
     final accent = weatherAccentColorFor(type);
     final precipPct = hour.precipProbabilityPct;
+    final windSeverity = windSeverityFor(
+      speedKmh: hour.windSpeedKmh,
+      gustKmh: hour.windGustKmh,
+    );
 
     return Container(
       width: 56,
@@ -482,10 +559,15 @@ class _HourlyPill extends StatelessWidget {
               color: Color(0xFF6B7280),
             ),
           ),
-          Icon(
-            weatherIconFor(type),
-            color: accent,
+          weatherIconWidget(
+            type,
             size: 22,
+            color: accent,
+            // Quan Google ens diu que aquesta hora és nocturna, sunny i
+            // partlyCloudy canvien automàticament a lluna en lloc de
+            // sol. Si el camp arriba null, es manté el comportament de
+            // dia per defecte.
+            isDaytime: hour.isDaytime ?? true,
           ),
           Text(
             _formatTemp(hour.temperatureC),
@@ -495,22 +577,99 @@ class _HourlyPill extends StatelessWidget {
               color: Color(0xFF17212B),
             ),
           ),
-          // La probabilitat de pluja només es pinta quan és mes gran que
-          // zero: així una hora sense pluja no contamina la columna amb
-          // un "0%" repetit, i quan apareix capta més l'atenció.
-          if (precipPct > 0)
-            Text(
-              '$precipPct%',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: weatherAccentColorFor(WeatherConditionType.rainy),
-              ),
-            )
-          else
-            const SizedBox(height: 14),
+          // La línia inferior compon precipitació i vent en un únic
+          // espai. Si una hora té tots dos, pinta el percentatge de
+          // pluja al costat d'una petita icona de vent per no obligar
+          // a triar només una dada. Si només hi ha pluja o només
+          // vent, pinta el que correspongui. En hores calmes i seques
+          // es manté un espai buit perquè totes les píldores
+          // conservin la mateixa altura i el carrusel no quedi
+          // dentat.
+          _HourlyFooter(
+            precipPct: precipPct,
+            windSeverity: windSeverity,
+            windSpeedKmh: hour.windSpeedKmh,
+          ),
         ],
       ),
+    );
+  }
+}
+
+// Aquest widget pinta la línia inferior d'una píldora horària amb
+// l'estat combinat de precipitació i vent. Cobreix els quatre casos
+// (només pluja, només vent, ambdós, cap) amb un únic component per
+// evitar que els crides hagin de duplicar la lògica de prioritat.
+class _HourlyFooter extends StatelessWidget {
+  const _HourlyFooter({
+    required this.precipPct,
+    required this.windSeverity,
+    required this.windSpeedKmh,
+  });
+
+  final int precipPct;
+  final WindSeverity windSeverity;
+  final double? windSpeedKmh;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPrecip = precipPct > 0;
+    final hasWind = windSeverity.shouldHighlight;
+
+    if (!hasPrecip && !hasWind) {
+      return const SizedBox(height: 14);
+    }
+
+    final windColor = windSeverityColor(windSeverity);
+    final children = <Widget>[];
+
+    if (hasPrecip) {
+      children.add(
+        Text(
+          '$precipPct%',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: weatherAccentColorFor(WeatherConditionType.rainy),
+          ),
+        ),
+      );
+    }
+
+    if (hasPrecip && hasWind) {
+      children.add(const SizedBox(width: 4));
+    }
+
+    if (hasWind) {
+      children.add(
+        Icon(
+          Symbols.air,
+          size: 12,
+          color: windColor,
+        ),
+      );
+      // Quan no plou, hi ha espai per pintar la velocitat real del
+      // vent al costat de la icona. Si plou, mantenim només la
+      // icona per no atapeir la línia.
+      if (!hasPrecip && windSpeedKmh != null) {
+        children.add(const SizedBox(width: 2));
+        children.add(
+          Text(
+            '${windSpeedKmh!.round()}',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: windColor,
+            ),
+          ),
+        );
+      }
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: children,
     );
   }
 }
@@ -594,7 +753,7 @@ class _WeatherSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 140,
+      height: 156,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const NeverScrollableScrollPhysics(),

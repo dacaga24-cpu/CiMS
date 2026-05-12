@@ -1,13 +1,11 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:cims/app/router/app_router.dart';
 import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
-import 'package:cims/app/screens/peaks_catalog/models/peaks_feedback.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_active_filters_summary.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_filters_sheet.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_search_bar.dart';
 import 'package:cims/app/screens/peaks_map/peaks_map_controller.dart';
 import 'package:cims/app/screens/peaks_map/widgets/peaks_map_content.dart';
-import 'package:cims/core/entity/weather_condition.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta pantalla mostra el mapa de cims de l’aplicació.
@@ -60,39 +58,6 @@ class _PeaksMapScreenState extends State<PeaksMapScreen> {
         _openPeakDetail(peakId);
       }
     }
-
-    if (controller.feedback == PeaksFeedback.weatherProviderUnavailable) {
-      controller.consumeFeedback();
-      _showWeatherUnavailableSnackbar();
-    }
-  }
-
-  // Aquest mètode mostra el snackbar quan el proveïdor meteorològic ha
-  // fallat i el filtre s'ha tret automàticament. La crida queda
-  // diferida amb addPostFrameCallback perquè el notifyListeners del
-  // controller que la dispara pot coincidir amb una reconstrucció en
-  // curs; sense diferir-la, ScaffoldMessenger.showSnackBar dins de
-  // build llançaria una excepció.
-  void _showWeatherUnavailableSnackbar() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'El filtre meteorològic no està disponible ara. '
-            'S\'ha tret per mostrar el mapa complet.',
-          ),
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'Tornar a provar',
-            onPressed: _openFiltersSheet,
-          ),
-        ),
-      );
-    });
   }
 
   // Obre la pantalla de detall del cim indicat.
@@ -118,24 +83,17 @@ class _PeaksMapScreenState extends State<PeaksMapScreen> {
           initialMinAltitude: controller.minAltitude,
           initialMaxAltitude: controller.maxAltitude,
           initialStatusFilter: controller.selectedStatusFilter,
-          initialWeatherDate: controller.weatherDate,
-          initialWeatherConditions: controller.weatherConditions,
           onApply: ({
             int? regionId,
             int? minAltitude,
             int? maxAltitude,
             PeakStatusFilter statusFilter = PeakStatusFilter.none,
-            String? weatherDate,
-            Set<WeatherConditionType> weatherConditions =
-                const <WeatherConditionType>{},
           }) {
             controller.applyFilters(
               regionId: regionId,
               minAltitude: minAltitude,
               maxAltitude: maxAltitude,
               statusFilter: statusFilter,
-              weatherDate: weatherDate,
-              weatherConditions: weatherConditions,
             );
           },
           onClear: controller.clearFilters,

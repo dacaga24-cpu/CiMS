@@ -1,11 +1,11 @@
 const WeatherService = require('../services/weatherService');
 
-// Aquest controlador gestiona les peticions meteorològiques de CiMS.
-// La seva funció és llegir els paràmetres de la petició, delegar al servei
-// i retornar la resposta HTTP en el format que el frontend espera.
-// L'identificador de l'usuari s'obté de req.userId (poblat pel middleware
-// d'autenticació) i només s'utilitza per a registres futurs o quotes per
-// usuari; la previsió en si no depèn de qui consulta.
+// Aquest controlador gestiona les peticions meteorològiques per cim de
+// CiMS. La seva funció és llegir els paràmetres de la petició, delegar
+// al servei i retornar la resposta HTTP en el format que el frontend
+// espera. L'identificador de l'usuari s'obté de req.userId (poblat pel
+// middleware d'autenticació) i només s'utilitza per a registres futurs
+// o quotes per usuari; la previsió en si no depèn de qui consulta.
 const WeatherController = {
 
   // Aquest mètode retorna la previsió diària d'un cim a partir del seu
@@ -41,24 +41,6 @@ const WeatherController = {
         peakId,
         date
       );
-
-      res.status(200).json(payload);
-    } catch (error) {
-      next(error);
-    }
-  },
-
-  // Aquest mètode retorna la previsió agregada d'una comarca per a una
-  // data concreta. Es resol contra el centroide de la comarca i utilitza
-  // la mateixa cache que el filtre per clima, de manera que un usuari que
-  // hagi aplicat un filtre prèviament no pateix una segona crida a Google
-  // si demana el resum de la mateixa comarca a continuació.
-  async getRegionSummary(req, res, next) {
-    try {
-      const { regionId } = req.params;
-      const { date } = req.query;
-
-      const payload = await WeatherService.getRegionalSummary(regionId, date);
 
       res.status(200).json(payload);
     } catch (error) {

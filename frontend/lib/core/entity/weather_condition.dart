@@ -4,12 +4,14 @@
 // com el filtre per clima, perquè qualsevol pantalla que vulgui pintar el
 // clima ho faci sempre amb la mateixa categorització.
 
-// Aquest enum recull les cinc condicions normalitzades exposades pel
-// backend, més un valor desconegut per a tipus de Google que encara no
-// estan mapats. La UI tracta UNKNOWN com a "no disponible" perquè no
-// estigui obligada a triar un icona o color arbitrari quan apareix.
+// Aquest enum recull les sis condicions normalitzades exposades pel
+// backend (sol, variable, nuvolós, pluja, neu, boira), més un valor
+// desconegut per a tipus de Google que encara no estan mapats. La UI
+// tracta UNKNOWN com a "no disponible" perquè no estigui obligada a
+// triar una icona o color arbitrari quan apareix.
 enum WeatherConditionType {
   sunny,
+  partlyCloudy,
   cloudy,
   rainy,
   snowy,
@@ -25,6 +27,8 @@ extension WeatherConditionTypeCodec on WeatherConditionType {
     switch (this) {
       case WeatherConditionType.sunny:
         return 'SUNNY';
+      case WeatherConditionType.partlyCloudy:
+        return 'PARTLY_CLOUDY';
       case WeatherConditionType.cloudy:
         return 'CLOUDY';
       case WeatherConditionType.rainy:
@@ -46,6 +50,8 @@ extension WeatherConditionTypeCodec on WeatherConditionType {
     switch (this) {
       case WeatherConditionType.sunny:
         return 'Soleat';
+      case WeatherConditionType.partlyCloudy:
+        return 'Variable';
       case WeatherConditionType.cloudy:
         return 'Nuvolós';
       case WeatherConditionType.rainy:

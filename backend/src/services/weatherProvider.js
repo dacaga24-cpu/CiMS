@@ -15,26 +15,24 @@ const GOOGLE_WEATHER_BASE_URL = 'https://weather.googleapis.com/v1';
 // missatge clar abans que mantenir l'usuari esperant.
 const REQUEST_TIMEOUT_MS = 8000;
 
-// Aquesta llista enumera les cinc condicions normalitzades que exposem al
-// frontend. Es manté curta i estable perquè és la base del filtre per
-// clima: si Google introdueix nous tipus, es mapen aquí dins d'un dels
-// cinc grups en lloc d'inflar la UI amb desenes d'opcions.
-const NORMALIZED_CONDITIONS = ['SUNNY', 'CLOUDY', 'RAINY', 'SNOWY', 'FOGGY'];
-
-// Aquest mapa tradueix els tipus de condició crus de Google a les cinc
-// categories normalitzades de CiMS. Es manté explícit (no es deriva del
-// nom) perquè Google té molts valors propers — "LIGHT_RAIN_SHOWERS",
-// "CHANCE_OF_SHOWERS", "RAIN_PERIODICALLY_HEAVY" — i la traducció
-// requereix decisió humana sobre on encaixa cadascun. Si arriba un tipus
-// no llistat, es marca com a UNKNOWN i el filtre l'ignora.
+// Aquest mapa tradueix els tipus de condició crus de Google a les sis
+// categories normalitzades de CiMS (SUNNY, PARTLY_CLOUDY, CLOUDY, RAINY,
+// SNOWY, FOGGY). Es manté explícit (no es deriva del nom) perquè Google
+// té molts valors propers — "LIGHT_RAIN_SHOWERS", "CHANCE_OF_SHOWERS",
+// "RAIN_PERIODICALLY_HEAVY" — i la traducció requereix decisió humana
+// sobre on encaixa cadascun. Si arriba un tipus no llistat, es marca
+// com a UNKNOWN.
+//
+// WINDY i SQUALL no apareixen aquí intencionadament: són casos especials
+// on Google diu "el viento es el aspecto més notable" però no et diu
+// l'estat real del cel. Es resolen a normalizeCondition() llegint
+// cloudCover, que Google envia com a camp independent.
 const CONDITION_MAP = {
   CLEAR: 'SUNNY',
   MOSTLY_CLEAR: 'SUNNY',
-  PARTLY_CLOUDY: 'CLOUDY',
+  PARTLY_CLOUDY: 'PARTLY_CLOUDY',
   MOSTLY_CLOUDY: 'CLOUDY',
   CLOUDY: 'CLOUDY',
-  WINDY: 'CLOUDY',
-  SQUALL: 'CLOUDY',
   LIGHT_RAIN_SHOWERS: 'RAINY',
   CHANCE_OF_SHOWERS: 'RAINY',
   SCATTERED_SHOWERS: 'RAINY',
@@ -83,12 +81,30 @@ const CONDITION_MAP = {
 };
 
 // Aquest mètode tradueix un tipus de condició cru de Google al grup
-// normalitzat. Si el tipus no està al mapa, es marca com UNKNOWN perquè
-// el filtre no l'agafi i la UI pugui igualment mostrar el text descriptiu
-// original que retorna Google.
-function normalizeCondition(googleType) {
+// normalitzat. Per a la majoria de tipus n'hi ha prou amb una consulta
+// directa a CONDITION_MAP. Els casos especials WINDY i SQUALL no
+// transmeten l'estat real del cel per ells mateixos (Google els fa
+// servir quan el vent és el tret dominant), així que es resolen mirant
+// cloudCover, que arriba en un camp independent del payload. Si
+// cloudCover no està informat, es retorna PARTLY_CLOUDY com a punt
+// mitjà raonable. Per a tipus desconeguts es retorna UNKNOWN: el
+// frontend pot mostrar igualment el text descriptiu original sense que
+// el pintat es trenqui.
+function normalizeCondition(googleType, cloudCoverPct) {
   if (!googleType) {
     return 'UNKNOWN';
+  }
+  if (googleType === 'WINDY' || googleType === 'SQUALL') {
+    if (typeof cloudCoverPct !== 'number') {
+      return 'PARTLY_CLOUDY';
+    }
+    if (cloudCoverPct < 25) {
+      return 'SUNNY';
+    }
+    if (cloudCoverPct < 60) {
+      return 'PARTLY_CLOUDY';
+    }
+    return 'CLOUDY';
   }
   return CONDITION_MAP[googleType] || 'UNKNOWN';
 }
@@ -152,18 +168,21 @@ async function googleGet(path, params) {
   }
 }
 
-// Aquest mètode tradueix l'objecte weatherCondition cru de Google al format
-// intern. Es conserva el camp type original perquè permeti diagnosticar
-// quins valors arriben de Google sense haver de mirar logs, i s'afegeix la
-// versió normalitzada que utilitza el filtre. iconBaseUri es passa tal qual
-// perquè el frontend pugui construir la URL final de la icona.
-function mapCondition(condition) {
+// Aquest mètode tradueix l'objecte weatherCondition cru de Google al
+// format intern. Es conserva el camp type original perquè permeti
+// diagnosticar quins valors arriben de Google sense haver de mirar logs,
+// i s'afegeix la versió normalitzada per a la UI. El cloudCoverPct viatja
+// com a opció perquè el cridant (mapHalfDay/mapHour) el conegui i ens
+// permeti desambiguar tipus com WINDY o SQUALL. iconBaseUri es passa tal
+// qual perquè el frontend pugui construir la URL final de la icona si
+// algun cop decideix utilitzar-la.
+function mapCondition(condition, { cloudCoverPct } = {}) {
   if (!condition) {
     return null;
   }
   return {
     type: condition.type ?? null,
-    normalized: normalizeCondition(condition.type),
+    normalized: normalizeCondition(condition.type, cloudCoverPct),
     description: condition.description?.text ?? null,
     iconBaseUri: condition.iconBaseUri ?? null,
   };
@@ -178,7 +197,9 @@ function mapHalfDay(half) {
     return null;
   }
   return {
-    condition: mapCondition(half.weatherCondition),
+    condition: mapCondition(half.weatherCondition, {
+      cloudCoverPct: half.cloudCover ?? undefined,
+    }),
     precipProbabilityPct: half.precipitation?.probability?.percent ?? 0,
     precipQuantityMm: half.precipitation?.qpf?.quantity ?? 0,
     thunderstormProbabilityPct: half.thunderstormProbability ?? 0,
@@ -221,7 +242,9 @@ function mapHour(raw) {
     isDaytime: raw.isDaytime ?? null,
     temperatureC: raw.temperature?.degrees ?? null,
     feelsLikeC: raw.feelsLikeTemperature?.degrees ?? null,
-    condition: mapCondition(raw.weatherCondition),
+    condition: mapCondition(raw.weatherCondition, {
+      cloudCoverPct: raw.cloudCover ?? undefined,
+    }),
     precipProbabilityPct: raw.precipitation?.probability?.percent ?? 0,
     precipQuantityMm: raw.precipitation?.qpf?.quantity ?? 0,
     thunderstormProbabilityPct: raw.thunderstormProbability ?? 0,
@@ -340,6 +363,5 @@ module.exports = {
   fetchDailyForecast,
   fetchHourlyForecast,
   normalizeCondition,
-  NORMALIZED_CONDITIONS,
   WeatherProviderError,
 };
