@@ -56,6 +56,9 @@ class _AscentVerificationScreenState extends State<AscentVerificationScreen> {
               position: controller.position,
               capturedAt: controller.capturedAt,
               photoBytes: controller.photoBytes,
+              onCreateVerifiedAscentTap: controller.createVerifiedAscent,
+              onCompleteLaterTap: controller.completeLater,
+              onRetryTap: controller.retryCapture,
             );
           },
         ),

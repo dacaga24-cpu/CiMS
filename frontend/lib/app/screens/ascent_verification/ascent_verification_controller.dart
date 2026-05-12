@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
@@ -25,6 +27,7 @@ class AscentVerificationController extends ChangeNotifier {
   Position? get position => _position;
   DateTime? get capturedAt => _capturedAt;
   Uint8List? get photoBytes => _photoBytes;
+  bool get hasEvidence => _position != null && _photoBytes != null;
 
   Future<void> prepareCapture() async {
     if (_isPreparingCapture) {
@@ -63,6 +66,38 @@ class AscentVerificationController extends ChangeNotifier {
       _isPreparingCapture = false;
       notifyListeners();
     }
+  }
+
+  void createVerifiedAscent() {
+    if (!hasEvidence) {
+      _errorMessage =
+          'Cal capturar una foto i la ubicació abans de crear l’ascensió verificada.';
+      notifyListeners();
+      return;
+    }
+
+    _errorMessage = null;
+    _message =
+        'Evidència preparada. El següent pas serà enviar-la al backend per crear l’ascensió verificada.';
+    notifyListeners();
+  }
+
+  void completeLater() {
+    if (!hasEvidence) {
+      _errorMessage =
+          'Cal capturar una foto i la ubicació abans de guardar la verificació.';
+      notifyListeners();
+      return;
+    }
+
+    _errorMessage = null;
+    _message =
+        'Evidència preparada per completar més endavant quan el backend permeti guardar-la.';
+    notifyListeners();
+  }
+
+  Future<void> retryCapture() async {
+    await prepareCapture();
   }
 
   // Aquest mètode comprova els permisos i obté la posició actual del dispositiu.
