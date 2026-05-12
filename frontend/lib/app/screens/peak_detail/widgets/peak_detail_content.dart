@@ -5,8 +5,11 @@ import 'package:cims/app/screens/peak_detail/widgets/peak_detail_header.dart';
 import 'package:cims/app/screens/peak_detail/widgets/peak_detail_map_card.dart';
 import 'package:cims/app/screens/peak_detail/widgets/peak_detail_status_actions.dart';
 import 'package:cims/app/screens/peak_detail/widgets/peak_detail_status_messages.dart';
+import 'package:cims/app/screens/peak_detail/widgets/peak_detail_weather_card.dart';
 import 'package:cims/core/entity/peak.dart';
+import 'package:cims/core/entity/peak_hourly_weather.dart';
 import 'package:cims/core/entity/peak_status.dart';
+import 'package:cims/core/entity/peak_weather.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget decideix quin contingut s’ha de mostrar dins del detall del cim.
@@ -22,10 +25,20 @@ class PeakDetailContent extends StatelessWidget {
     required this.isUpdatingStatus,
     required this.statusErrorMessage,
     required this.ascentsErrorMessage,
+    required this.weatherForecast,
+    required this.isWeatherLoading,
+    required this.weatherErrorMessage,
+    required this.expandedWeatherDay,
+    required this.expandedWeatherHourly,
+    required this.isExpandedHourlyLoading,
+    required this.expandedHourlyError,
     required this.onRetryTap,
     required this.onTargetTap,
     required this.onFavoriteTap,
     required this.onMapTap,
+    required this.onWeatherRetryTap,
+    required this.onWeatherDayTap,
+    required this.onWeatherHourlyRetryTap,
   });
 
   // Aquest bloc rep l’estat necessari per representar el detall
@@ -38,10 +51,20 @@ class PeakDetailContent extends StatelessWidget {
   final bool isUpdatingStatus;
   final String? statusErrorMessage;
   final String? ascentsErrorMessage;
+  final PeakWeather? weatherForecast;
+  final bool isWeatherLoading;
+  final String? weatherErrorMessage;
+  final String? expandedWeatherDay;
+  final PeakHourlyWeather? expandedWeatherHourly;
+  final bool isExpandedHourlyLoading;
+  final String? expandedHourlyError;
   final Future<void> Function() onRetryTap;
   final VoidCallback onTargetTap;
   final VoidCallback onFavoriteTap;
   final Future<void> Function(int peakId) onMapTap;
+  final Future<void> Function() onWeatherRetryTap;
+  final void Function(String date) onWeatherDayTap;
+  final Future<void> Function(String date) onWeatherHourlyRetryTap;
 
   // Aquest mètode construeix el contingut visual segons l’estat actual de les dades.
   // Permet mostrar una càrrega, un error, un estat buit o el detall complet del cim.
@@ -89,6 +112,19 @@ class PeakDetailContent extends StatelessWidget {
           PeakDetailStatusMessages(
             statusErrorMessage: statusErrorMessage,
             ascentsErrorMessage: ascentsErrorMessage,
+          ),
+          const SizedBox(height: 18),
+          PeakDetailWeatherCard(
+            forecast: weatherForecast,
+            isLoading: isWeatherLoading,
+            errorMessage: weatherErrorMessage,
+            onRetryTap: onWeatherRetryTap,
+            expandedDay: expandedWeatherDay,
+            expandedHourly: expandedWeatherHourly,
+            isExpandedHourlyLoading: isExpandedHourlyLoading,
+            expandedHourlyError: expandedHourlyError,
+            onDayTap: onWeatherDayTap,
+            onHourlyRetryTap: onWeatherHourlyRetryTap,
           ),
           if (currentPeak.hasDescription) ...[
             const SizedBox(height: 18),

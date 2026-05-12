@@ -1,0 +1,19 @@
+[
+  {
+    "origin": [
+      "https://cims-web-84caf.web.app",
+      "http://localhost:5000",
+      "http://localhost:8080",
+      "http://127.0.0.1:5000",
+      "http://127.0.0.1:8080"
+    ],
+    "method": ["PUT", "GET"],
+    "responseHeader": [
+      "Content-Type",
+      "x-goog-content-length-range",
+      "x-goog-resumable",
+      "ETag"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]

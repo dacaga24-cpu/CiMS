@@ -1,0 +1,21 @@
+info:
+  name: hourly valid
+  type: http
+  seq: 5
+
+# Nota: la data de la query string s'ha d'actualitzar manualment a un
+# valor dins de les properes 240 hores. Si queda enrere, l'endpoint
+# retorna 404 perquè Google ja no exposa previsió per a aquella data.
+http:
+  method: GET
+  url: "{{base_url}}/api/peaks/1/weather/hourly?date=2026-05-13"
+  headers:
+    - name: Authorization
+      value: Bearer {{token_valid}}
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -17,7 +17,16 @@ const PeakController = {
   // del catàleg complet amb la mida per defecte definida al servei.
   async list(req, res, next) {
     try {
-      const { regionId, minAltitude, maxAltitude, search, page, pageSize } = req.query;
+      const {
+        regionId,
+        minAltitude,
+        maxAltitude,
+        search,
+        page,
+        pageSize,
+        weatherDate,
+        weatherConditions,
+      } = req.query;
 
       const result = await PeakService.getPage({
         regionId,
@@ -26,6 +35,8 @@ const PeakController = {
         search,
         page,
         pageSize,
+        weatherDate,
+        weatherConditions,
       });
 
       res.status(200).json(result);
@@ -39,13 +50,22 @@ const PeakController = {
   // i al model; aquí només es delega.
   async listForMap(req, res, next) {
     try {
-      const { regionId, minAltitude, maxAltitude, search } = req.query;
+      const {
+        regionId,
+        minAltitude,
+        maxAltitude,
+        search,
+        weatherDate,
+        weatherConditions,
+      } = req.query;
 
       const peaks = await PeakService.getForMap({
         regionId,
         minAltitude,
         maxAltitude,
         search,
+        weatherDate,
+        weatherConditions,
       });
 
       res.status(200).json(peaks);

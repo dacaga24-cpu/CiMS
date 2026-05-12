@@ -1,11 +1,13 @@
 import 'package:cims/app/client/api/api_client_impl.dart';
 import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
+import 'package:cims/app/screens/peaks_catalog/models/peaks_feedback.dart';
 import 'package:cims/app/screens/peaks_catalog/models/peaks_filter_state.dart';
 import 'package:cims/app/screens/peaks_catalog/models/peaks_search_debouncer.dart';
 import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/peak.dart';
 import 'package:cims/core/entity/peak_status.dart';
 import 'package:cims/core/entity/region.dart';
+import 'package:cims/core/entity/weather_condition.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:cims/core/store/peak_status_store.dart';
 import 'package:cims/core/usecase/get_regions_usecase.dart';
@@ -106,6 +108,17 @@ class PeaksCatalogController extends ChangeNotifier {
   PeaksCatalogDestination get destination => _destination;
   int? get selectedPeakId => _selectedPeakId;
 
+  // Aquest bloc guarda els avisos puntuals que la pantalla ha de
+  // mostrar com a snackbar (per exemple, quan Google no respon i el
+  // filtre meteorològic ja no és aplicable). Es modela com a estat
+  // consumible: la pantalla el llegeix, el converteix en snackbar i
+  // crida consumeFeedback() perquè no es torni a disparar.
+  PeaksFeedback _feedback = PeaksFeedback.none;
+  PeaksFeedback get feedback => _feedback;
+  void consumeFeedback() {
+    _feedback = PeaksFeedback.none;
+  }
+
   // Aquest getter resumeix el text de cerca actiu en aquell moment.
   // És útil per reutilitzar-lo en reintents i en missatges de la pantalla.
   String get currentSearch => searchController.text.trim();
@@ -122,6 +135,18 @@ class PeaksCatalogController extends ChangeNotifier {
   // Aquest getter exposa el filtre d’estat seleccionat.
   PeakStatusFilter get selectedStatusFilter =>
       _filtersState.selectedStatusFilter;
+
+  // Aquests getters exposen la part del filtre meteorològic. Es retornen
+  // sempre, fins i tot quan no estan informats tots dos, perquè el panell
+  // de filtres pugui mostrar l'estat parcial mentre l'usuari encara està
+  // configurant la selecció.
+  String? get weatherDate => _filtersState.weatherDate;
+  Set<WeatherConditionType> get weatherConditions =>
+      _filtersState.weatherConditions;
+
+  // Aquest getter indica si el filtre meteorològic té totes dues parts
+  // informades i, per tant, s'aplicarà a les properes peticions.
+  bool get hasActiveWeatherFilter => _filtersState.hasActiveWeatherFilter;
 
   // Aquest getter indica si hi ha algun filtre aplicat.
   bool get hasActiveFilters => _filtersState.hasActiveFilters;
@@ -220,6 +245,8 @@ class PeaksCatalogController extends ChangeNotifier {
     int? minAltitude,
     int? maxAltitude,
     PeakStatusFilter statusFilter = PeakStatusFilter.none,
+    String? weatherDate,
+    Set<WeatherConditionType>? weatherConditions,
   }) async {
     // Apply emet notifyListeners al filtre compartit, i _onFiltersChanged
     // s'encarrega de la recàrrega. Per això aquí no cal cridar _loadPeaks
@@ -229,6 +256,8 @@ class PeaksCatalogController extends ChangeNotifier {
       minAltitude: minAltitude,
       maxAltitude: maxAltitude,
       statusFilter: statusFilter,
+      weatherDate: weatherDate,
+      weatherConditions: weatherConditions,
     );
   }
 
@@ -237,6 +266,31 @@ class PeaksCatalogController extends ChangeNotifier {
   // i la recàrrega es resol per la mateixa via que applyFilters.
   Future<void> clearFilters() async {
     _filtersState.clear();
+  }
+
+  // Aquest mètode neteja exclusivament el filtre meteorològic, conservant
+  // la resta de filtres. La pantalla l'invoca des de l'acció del snackbar
+  // que apareix quan el proveïdor meteorològic no està disponible.
+  Future<void> clearWeatherFilter() async {
+    _filtersState.clearWeatherFilter();
+  }
+
+  // Aquest mètode detecta si l'error rebut és una caiguda del proveïdor
+  // meteorològic mentre el filtre estava actiu. Si ho és, deixa preparat
+  // l'avís per a la pantalla i neteja el filtre perquè la recàrrega
+  // automàtica torni el catàleg complet. Retorna true quan el cas s'ha
+  // gestionat aquí, perquè el cridant pugui sortir del catch sense
+  // sobreescriure peaks ni errorMessage amb dades obsoletes.
+  bool _handleWeatherProviderUnavailable(ApiException error) {
+    if (error.code != 'WEATHER_PROVIDER_UNAVAILABLE') {
+      return false;
+    }
+    if (!hasActiveWeatherFilter) {
+      return false;
+    }
+    _feedback = PeaksFeedback.weatherProviderUnavailable;
+    _filtersState.clearWeatherFilter();
+    return true;
   }
 
   // Aquest mètode permet tornar a carregar el catàleg amb el text actual.
@@ -272,6 +326,9 @@ class PeaksCatalogController extends ChangeNotifier {
         maxAltitude: maxAltitude,
         page: nextPage,
         pageSize: _catalogPageSize,
+        weatherDate: hasActiveWeatherFilter ? weatherDate : null,
+        weatherConditions:
+            hasActiveWeatherFilter ? weatherConditions : null,
       );
 
       if (_disposed || requestId != _loadRequestId) {
@@ -295,6 +352,9 @@ class PeaksCatalogController extends ChangeNotifier {
         return;
       }
 
+      if (_handleWeatherProviderUnavailable(error)) {
+        return;
+      }
       loadMoreErrorMessage = error.message;
     } catch (_) {
       if (_disposed || requestId != _loadRequestId) {
@@ -350,6 +410,9 @@ class PeaksCatalogController extends ChangeNotifier {
         maxAltitude: maxAltitude,
         page: 1,
         pageSize: _catalogPageSize,
+        weatherDate: hasActiveWeatherFilter ? weatherDate : null,
+        weatherConditions:
+            hasActiveWeatherFilter ? weatherConditions : null,
       );
 
       if (_disposed || requestId != _loadRequestId) {
@@ -363,6 +426,10 @@ class PeaksCatalogController extends ChangeNotifier {
       _applyStatusFilter();
     } on ApiException catch (error) {
       if (_disposed || requestId != _loadRequestId) {
+        return;
+      }
+
+      if (_handleWeatherProviderUnavailable(error)) {
         return;
       }
 

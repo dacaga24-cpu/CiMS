@@ -1,0 +1,6 @@
+info:
+  name: weather
+  type: folder
+  seq: 1
+
+request: {}
