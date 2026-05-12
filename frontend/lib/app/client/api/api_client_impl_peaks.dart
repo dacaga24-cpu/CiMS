@@ -5,9 +5,8 @@ part of 'api_client_impl.dart';
 mixin _PeaksApiClientImplMixin on _ApiClientBase {
   // Aquest mètode centralitza la construcció dels query params del
   // catàleg (paginat i mapa). Manté la traducció dels filtres a
-  // strings en un únic lloc, sobretot per al filtre meteorològic que
-  // només s'inclou quan totes dues parts (data i condicions) estan
-  // informades; un enviament parcial faria que el backend retornés 400.
+  // strings en un únic lloc perquè els dos endpoints comparteixin
+  // exactament la mateixa serialització.
   Map<String, String> _peaksQueryParameters({
     String? search,
     int? regionId,
@@ -15,10 +14,8 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
     int? maxAltitude,
     int? page,
     int? pageSize,
-    String? weatherDate,
-    Set<WeatherConditionType>? weatherConditions,
   }) {
-    final params = <String, String>{
+    return <String, String>{
       if (page != null) 'page': page.toString(),
       if (pageSize != null) 'pageSize': pageSize.toString(),
       if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
@@ -26,30 +23,6 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
       if (minAltitude != null) 'minAltitude': minAltitude.toString(),
       if (maxAltitude != null) 'maxAltitude': maxAltitude.toString(),
     };
-
-    final trimmedDate = weatherDate?.trim();
-    final conditions = weatherConditions;
-    final hasWeatherDate = trimmedDate != null && trimmedDate.isNotEmpty;
-    final hasWeatherConditions = conditions != null && conditions.isNotEmpty;
-    if (hasWeatherDate && hasWeatherConditions) {
-      // El conjunt pot contenir UNKNOWN si una cache antiga ha caigut a
-      // aquest valor des de parseWeatherConditionType, però UNKNOWN no
-      // és un valor que el backend accepti. Es filtra abans de
-      // construir la cadena; si la llista queda buida després de
-      // filtrar, el filtre meteorològic queda incomplet i no s'envia
-      // cap dels dos paràmetres (en comptes d'enviar weatherDate sense
-      // condicions, que provocaria un 400).
-      final codes = conditions
-          .map((condition) => condition.code)
-          .where((code) => code != 'UNKNOWN')
-          .toList();
-      if (codes.isNotEmpty) {
-        params['weatherDate'] = trimmedDate;
-        params['weatherConditions'] = codes.join(',');
-      }
-    }
-
-    return params;
   }
 
   // Aquest mètode recupera el catàleg de cims i permet aplicar criteris
@@ -136,8 +109,6 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
     int? maxAltitude,
     int page = 1,
     int pageSize = 50,
-    String? weatherDate,
-    Set<WeatherConditionType>? weatherConditions,
   }) async {
     try {
       final response = await _getJson(
@@ -149,8 +120,6 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
           maxAltitude: maxAltitude,
           page: page,
           pageSize: pageSize,
-          weatherDate: weatherDate,
-          weatherConditions: weatherConditions,
         ),
       );
 
@@ -199,8 +168,6 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
     int? regionId,
     int? minAltitude,
     int? maxAltitude,
-    String? weatherDate,
-    Set<WeatherConditionType>? weatherConditions,
   }) async {
     try {
       final response = await _getJson(
@@ -210,8 +177,6 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
           regionId: regionId,
           minAltitude: minAltitude,
           maxAltitude: maxAltitude,
-          weatherDate: weatherDate,
-          weatherConditions: weatherConditions,
         ),
       );
 

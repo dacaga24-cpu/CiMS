@@ -1,5 +1,4 @@
 const PeakModel = require('../models/peakModel');
-const WeatherService = require('./weatherService');
 const { badRequest, parseOptionalInteger } = require('../utils/validation');
 
 // Mida per defecte de la pàgina del catàleg quan el client no la indica.
@@ -40,34 +39,6 @@ function parseFilters({ regionId, minAltitude, maxAltitude, search } = {}) {
     };
 }
 
-// Aquest mètode resol la intersecció entre el filtre de regió de l'usuari
-// i la llista de regions que casen amb el filtre meteorològic. Es manté
-// aquí (i no a WeatherService) perquè és lògica del catàleg: combinar
-// filtres no és responsabilitat del servei del clima.
-//
-// Retorna:
-//   - undefined si no hi ha filtre meteorològic actiu
-//     (el catàleg cau al filtre per regionId clàssic),
-//   - una llista de regionIds quan sí n'hi ha; possiblement buida si la
-//     intersecció amb el filtre de regió no té solucions, en quin cas
-//     el model força un WHERE 1=0 i retorna zero cims.
-async function resolveWeatherRegionIds({ weatherDate, weatherConditions, regionId }) {
-    const weatherRegionIds = await WeatherService.resolveRegionIdsByWeather({
-        weatherDate,
-        weatherConditions,
-    });
-
-    if (weatherRegionIds === null) {
-        return undefined;
-    }
-
-    if (regionId !== undefined && regionId !== null) {
-        return weatherRegionIds.includes(regionId) ? [regionId] : [];
-    }
-
-    return weatherRegionIds;
-}
-
 // Aquest servei centralitza la lògica del catàleg de cims.
 // Aquí es validen els filtres rebuts, es consulten les dades a través del model
 // i es gestionen els casos on el recurs sol·licitat no existeix.
@@ -78,12 +49,7 @@ const PeakService = {
     // scroll infinit. Els filtres són opcionals i, sense filtres, es paginen
     // tots els cims del catàleg. Tant la pàgina com la mida es validen com
     // a enters i la mida es capa al sostre defensiu.
-    //
-    // weatherDate i weatherConditions són opcionals i només cal enviar-los
-    // junts: el WeatherService valida i llança 400 si manca un dels dos.
-    // Si arriben, el catàleg restringeix els resultats a les comarques on
-    // la previsió diürna casa amb les condicions sol·licitades.
-    async getPage({ regionId, minAltitude, maxAltitude, search, page, pageSize, weatherDate, weatherConditions } = {}) {
+    async getPage({ regionId, minAltitude, maxAltitude, search, page, pageSize } = {}) {
         const filters = parseFilters({ regionId, minAltitude, maxAltitude, search });
         const parsedPage = parseOptionalInteger(page, 'page') ?? 1;
         const requestedPageSize = parseOptionalInteger(pageSize, 'pageSize') ?? DEFAULT_PAGE_SIZE;
@@ -95,29 +61,12 @@ const PeakService = {
         const limit = requestedPageSize;
         const offset = (parsedPage - 1) * limit;
 
-        const weatherRegionIds = await resolveWeatherRegionIds({
-            weatherDate,
-            weatherConditions,
-            regionId: filters.regionId,
-        });
-
-        const modelFilters = {
-            ...filters,
-            // Quan el filtre meteorològic és actiu, regionId queda absorbit
-            // dins de regionIds (ja intersectat); si no, regionId mana com
-            // sempre. Es manté el regionId al model perquè el patró antic
-            // continuï funcionant amb crides sense weatherDate.
-            ...(weatherRegionIds === undefined
-                ? {}
-                : { regionId: undefined, regionIds: weatherRegionIds }),
-        };
-
         // Es paral·lelitza la pàgina i el comptador perquè comparteixen
         // filtres però no depenen entre si, així es minimitza la latència
         // total respecte a fer-los seqüencialment.
         const [items, totalItems] = await Promise.all([
-            PeakModel.findAll({ ...modelFilters, limit, offset }),
-            PeakModel.count(modelFilters),
+            PeakModel.findAll({ ...filters, limit, offset }),
+            PeakModel.count(filters),
         ]);
 
         const totalPages = totalItems === 0 ? 0 : Math.ceil(totalItems / limit);
@@ -138,23 +87,9 @@ const PeakService = {
     // amb els camps mínims que necessita el mapa. No té paginació perquè la
     // vista de mapa ha de poder mostrar el conjunt complet sense que un
     // sostre arbitrari amagui marcadors a l'usuari.
-    async getForMap({ regionId, minAltitude, maxAltitude, search, weatherDate, weatherConditions } = {}) {
+    async getForMap({ regionId, minAltitude, maxAltitude, search } = {}) {
         const filters = parseFilters({ regionId, minAltitude, maxAltitude, search });
-
-        const weatherRegionIds = await resolveWeatherRegionIds({
-            weatherDate,
-            weatherConditions,
-            regionId: filters.regionId,
-        });
-
-        const modelFilters = {
-            ...filters,
-            ...(weatherRegionIds === undefined
-                ? {}
-                : { regionId: undefined, regionIds: weatherRegionIds }),
-        };
-
-        return PeakModel.findAllForMap(modelFilters);
+        return PeakModel.findAllForMap(filters);
     },
 
     // Aquest mètode retorna el detall d'un cim concret.

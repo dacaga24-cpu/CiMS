@@ -4,12 +4,11 @@
 // Google Weather API, i exposar aquests endpoints anònimament permetria
 // a un tercer esgotar la quota compartida fàcilment.
 //
-// Les rutes es declaren amb el prefix complet ('/peaks/:peakId/weather/...'
-// i '/regions/:regionId/weather/...') perquè el mòdul es monta a /api
-// directament. Així aprofitem la jerarquia natural de les URL del
-// frontend (la previsió "pertany" al cim o a la comarca) sense
-// barrejar-les amb els routers de peakRoutes o regionRoutes, que tenen
-// règims d'autenticació diferents.
+// Les rutes es declaren amb el prefix complet '/peaks/:peakId/weather/...'
+// perquè el mòdul es monta a /api directament i així aprofitem la
+// jerarquia natural de les URL (la previsió "pertany" al cim) sense
+// barrejar-les amb peakRoutes, que té un règim d'autenticació diferent
+// (públic).
 const express = require('express');
 const router = express.Router();
 
@@ -28,19 +27,13 @@ router.use(authMiddleware);
 router.use(weatherRateLimiter);
 
 // Previsió diària per cim. La query string accepta ?days=N (1..10),
-// per defecte 7. La cache es clava per cim+dies, de manera que demandes
-// amb diferents horitzons tenen entrades independents.
+// per defecte 7. Internament es demana sempre l'horitzó màxim i es
+// retalla, perquè diferents valors de days comparteixen cache.
 router.get('/peaks/:peakId/weather/daily', WeatherController.getPeakDaily);
 
 // Previsió horària per cim, filtrada per la data sol·licitada. Sempre
 // es demanen les 240h màximes a Google i es filtra al servei, així la
 // mateixa cache serveix per a qualsevol dia dins el rang disponible.
 router.get('/peaks/:peakId/weather/hourly', WeatherController.getPeakHourly);
-
-// Previsió agregada per comarca per a una data concreta. Aquesta ruta és
-// la que utilitza el filtre per clima del catàleg i del mapa, però també
-// es pot consumir directament en vistes que vulguin mostrar el clima
-// d'una comarca sencera.
-router.get('/regions/:regionId/weather/summary', WeatherController.getRegionSummary);
 
 module.exports = router;

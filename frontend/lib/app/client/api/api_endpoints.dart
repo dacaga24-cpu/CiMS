@@ -103,14 +103,8 @@ class ApiEndpoints {
       '${peakById(peakId)}/weather/daily';
 
   // Aquesta ajuda construeix la ruta de la previsió horària d'un cim.
-  // Es reserva per al pas següent del projecte, quan la card del detall
-  // pugui desplegar les hores d'un dia concret per mostrar-les en gràfic.
+  // La card del detall la utilitza per desplegar les hores d'un dia
+  // concret quan l'usuari toca una píldora del carrusel diari.
   static String peakWeatherHourly(int peakId) =>
       '${peakById(peakId)}/weather/hourly';
-
-  // Aquesta ajuda construeix la ruta del resum meteorològic d'una comarca.
-  // El filtre per clima del mapa i del catàleg la pot aprofitar quan calgui
-  // consultar el clima agregat d'una regió per a una data concreta.
-  static String regionWeatherSummary(int regionId) =>
-      '$regions/$regionId/weather/summary';
 }

@@ -19,7 +19,6 @@ import 'package:cims/core/entity/profile_photo_upload.dart';
 import 'package:cims/core/entity/ascent_photo_gallery.dart';
 import 'package:cims/core/entity/peak_weather.dart';
 import 'package:cims/core/entity/peak_hourly_weather.dart';
-import 'package:cims/core/entity/weather_condition.dart';
 import 'package:http/http.dart' as http;
 
 // Aquests fitxers separen les peticions de l’API per àmbits funcionals.

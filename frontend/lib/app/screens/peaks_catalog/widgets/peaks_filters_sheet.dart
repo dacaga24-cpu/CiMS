@@ -3,9 +3,7 @@ import 'package:cims/app/screens/peaks_catalog/widgets/peaks_altitude_range_fiel
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_filters_actions.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_region_filter_field.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_status_filter_section.dart';
-import 'package:cims/app/screens/peaks_catalog/widgets/peaks_weather_filter_section.dart';
 import 'package:cims/core/entity/region.dart';
-import 'package:cims/core/entity/weather_condition.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget mostra el panell de filtres del catàleg.
@@ -19,8 +17,6 @@ class PeaksFiltersSheet extends StatefulWidget {
     required this.initialMinAltitude,
     required this.initialMaxAltitude,
     required this.initialStatusFilter,
-    required this.initialWeatherDate,
-    required this.initialWeatherConditions,
     required this.onApply,
     required this.onClear,
   });
@@ -32,15 +28,11 @@ class PeaksFiltersSheet extends StatefulWidget {
   final int? initialMinAltitude;
   final int? initialMaxAltitude;
   final PeakStatusFilter initialStatusFilter;
-  final String? initialWeatherDate;
-  final Set<WeatherConditionType> initialWeatherConditions;
   final void Function({
     int? regionId,
     int? minAltitude,
     int? maxAltitude,
     PeakStatusFilter statusFilter,
-    String? weatherDate,
-    Set<WeatherConditionType> weatherConditions,
   }) onApply;
   final Future<void> Function() onClear;
 
@@ -59,8 +51,6 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
   // Aquestes variables guarden els filtres seleccionats dins del panell.
   int? _selectedRegionId;
   late PeakStatusFilter _selectedStatusFilter;
-  String? _selectedWeatherDate;
-  late Set<WeatherConditionType> _selectedWeatherConditions;
 
   // Aquest mètode prepara el panell amb els filtres que ja estaven aplicats.
   // Així l’usuari pot veure i modificar la configuració actual sense perdre-la.
@@ -69,9 +59,6 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     super.initState();
     _selectedRegionId = widget.initialRegionId;
     _selectedStatusFilter = widget.initialStatusFilter;
-    _selectedWeatherDate = widget.initialWeatherDate;
-    _selectedWeatherConditions =
-        Set<WeatherConditionType>.from(widget.initialWeatherConditions);
     _minAltitudeController = TextEditingController(
       text: widget.initialMinAltitude?.toString() ?? '',
     );
@@ -101,15 +88,6 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     return int.tryParse(trimmedValue);
   }
 
-  // Aquest getter detecta quan l'usuari ha omplert només una part del
-  // filtre meteorològic. La UI mostra un avís perquè entengui per què
-  // l'aplicació del filtre no tindrà efecte sense la part que falta.
-  bool get _hasPartialWeatherFilter {
-    final hasDate = _selectedWeatherDate != null;
-    final hasConditions = _selectedWeatherConditions.isNotEmpty;
-    return hasDate != hasConditions;
-  }
-
   // Aquest mètode comprova si el rang d'altura introduït és possible.
   // Només marca error quan els dos camps tenen valor i la mínima supera la màxima.
   bool get _hasInvalidAltitudeRange {
@@ -132,8 +110,6 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     setState(() {
       _selectedRegionId = null;
       _selectedStatusFilter = PeakStatusFilter.none;
-      _selectedWeatherDate = null;
-      _selectedWeatherConditions = <WeatherConditionType>{};
     });
 
     final onClear = widget.onClear;
@@ -156,16 +132,6 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     final maxAltitude = _parseAltitude(_maxAltitudeController.text);
     final selectedRegionId = _selectedRegionId;
     final selectedStatusFilter = _selectedStatusFilter;
-    // El filtre meteorològic només s'envia quan totes dues parts estan
-    // informades; si l'usuari només ha triat data o només condicions,
-    // s'ignora silenciosament perquè el backend rebutjaria un enviament
-    // parcial amb 400 i la pantalla quedaria en estat d'error.
-    final hasWeatherFilter = _selectedWeatherDate != null &&
-        _selectedWeatherConditions.isNotEmpty;
-    final weatherDate = hasWeatherFilter ? _selectedWeatherDate : null;
-    final weatherConditions = hasWeatherFilter
-        ? Set<WeatherConditionType>.from(_selectedWeatherConditions)
-        : <WeatherConditionType>{};
     final onApply = widget.onApply;
 
     Navigator.of(context).pop();
@@ -176,8 +142,6 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
         minAltitude: minAltitude,
         maxAltitude: maxAltitude,
         statusFilter: selectedStatusFilter,
-        weatherDate: weatherDate,
-        weatherConditions: weatherConditions,
       );
     });
   }
@@ -273,38 +237,6 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
                         });
                       },
                     ),
-                    const SizedBox(height: 20),
-                    PeaksWeatherFilterSection(
-                      selectedDate: _selectedWeatherDate,
-                      selectedConditions: _selectedWeatherConditions,
-                      onDateChanged: (value) {
-                        setState(() {
-                          _selectedWeatherDate = value;
-                        });
-                      },
-                      onConditionToggled: (condition) {
-                        setState(() {
-                          if (_selectedWeatherConditions.contains(condition)) {
-                            _selectedWeatherConditions.remove(condition);
-                          } else {
-                            _selectedWeatherConditions.add(condition);
-                          }
-                        });
-                      },
-                    ),
-                    if (_hasPartialWeatherFilter) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        _selectedWeatherDate == null
-                            ? 'Tria també un dia perquè s\'apliqui el filtre meteorològic.'
-                            : 'Tria també almenys una condició meteorològica.',
-                        style: const TextStyle(
-                          color: Color(0xFFB45309),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
                     const SizedBox(height: 20),
                     PeaksFiltersActions(
                       onClear: _handleClear,
