@@ -1,12 +1,18 @@
+import 'dart:async';
+
 import 'package:cims/app/client/api/api_client_impl.dart';
 import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/peak.dart';
+import 'package:cims/core/entity/peak_hourly_weather.dart';
 import 'package:cims/core/entity/peak_status.dart';
+import 'package:cims/core/entity/peak_weather.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:cims/core/store/peak_status_store.dart';
 import 'package:cims/core/store/user_stats_refresh_store.dart';
 import 'package:cims/core/usecase/ascents/get_ascents_by_peak_usecase.dart';
 import 'package:cims/core/usecase/peaks/get_peak_by_id_usecase.dart';
+import 'package:cims/core/usecase/peaks/get_peak_daily_weather_usecase.dart';
+import 'package:cims/core/usecase/peaks/get_peak_hourly_weather_usecase.dart';
 import 'package:cims/core/usecase/peaks/get_peak_status_usecase.dart';
 import 'package:cims/core/usecase/peak_status/update_peak_status_usecase.dart';
 import 'package:flutter/material.dart';
@@ -33,6 +39,8 @@ class PeakDetailController extends ChangeNotifier {
     GetPeakStatusUseCase? getPeakStatusUseCase,
     UpdatePeakStatusUseCase? updatePeakStatusUseCase,
     GetAscentsByPeakUseCase? getAscentsByPeakUseCase,
+    GetPeakDailyWeatherUseCase? getPeakDailyWeatherUseCase,
+    GetPeakHourlyWeatherUseCase? getPeakHourlyWeatherUseCase,
     PeakStatusStore? peakStatusStore,
     UserStatsRefreshStore? userStatsRefreshStore,
   }) {
@@ -50,6 +58,14 @@ class PeakDetailController extends ChangeNotifier {
           updatePeakStatusUseCase ?? UpdatePeakStatusUseCase(resolvedApiClient),
       getAscentsByPeakUseCase:
           getAscentsByPeakUseCase ?? GetAscentsByPeakUseCase(resolvedApiClient),
+      getPeakDailyWeatherUseCase: getPeakDailyWeatherUseCase ??
+          GetPeakDailyWeatherUseCase(
+            apiClient: resolvedApiClient,
+          ),
+      getPeakHourlyWeatherUseCase: getPeakHourlyWeatherUseCase ??
+          GetPeakHourlyWeatherUseCase(
+            apiClient: resolvedApiClient,
+          ),
       peakStatusStore: peakStatusStore ?? AppSession.peakStatusStore,
       userStatsRefreshStore:
           userStatsRefreshStore ?? AppSession.userStatsRefreshStore,
@@ -64,12 +80,16 @@ class PeakDetailController extends ChangeNotifier {
     required GetPeakStatusUseCase getPeakStatusUseCase,
     required UpdatePeakStatusUseCase updatePeakStatusUseCase,
     required GetAscentsByPeakUseCase getAscentsByPeakUseCase,
+    required GetPeakDailyWeatherUseCase getPeakDailyWeatherUseCase,
+    required GetPeakHourlyWeatherUseCase getPeakHourlyWeatherUseCase,
     required PeakStatusStore peakStatusStore,
     required UserStatsRefreshStore userStatsRefreshStore,
   })  : _getPeakByIdUseCase = getPeakByIdUseCase,
         _getPeakStatusUseCase = getPeakStatusUseCase,
         _updatePeakStatusUseCase = updatePeakStatusUseCase,
         _getAscentsByPeakUseCase = getAscentsByPeakUseCase,
+        _getPeakDailyWeatherUseCase = getPeakDailyWeatherUseCase,
+        _getPeakHourlyWeatherUseCase = getPeakHourlyWeatherUseCase,
         _peakStatusStore = peakStatusStore,
         _userStatsRefreshStore = userStatsRefreshStore {
     // El controller s'enganxa al store per propagar els canvis fets per
@@ -84,6 +104,8 @@ class PeakDetailController extends ChangeNotifier {
   final GetPeakStatusUseCase _getPeakStatusUseCase;
   final UpdatePeakStatusUseCase _updatePeakStatusUseCase;
   final GetAscentsByPeakUseCase _getAscentsByPeakUseCase;
+  final GetPeakDailyWeatherUseCase _getPeakDailyWeatherUseCase;
+  final GetPeakHourlyWeatherUseCase _getPeakHourlyWeatherUseCase;
   final PeakStatusStore _peakStatusStore;
 
   // Aquest store avisa altres pantalles que les dades de progrés poden haver canviat.
@@ -99,6 +121,50 @@ class PeakDetailController extends ChangeNotifier {
   String? ascentsErrorMessage;
   Peak? peak;
   DateTime? lastAscentDate;
+
+  // Aquest bloc guarda l'estat de la previsió meteorològica. Es manté
+  // separat de la càrrega general del cim perquè una fallada del
+  // proveïdor (Google fora de servei, quota esgotada) no ha d'impedir
+  // veure la resta del detall: la card mostrarà l'error i la pantalla
+  // seguirà funcionant amb normalitat.
+  bool isWeatherLoading = false;
+  String? weatherErrorMessage;
+  PeakWeather? weatherForecast;
+
+  // El comptador de càrregues serveix per descartar respostes
+  // obsoletes: si l'usuari fa pull-to-refresh dues vegades seguides o
+  // toca "Reintenta" mentre encara hi ha un fetch en vol, només la més
+  // recent pot escriure a l'estat. Sense aquest guard, un primer fetch
+  // que falla tard pot pisar el resultat correcte d'un fetch posterior.
+  int _weatherLoadId = 0;
+
+  // Aquest bloc manté l'estat del panell horari que es desplega quan
+  // l'usuari toca una píldora del carrusel diari. Es modela com un
+  // diccionari per data perquè diferents dies tinguin cache, estat de
+  // càrrega i error independents: així, si l'usuari obre dimecres,
+  // toca Dijous i torna a Dimecres, la previsió de dimecres encara hi
+  // és sense haver de tornar a demanar-la a Google.
+  final Map<String, PeakHourlyWeather> _hourlyByDay = {};
+  final Set<String> _hourlyLoadingDays = {};
+  final Map<String, String> _hourlyErrorByDay = {};
+
+  // El comptador per dia serveix per resoldre races dins d'un mateix
+  // dia (per exemple, expandir, col·lapsar i tornar a expandir abans
+  // que torni la primera resposta). Una crida obsoleta es descarta
+  // comparant el seu loadId amb el guardat aquí.
+  final Map<String, int> _hourlyLoadIdByDay = {};
+
+  // Aquesta propietat manté la data del dia actualment expandit (o null
+  // si cap dia ho està). El widget l'utilitza per pintar la píldora amb
+  // un estat d'accent diferent i decidir quin panell horari mostrar.
+  String? _expandedDay;
+  String? get expandedDay => _expandedDay;
+
+  // Vistes immutables del cache horari perquè la UI les pugui consultar
+  // sense risc de modificar-les directament des del widget.
+  PeakHourlyWeather? hourlyForDay(String date) => _hourlyByDay[date];
+  bool isHourlyLoading(String date) => _hourlyLoadingDays.contains(date);
+  String? hourlyErrorFor(String date) => _hourlyErrorByDay[date];
 
   // L'estat personal del cim no es guarda aquí: es llegeix sempre del store
   // compartit per garantir que cap còpia local el desincronitzi.
@@ -202,6 +268,15 @@ class PeakDetailController extends ChangeNotifier {
       notifyListeners();
     }
 
+    // La previsió meteorològica es dispara en paral·lel a la càrrega del
+    // cim perquè només depèn del peakId, que ja tenim. Així la card del
+    // clima pot començar a omplir-se mentre encara estem demanant les
+    // dades bàsiques del cim, i una fallada de Google no bloqueja la
+    // resta del detall. El Future no s'espera aquí: _loadWeather manté
+    // el seu propi estat (isWeatherLoading, weatherErrorMessage) i avisa
+    // els listeners quan acaba.
+    unawaited(_loadWeather());
+
     try {
       final loadedPeak = await _getPeakByIdUseCase.execute(peakId);
 
@@ -229,6 +304,168 @@ class PeakDetailController extends ChangeNotifier {
     } finally {
       if (!_disposed) {
         isLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  // Aquest mètode carrega la previsió meteorològica del cim. Una fallada
+  // aquí no propaga errorMessage perquè la resta de la pantalla ha de
+  // continuar funcionant: el clima és un complement, no la informació
+  // essencial. Si Google no respon o la quota s'esgota, la card del clima
+  // mostrarà el seu propi missatge d'error amb un botó de reintentar.
+  //
+  // Cada invocació rep un loadId propi: si quan torna la resposta ja
+  // s'ha disparat una crida més recent, descartem el resultat per evitar
+  // que un fetch antic pisi un de més nou. El mateix guard al finally
+  // assegura que isWeatherLoading només es desactivi quan acaba la
+  // crida més recent, mantenint l'esquelet visible si encara n'hi ha
+  // una altra en vol.
+  Future<void> _loadWeather() async {
+    final loadId = ++_weatherLoadId;
+    isWeatherLoading = true;
+    weatherErrorMessage = null;
+
+    if (!_disposed) {
+      notifyListeners();
+    }
+
+    try {
+      final forecast = await _getPeakDailyWeatherUseCase.execute(peakId);
+
+      if (_disposed || loadId != _weatherLoadId) {
+        return;
+      }
+
+      weatherForecast = forecast;
+    } on ApiException catch (error) {
+      if (_disposed || loadId != _weatherLoadId) {
+        return;
+      }
+
+      weatherForecast = null;
+      weatherErrorMessage = error.message;
+    } catch (error, stackTrace) {
+      if (_disposed || loadId != _weatherLoadId) {
+        return;
+      }
+
+      // Es loguen runtimeType i stack perquè un error no controlat aquí
+      // (per exemple, un canvi de contracte del backend que faci petar
+      // PeakWeather.fromJson) quedi rastrejable als logs del dispositiu
+      // en lloc de quedar amagat darrere del missatge genèric.
+      debugPrint(
+        '[weather] load failed: ${error.runtimeType} — $error',
+      );
+      debugPrintStack(stackTrace: stackTrace);
+
+      weatherForecast = null;
+      weatherErrorMessage =
+          'No s\'ha pogut carregar la previsió meteorològica';
+    } finally {
+      if (!_disposed && loadId == _weatherLoadId) {
+        isWeatherLoading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  // Aquest mètode permet reintentar només la càrrega de la previsió
+  // meteorològica quan ha fallat, sense haver de tornar a carregar tot
+  // el detall del cim. La card l'utilitza des del botó de reintentar.
+  Future<void> onWeatherRetryTap() {
+    return _loadWeather();
+  }
+
+  // Aquest mètode gestiona el desplegament del panell horari per a un
+  // dia concret. Es comporta com a toggle: si la data rebuda ja és la
+  // que està expandida, es col·lapsa; en cas contrari, s'expandeix la
+  // nova i la càrrega es dispara només si encara no tenim les hores
+  // d'aquest dia cachejades. Així una segona obertura del mateix dia
+  // és instantània i no torna a tocar la xarxa.
+  Future<void> toggleDayExpansion(String date) async {
+    if (date.isEmpty) {
+      return;
+    }
+
+    if (_expandedDay == date) {
+      _expandedDay = null;
+      if (!_disposed) {
+        notifyListeners();
+      }
+      return;
+    }
+
+    _expandedDay = date;
+
+    if (!_disposed) {
+      notifyListeners();
+    }
+
+    final cached = _hourlyByDay[date];
+    final hasError = _hourlyErrorByDay.containsKey(date);
+    if (cached != null && !hasError) {
+      return;
+    }
+    await _loadHourlyFor(date);
+  }
+
+  // Aquest mètode permet reintentar la càrrega horària per a un dia
+  // concret quan ha fallat. La card del clima l'utilitza des del botó
+  // "Reintenta" del panell horari, sense afectar la previsió diària.
+  Future<void> onHourlyRetryTap(String date) {
+    return _loadHourlyFor(date);
+  }
+
+  // Aquest mètode carrega la previsió horària per a una data concreta.
+  // Manté un comptador per data per descartar respostes obsoletes
+  // (l'usuari pot col·lapsar i tornar a expandir abans que torni la
+  // primera resposta). Una fallada queda guardada al diccionari d'error
+  // perquè el panell pugui mostrar-la sense barrejar-se amb errors
+  // d'altres dies.
+  Future<void> _loadHourlyFor(String date) async {
+    if (date.isEmpty) {
+      return;
+    }
+
+    final loadId = (_hourlyLoadIdByDay[date] ?? 0) + 1;
+    _hourlyLoadIdByDay[date] = loadId;
+    _hourlyLoadingDays.add(date);
+    _hourlyErrorByDay.remove(date);
+
+    if (!_disposed) {
+      notifyListeners();
+    }
+
+    try {
+      final hourly = await _getPeakHourlyWeatherUseCase.execute(peakId, date);
+
+      if (_disposed || _hourlyLoadIdByDay[date] != loadId) {
+        return;
+      }
+
+      _hourlyByDay[date] = hourly;
+    } on ApiException catch (error) {
+      if (_disposed || _hourlyLoadIdByDay[date] != loadId) {
+        return;
+      }
+
+      _hourlyErrorByDay[date] = error.message;
+    } catch (error, stackTrace) {
+      if (_disposed || _hourlyLoadIdByDay[date] != loadId) {
+        return;
+      }
+
+      debugPrint(
+        '[weather] hourly load failed for $date: ${error.runtimeType} — $error',
+      );
+      debugPrintStack(stackTrace: stackTrace);
+
+      _hourlyErrorByDay[date] =
+          'No s\'ha pogut carregar la previsió horària';
+    } finally {
+      if (!_disposed && _hourlyLoadIdByDay[date] == loadId) {
+        _hourlyLoadingDays.remove(date);
         notifyListeners();
       }
     }

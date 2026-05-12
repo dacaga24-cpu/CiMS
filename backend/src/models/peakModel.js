@@ -9,12 +9,28 @@ const pool = require('../config/db');
 // (llista paginada, vista de mapa, comptador) han d'aplicar exactament el
 // mateix conjunt de filtres i mantenir una única font de veritat evita
 // divergències quan se n'afegeixin de nous.
-function buildPeakFilters({ regionId, minAltitude, maxAltitude, search } = {}) {
+//
+// El paràmetre regionIds (array) preval sobre regionId (singular). El cas
+// d'ús real és el filtre per clima, que resol una llista de comarques
+// matchejant la condició demanada i la passa aquí ja intersectada amb la
+// possible regió que l'usuari hagués triat explícitament. Si la llista
+// arriba buida, es força un WHERE 1=0 perquè el resultat sigui zero cims
+// sense haver de canviar el flux de qui crida.
+function buildPeakFilters({ regionId, regionIds, minAltitude, maxAltitude, search } = {}) {
     const conditions = [];
     const params = [];
     let join = '';
 
-    if (regionId !== undefined && regionId !== null) {
+    if (regionIds !== undefined && regionIds !== null) {
+        if (regionIds.length === 0) {
+            conditions.push('1 = 0');
+        } else {
+            join = ' INNER JOIN peak_regions pr ON pr.peak_id = p.id ';
+            const placeholders = regionIds.map(() => '?').join(', ');
+            conditions.push(`pr.region_id IN (${placeholders})`);
+            params.push(...regionIds);
+        }
+    } else if (regionId !== undefined && regionId !== null) {
         join = ' INNER JOIN peak_regions pr ON pr.peak_id = p.id ';
         conditions.push('pr.region_id = ?');
         params.push(regionId);
@@ -86,9 +102,9 @@ const PeakModel = {
     // imprescindible per a la paginació: sense un ORDER BY determinístic,
     // dues pàgines consecutives podrien repetir o saltar-se cims si MySQL
     // canvia l'ordre intern entre crides.
-    async findAll({ regionId, minAltitude, maxAltitude, search, limit, offset } = {}) {
+    async findAll({ regionId, regionIds, minAltitude, maxAltitude, search, limit, offset } = {}) {
         const { join, where, params } = buildPeakFilters({
-            regionId, minAltitude, maxAltitude, search,
+            regionId, regionIds, minAltitude, maxAltitude, search,
         });
 
         let sql = `
@@ -135,9 +151,9 @@ const PeakModel = {
     // S'usa SELECT COUNT(DISTINCT p.id) perquè el JOIN amb peak_regions pot
     // duplicar files quan un cim pertany a més d'una comarca i això inflaria
     // el comptador respecte als resultats reals que retorna findAll.
-    async count({ regionId, minAltitude, maxAltitude, search } = {}) {
+    async count({ regionId, regionIds, minAltitude, maxAltitude, search } = {}) {
         const { join, where, params } = buildPeakFilters({
-            regionId, minAltitude, maxAltitude, search,
+            regionId, regionIds, minAltitude, maxAltitude, search,
         });
 
         const sql = `
@@ -160,9 +176,9 @@ const PeakModel = {
     // perquè el mapa no la pinta i sí que afegiria volum significatiu.
     // Aquest endpoint no té límit de resultats: és la vista que ha de mostrar
     // sempre el conjunt complet de cims que casen amb els filtres.
-    async findAllForMap({ regionId, minAltitude, maxAltitude, search } = {}) {
+    async findAllForMap({ regionId, regionIds, minAltitude, maxAltitude, search } = {}) {
         const { join, where, params } = buildPeakFilters({
-            regionId, minAltitude, maxAltitude, search,
+            regionId, regionIds, minAltitude, maxAltitude, search,
         });
 
         const sql = `

@@ -1,11 +1,13 @@
 import 'package:cims/app/client/api/api_client_impl.dart';
 import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
+import 'package:cims/app/screens/peaks_catalog/models/peaks_feedback.dart';
 import 'package:cims/app/screens/peaks_catalog/models/peaks_filter_state.dart';
 import 'package:cims/app/screens/peaks_catalog/models/peaks_search_debouncer.dart';
 import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/peak.dart';
 import 'package:cims/core/entity/peak_status.dart';
 import 'package:cims/core/entity/region.dart';
+import 'package:cims/core/entity/weather_condition.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:cims/core/store/peak_status_store.dart';
 import 'package:cims/core/usecase/get_regions_usecase.dart';
@@ -105,6 +107,16 @@ class PeaksMapController extends ChangeNotifier {
   // La UI consulta aquests valors i després els consumeix per evitar repetir la navegació.
   PeaksMapDestination _destination = PeaksMapDestination.none;
   PeaksMapDestination get destination => _destination;
+
+  // Aquest bloc guarda els avisos puntuals que la pantalla ha de
+  // mostrar com a snackbar. Comparteix mecànica i enum amb el catàleg,
+  // perquè els dos camins de filtre meteorològic responen amb la
+  // mateixa cara a una caiguda del proveïdor.
+  PeaksFeedback _feedback = PeaksFeedback.none;
+  PeaksFeedback get feedback => _feedback;
+  void consumeFeedback() {
+    _feedback = PeaksFeedback.none;
+  }
   int? get selectedPeakId => _selectedPeakId;
 
   // Retorna el text actual de cerca sense espais sobrants.
@@ -122,6 +134,14 @@ class PeaksMapController extends ChangeNotifier {
   // Aquest getter exposa el filtre d’estat seleccionat.
   PeakStatusFilter get selectedStatusFilter =>
       _filtersState.selectedStatusFilter;
+
+  // Aquests getters exposen el filtre meteorològic. Es retornen sempre
+  // perquè el panell de filtres pugui pintar l'estat parcial mentre
+  // l'usuari encara està configurant la selecció.
+  String? get weatherDate => _filtersState.weatherDate;
+  Set<WeatherConditionType> get weatherConditions =>
+      _filtersState.weatherConditions;
+  bool get hasActiveWeatherFilter => _filtersState.hasActiveWeatherFilter;
 
   // Indica si hi ha algun filtre actiu.
   // S’utilitza per mostrar o ocultar el resum de filtres a la pantalla.
@@ -221,12 +241,16 @@ class PeaksMapController extends ChangeNotifier {
     int? minAltitude,
     int? maxAltitude,
     PeakStatusFilter statusFilter = PeakStatusFilter.none,
+    String? weatherDate,
+    Set<WeatherConditionType>? weatherConditions,
   }) async {
     _filtersState.apply(
       regionId: regionId,
       minAltitude: minAltitude,
       maxAltitude: maxAltitude,
       statusFilter: statusFilter,
+      weatherDate: weatherDate,
+      weatherConditions: weatherConditions,
     );
   }
 
@@ -234,6 +258,29 @@ class PeaksMapController extends ChangeNotifier {
   // La crida a clear() notifica els listeners si hi havia filtres actius.
   Future<void> clearFilters() async {
     _filtersState.clear();
+  }
+
+  // Aquest mètode neteja exclusivament el filtre meteorològic, conservant
+  // la resta. La pantalla l'invoca des de l'acció del snackbar quan el
+  // proveïdor meteorològic no està disponible.
+  Future<void> clearWeatherFilter() async {
+    _filtersState.clearWeatherFilter();
+  }
+
+  // Aquest mètode detecta una caiguda del proveïdor meteorològic mentre
+  // el filtre estava actiu. Si la detecta, deixa preparat l'avís per a
+  // la pantalla i neteja el filtre perquè la recàrrega automàtica torni
+  // el mapa complet. Retorna true quan el cas s'ha gestionat aquí.
+  bool _handleWeatherProviderUnavailable(ApiException error) {
+    if (error.code != 'WEATHER_PROVIDER_UNAVAILABLE') {
+      return false;
+    }
+    if (!hasActiveWeatherFilter) {
+      return false;
+    }
+    _feedback = PeaksFeedback.weatherProviderUnavailable;
+    _filtersState.clearWeatherFilter();
+    return true;
   }
 
   // Torna a intentar carregar els cims quan s’ha produït un error.
@@ -370,6 +417,9 @@ class PeaksMapController extends ChangeNotifier {
         regionId: selectedRegionId,
         minAltitude: minAltitude,
         maxAltitude: maxAltitude,
+        weatherDate: hasActiveWeatherFilter ? weatherDate : null,
+        weatherConditions:
+            hasActiveWeatherFilter ? weatherConditions : null,
       );
 
       if (_disposed || requestId != _loadRequestId) {
@@ -381,6 +431,10 @@ class PeaksMapController extends ChangeNotifier {
       _applyInitialPeakSelection();
     } on ApiException catch (error) {
       if (_disposed || requestId != _loadRequestId) {
+        return;
+      }
+
+      if (_handleWeatherProviderUnavailable(error)) {
         return;
       }
 

@@ -1,11 +1,13 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:cims/app/router/app_router.dart';
 import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
+import 'package:cims/app/screens/peaks_catalog/models/peaks_feedback.dart';
 import 'package:cims/app/screens/peaks_catalog/peaks_catalog_controller.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_active_filters_summary.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_catalog_content.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_filters_sheet.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_search_bar.dart';
+import 'package:cims/core/entity/weather_condition.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta pantalla mostra el catàleg de cims de l’aplicació.
@@ -72,6 +74,39 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
         _openPeakDetail(peakId);
       }
     }
+
+    if (controller.feedback == PeaksFeedback.weatherProviderUnavailable) {
+      controller.consumeFeedback();
+      _showWeatherUnavailableSnackbar();
+    }
+  }
+
+  // Aquest mètode mostra el snackbar que informa que el filtre
+  // meteorològic no està disponible. La crida queda diferida a
+  // l'acabament del frame actual perquè els canvis al controller que
+  // disparen aquest avís sovint coincideixen amb una reconstrucció en
+  // curs, i ScaffoldMessenger.showSnackBar dins de la fase de build
+  // llançaria una excepció.
+  void _showWeatherUnavailableSnackbar() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'El filtre meteorològic no està disponible ara. '
+            'S\'ha tret per mostrar el catàleg complet.',
+          ),
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'Tornar a provar',
+            onPressed: _openFiltersSheet,
+          ),
+        ),
+      );
+    });
   }
 
   // Aquest mètode obre el detall del cim. Quan l'usuari hi modifica algun
@@ -99,17 +134,24 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
           initialMinAltitude: controller.minAltitude,
           initialMaxAltitude: controller.maxAltitude,
           initialStatusFilter: controller.selectedStatusFilter,
+          initialWeatherDate: controller.weatherDate,
+          initialWeatherConditions: controller.weatherConditions,
           onApply: ({
             int? regionId,
             int? minAltitude,
             int? maxAltitude,
             PeakStatusFilter statusFilter = PeakStatusFilter.none,
+            String? weatherDate,
+            Set<WeatherConditionType> weatherConditions =
+                const <WeatherConditionType>{},
           }) {
             controller.applyFilters(
               regionId: regionId,
               minAltitude: minAltitude,
               maxAltitude: maxAltitude,
               statusFilter: statusFilter,
+              weatherDate: weatherDate,
+              weatherConditions: weatherConditions,
             );
           },
           onClear: controller.clearFilters,

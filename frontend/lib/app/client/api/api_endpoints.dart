@@ -94,4 +94,23 @@ class ApiEndpoints {
   // Aquesta ajuda construeix la ruta d’una foto concreta d’ascensió.
   // Permet eliminar una imatge a partir del seu identificador.
   static String ascentPhotoById(int photoId) => '$ascentPhotos/$photoId';
+
+  // Aquesta ajuda construeix la ruta de la previsió diària d'un cim.
+  // El backend retorna fins a 10 dies, però la pantalla de detall en demana
+  // 7 per defecte. El paràmetre days es passa com a query string perquè el
+  // mateix endpoint serveix per a qualsevol horitzó dins del rang acceptat.
+  static String peakWeatherDaily(int peakId) =>
+      '${peakById(peakId)}/weather/daily';
+
+  // Aquesta ajuda construeix la ruta de la previsió horària d'un cim.
+  // Es reserva per al pas següent del projecte, quan la card del detall
+  // pugui desplegar les hores d'un dia concret per mostrar-les en gràfic.
+  static String peakWeatherHourly(int peakId) =>
+      '${peakById(peakId)}/weather/hourly';
+
+  // Aquesta ajuda construeix la ruta del resum meteorològic d'una comarca.
+  // El filtre per clima del mapa i del catàleg la pot aprofitar quan calgui
+  // consultar el clima agregat d'una regió per a una data concreta.
+  static String regionWeatherSummary(int regionId) =>
+      '$regions/$regionId/weather/summary';
 }

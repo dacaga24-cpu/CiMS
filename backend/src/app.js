@@ -17,6 +17,7 @@ const userRoutes = require('./routes/userRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const monthlyChallengeRoutes = require('./routes/monthlyChallengeRoutes');
 const ascentPhotoRoutes = require('./routes/ascentPhotoRoutes');
+const weatherRoutes = require('./routes/weatherRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -123,6 +124,13 @@ app.use('/api/ascent-photos', ascentPhotoRoutes);
 // Aquest bloc registra les rutes de les comarques.
 // Serveix per alimentar els filtres territorials del catàleg al frontend.
 app.use('/api/regions', regionRoutes);
+
+// Aquest bloc registra els endpoints meteorològics. Es monten directament
+// sota /api perquè les rutes finals viuen sota /api/peaks/:peakId/weather i
+// /api/regions/:regionId/weather: així s'agrupen amb el recurs natural
+// (cim o comarca) sense barrejar-se amb peakRoutes ni regionRoutes, que
+// són públics i no han de quedar afectats pel rate limiter de Weather.
+app.use('/api', weatherRoutes);
 
 // Aquest bloc registra les rutes relacionades amb la recuperació de contrasenya.
 // Es manté el prefix /reset-password per diferenciar clarament aquesta funcionalitat de les altres rutes d’API.

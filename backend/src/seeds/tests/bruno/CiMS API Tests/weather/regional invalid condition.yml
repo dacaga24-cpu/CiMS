@@ -1,0 +1,21 @@
+info:
+  name: regional invalid condition
+  type: http
+  seq: 8
+
+# Aquest test valida que les comarques tinguin sempre un id existent.
+# regionId=99999 ha de retornar 404, no 503: així el frontend pot
+# distingir "comarca inexistent" d'una fallada del proveïdor.
+http:
+  method: GET
+  url: "{{base_url}}/api/regions/99999/weather/summary?date=2026-05-13"
+  headers:
+    - name: Authorization
+      value: Bearer {{token_valid}}
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
