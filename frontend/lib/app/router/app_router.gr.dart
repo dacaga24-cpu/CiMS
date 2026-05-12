@@ -240,6 +240,22 @@ class AscentRegisterRouteArgs {
 }
 
 /// generated route for
+/// [AscentVerificationScreen]
+class AscentVerificationRoute extends PageRouteInfo<void> {
+  const AscentVerificationRoute({List<PageRouteInfo>? children})
+      : super(AscentVerificationRoute.name, initialChildren: children);
+
+  static const String name = 'AscentVerificationRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const AscentVerificationScreen();
+    },
+  );
+}
+
+/// generated route for
 /// [DashboardScreen]
 class DashboardRoute extends PageRouteInfo<void> {
   const DashboardRoute({List<PageRouteInfo>? children})
