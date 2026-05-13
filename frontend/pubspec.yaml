@@ -24,14 +24,8 @@ dependencies:
   image_picker: ^1.2.2
   image_picker_for_web: ^3.1.1
   flutter_image_compress: ^2.4.0
-  # Pinned a 4.2906.0 perquè a partir de 4.2928.0 el package va eliminar
-  # les subclasses IconDataOutlined/Sharp/Rounded i el tree-shaker de
-  # Flutter ja no associa correctament els codepoints amb el font de
-  # Material Symbols. Resultat: en builds de producció la majoria
-  # d'iconos surten en blanc (issue #46 del repo del package, sense fix
-  # publicat encara). 4.2906.0 és l'última versió coneguda que funciona
-  # tant en debug com en release.
-  material_symbols_icons: 4.2906.0
+  material_symbols_icons: ^4.2928.1
+  geolocator: ^14.0.2
 
 dev_dependencies:
   flutter_test:
