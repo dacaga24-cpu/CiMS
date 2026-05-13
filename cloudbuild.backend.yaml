@@ -1,4 +1,7 @@
+# Aquest pipeline construeix la imatge Docker del backend,
+# la puja a Artifact Registry i desplega el servei a Cloud Run.
 steps:
+  # Construcció de la imatge Docker del backend.
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -6,11 +9,14 @@ steps:
       - 'europe-southwest1-docker.pkg.dev/$PROJECT_ID/cims/cims-backend:$COMMIT_SHA'
       - './backend'
 
+  # Publicació de la imatge generada a Artifact Registry.
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
       - 'europe-southwest1-docker.pkg.dev/$PROJECT_ID/cims/cims-backend:$COMMIT_SHA'
 
+  # Desplegament del backend a Cloud Run amb connexió a Cloud SQL,
+  # variables d'entorn no sensibles i secrets gestionats des de Secret Manager.
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
@@ -29,7 +35,7 @@ steps:
       - '--add-cloudsql-instances'
       - 'project-b3d3b0b0-7c7e-40b5-9a1:europe-southwest1:cims-26'
       - '--set-env-vars'
-      - 'NODE_ENV=production,INSTANCE_CONNECTION_NAME=project-b3d3b0b0-7c7e-40b5-9a1:europe-southwest1:cims-26'
+      - 'NODE_ENV=production,INSTANCE_CONNECTION_NAME=project-b3d3b0b0-7c7e-40b5-9a1:europe-southwest1:cims-26,ASCENT_VERIFICATION_MAX_DISTANCE_METERS=500,ASCENT_VERIFICATION_MAX_ACCURACY_METERS=100'
       - '--set-secrets'
       - 'DB_NAME=DB_NAME:latest,
         DB_USER=DB_USER:latest,
@@ -43,6 +49,7 @@ steps:
         GCS_BUCKET_NAME=GCS_BUCKET_NAME:latest,
         GOOGLE_WEATHER_API_KEY=GOOGLE_WEATHER_API_KEY:latest'
 
+# Imatge final generada pel pipeline.
 images:
   - 'europe-southwest1-docker.pkg.dev/$PROJECT_ID/cims/cims-backend:$COMMIT_SHA'
 
