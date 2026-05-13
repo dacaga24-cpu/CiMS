@@ -173,9 +173,50 @@ async function safeDeletePhotoBlobs(storagePaths, context = {}) {
   );
 }
 
-// Aquesta funció afegeix a cada ascensió la seva foto principal.
+// Aquesta funció transforma les dades de verificació al format que espera el frontend.
+// Permet mostrar l'estat d'una ascensió sense exposar els noms interns de la base de dades.
+function attachVerificationToAscent(ascent) {
+  ascent.verification = ascent.verification_id
+    ? {
+        id: ascent.verification_id,
+        method: ascent.verification_method,
+        status: ascent.verification_status,
+        distanceToPeakMeters: ascent.verification_distance_to_peak_meters,
+        checkedAt: ascent.verification_checked_at,
+        reason: ascent.verification_reason,
+      }
+    : null;
+
+  delete ascent.verification_id;
+  delete ascent.verification_method;
+  delete ascent.verification_status;
+  delete ascent.verification_distance_to_peak_meters;
+  delete ascent.verification_checked_at;
+  delete ascent.verification_reason;
+
+  return ascent;
+}
+
+// Aquesta funció adapta una verificació creada directament pel model.
+// S'utilitza quan el servei acaba de crear una ascensió verificada i retorna la resposta.
+function formatVerificationRow(verification) {
+  if (!verification) {
+    return null;
+  }
+
+  return {
+    id: verification.id,
+    method: verification.method,
+    status: verification.status,
+    distanceToPeakMeters: verification.distance_to_peak_meters,
+    checkedAt: verification.checked_at,
+    reason: verification.reason,
+  };
+}
+
+// Aquesta funció afegeix a cada ascensió la seva foto principal i la seva verificació.
 // S'utilitza en llistats perquè la interfície pugui mostrar una imatge resum
-// sense carregar totes les fotos de cada ascensió.
+// i l'estat de validació sense carregar dades addicionals.
 async function attachPrimaryPhotoToAscents(ascents) {
   if (ascents.length === 0) {
     return ascents;
@@ -212,6 +253,8 @@ async function attachPrimaryPhotoToAscents(ascents) {
           downloadUrl: signedUrlByPath.get(primary.storage_path),
         }
       : null;
+
+    attachVerificationToAscent(ascent);
   }
 
   return ascents;
@@ -359,7 +402,7 @@ const AscentService = {
     }
 
     return {
-      ...createdAscent,
+      ...attachVerificationToAscent(createdAscent),
       photos: createdPhotos,
     };
   },
@@ -464,9 +507,9 @@ const AscentService = {
     }
 
     return {
-      ...createdAscent,
+      ...attachVerificationToAscent(createdAscent),
       photos: createdPhotos,
-      verification: createdVerification,
+      verification: formatVerificationRow(createdVerification),
     };
   },
 
@@ -529,7 +572,8 @@ const AscentService = {
       MonthlyChallengeService.recomputeCurrentMonthForUser(userId)
     );
 
-    return AscentModel.findByIdAndUserId(userId, parsedAscentId);
+    const updated = await AscentModel.findByIdAndUserId(userId, parsedAscentId);
+    return attachVerificationToAscent(updated);
   },
 
   // Elimina una ascensió de l'usuari autenticat.
