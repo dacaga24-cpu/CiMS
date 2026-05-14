@@ -1,28 +1,40 @@
 const pool = require('../config/db');
 
-// Aquest mètode converteix un valor "truthy/falsy" en l'enter 1 o 0 que MySQL
-// utilitza per emmagatzemar booleans. Centralitzar-ho aquí evita que la mateixa
-// lògica es repeteixi a cada operació d'inserció o d'actualització i garanteix
-// un tractament uniforme de la coerció.
+// Aquest mètode adapta valors booleans al format que guarda MySQL.
+// Centralitza la conversió perquè els estats es desin sempre de forma coherent.
 function coerceBool(value) {
   return value ? 1 : 0;
 }
 
-// Aquest model centralitza l'accés a les dades de l'estat personal que
-// cada usuari manté sobre els cims (completat, objectiu, preferit).
-// La seva funció és exposar les operacions bàsiques sobre la taula
-// peak_status perquè els serveis puguin llegir i actualitzar aquests
-// estats sense escampar SQL per la resta del codi.
+// Aquest model gestiona l’estat personal dels cims per usuari.
+// També retorna si aquell cim té alguna ascensió verificada associada.
 const PeakStatusModel = {
 
-    // Aquest mètode retorna l'estat d'un cim concret per a un usuari concret.
-    // Es fa servir per consultar els flags individuals i també per detectar
-    // si ja existeix un registre abans de decidir si s'ha de crear o actualitzar.
+    // Retorna l’estat d’un cim concret per a un usuari.
+    // Inclou si el cim té una ascensió verificada per poder mostrar-ho a la UI.
     async findByUserAndPeak(userId, peakId) {
         const sql = `
-        SELECT id, user_id, peak_id, is_completed, is_target, is_favorite
-        FROM peak_status
-        WHERE user_id = ? AND peak_id = ?
+        SELECT
+            ps.id,
+            ps.user_id,
+            ps.peak_id,
+            ps.is_completed,
+            ps.is_target,
+            ps.is_favorite,
+            CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM ascents a
+                    INNER JOIN ascent_verifications av ON av.ascent_id = a.id
+                    WHERE a.user_id = ps.user_id
+                      AND a.peak_id = ps.peak_id
+                      AND av.status = 'verified'
+                )
+                THEN 1
+                ELSE 0
+            END AS has_verified_ascent
+        FROM peak_status ps
+        WHERE ps.user_id = ? AND ps.peak_id = ?
         LIMIT 1
         `;
 
@@ -30,28 +42,40 @@ const PeakStatusModel = {
         return rows[0] || null;
     },
 
-    // Aquest mètode retorna tots els estats que un usuari té marcats.
-    // És rellevant per alimentar pantalles com "els meus cims completats",
-    // "objectius" o "preferits" sense haver de fer una consulta per cim.
+    // Retorna tots els estats personals d’un usuari.
+    // Aquesta consulta alimenta catàleg, mapa i detall amb les marques de progrés.
     async findAllByUserId(userId) {
         const sql = `
-        SELECT id, user_id, peak_id, is_completed, is_target, is_favorite
-        FROM peak_status
-        WHERE user_id = ?
-        ORDER BY updated_at DESC
+        SELECT
+            ps.id,
+            ps.user_id,
+            ps.peak_id,
+            ps.is_completed,
+            ps.is_target,
+            ps.is_favorite,
+            CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM ascents a
+                    INNER JOIN ascent_verifications av ON av.ascent_id = a.id
+                    WHERE a.user_id = ps.user_id
+                      AND a.peak_id = ps.peak_id
+                      AND av.status = 'verified'
+                )
+                THEN 1
+                ELSE 0
+            END AS has_verified_ascent
+        FROM peak_status ps
+        WHERE ps.user_id = ?
+        ORDER BY ps.updated_at DESC
         `;
 
         const [rows] = await pool.execute(sql, [userId]);
         return rows;
     },
 
-    // Aquest mètode crea un nou registre d'estat per a la parella usuari-cim.
-    // La unicitat està garantida a l'schema amb uq_peak_status_user_peak
-    // (user_id, peak_id), de manera que mai poden coexistir dos registres
-    // per al mateix usuari i cim. Si el driver llença ER_DUP_ENTRY perquè
-    // ja existeix la parella, es converteix en un error de domini amb
-    // statusCode 409 perquè la capa de servei no hagi de conèixer codis
-    // concrets del driver i pugui respondre amb un conflicte clar.
+    // Crea un nou estat personal per a un cim.
+    // S’utilitza quan l’usuari marca per primera vegada un cim com a objectiu, preferit o completat.
     async create({ userId, peakId, isCompleted = 0, isTarget = 0, isFavorite = 0 }) {
         const sql = `
         INSERT INTO peak_status (user_id, peak_id, is_completed, is_target, is_favorite)
@@ -74,6 +98,7 @@ const PeakStatusModel = {
                 is_completed: coerceBool(isCompleted),
                 is_target: coerceBool(isTarget),
                 is_favorite: coerceBool(isFavorite),
+                has_verified_ascent: 0,
             };
         } catch (err) {
             if (err && err.code === 'ER_DUP_ENTRY') {
@@ -81,23 +106,19 @@ const PeakStatusModel = {
                 error.statusCode = 409;
                 throw error;
             }
-            // Si la foreign key cap a peaks falla és perquè el peakId no
-            // existeix. Es converteix en 404 amb un missatge clar perquè el
-            // servei no hagi de conèixer codis específics del driver, i el
-            // client distingeixi aquest cas d'un error intern de servidor.
+
             if (err && (err.code === 'ER_NO_REFERENCED_ROW' || err.code === 'ER_NO_REFERENCED_ROW_2')) {
                 const error = new Error('Peak not found');
                 error.statusCode = 404;
                 throw error;
             }
+
             throw err;
         }
     },
 
-    // Aquest mètode actualitza els flags d'un registre ja existent per a la
-    // parella usuari-cim. Només s'escriuen els camps que s'han indicat
-    // explícitament a l'objecte rebut, cosa que permet canviar un sol flag
-    // sense haver de reescriure els altres des del servei.
+    // Actualitza els estats manuals d’un cim.
+    // Només modifica els camps rebuts per no sobreescriure valors que no han canviat.
     async updateByUserAndPeak(userId, peakId, { isCompleted, isTarget, isFavorite } = {}) {
         const fields = [];
         const params = [];
@@ -117,8 +138,6 @@ const PeakStatusModel = {
             params.push(coerceBool(isFavorite));
         }
 
-        // Si no hi ha cap flag a modificar es retorna 0 sense tocar la base de
-        // dades per evitar consultes innecessàries amb updated_at renovat.
         if (fields.length === 0) {
             return 0;
         }
@@ -135,21 +154,18 @@ const PeakStatusModel = {
             const [result] = await pool.execute(sql, params);
             return result.affectedRows;
         } catch (err) {
-            // Coherent amb el create: una FK trencada cap a peaks indica que
-            // el peakId no existeix i s'ha de respondre 404, no 500.
             if (err && (err.code === 'ER_NO_REFERENCED_ROW' || err.code === 'ER_NO_REFERENCED_ROW_2')) {
                 const error = new Error('Peak not found');
                 error.statusCode = 404;
                 throw error;
             }
+
             throw err;
         }
     },
 
-    // Aquest mètode elimina el registre d'estat d'un cim per a un usuari.
-    // S'utilitza quan cal netejar completament els flags (per exemple si
-    // l'usuari decideix treure's un cim de la llista) en comptes de
-    // mantenir una fila amb tots els flags a zero.
+    // Elimina l’estat personal d’un cim.
+    // S’utilitza quan el registre ja no té cap marca activa.
     async deleteByUserAndPeak(userId, peakId) {
         const sql = `
         DELETE FROM peak_status

@@ -99,11 +99,12 @@ class PeakDetailContent extends StatelessWidget {
           PeakDetailHeader(
             peak: currentPeak,
             lastAscentDate: lastAscentDate,
+            isCompleted: peakStatus?.isCompleted ?? false,
+            hasVerifiedAscent: peakStatus?.hasVerifiedAscent ?? false,
           ),
           const SizedBox(height: 18),
           PeakDetailStatusActions(
             isTarget: peakStatus?.isTarget ?? false,
-            isCompleted: peakStatus?.isCompleted ?? false,
             isFavorite: peakStatus?.isFavorite ?? false,
             areActionsEnabled: !isUpdatingStatus,
             onTargetTap: onTargetTap,

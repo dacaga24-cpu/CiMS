@@ -2,6 +2,7 @@ import 'package:cims/app/screens/ascent_history/widgets/ascent_history_empty_sta
 import 'package:cims/app/screens/ascent_history/widgets/ascent_history_error_state.dart';
 import 'package:cims/app/screens/ascent_history/widgets/ascent_history_header.dart';
 import 'package:cims/app/screens/ascent_history/widgets/ascent_history_timeline.dart';
+import 'package:cims/app/widgets/ascent_verified_badge.dart';
 import 'package:cims/core/entity/ascent.dart';
 import 'package:flutter/material.dart';
 
@@ -90,8 +91,7 @@ class AscentHistoryContent extends StatelessWidget {
 }
 
 // Aquest bloc mostra les ascensions que no tenen data.
-// No formen part de la cronologia ni del recompte temporal, però es mantenen visibles
-// perquè l’usuari les pugui editar o eliminar.
+// Es manté separat de la cronologia perquè l’usuari les pugui revisar o completar.
 class _UndatedAscentsSection extends StatelessWidget {
   const _UndatedAscentsSection({
     required this.ascents,
@@ -138,7 +138,7 @@ class _UndatedAscentsSection extends StatelessWidget {
 }
 
 // Aquesta targeta permet accedir a l’edició d’un registre sense data.
-// Es mostra separada de la línia temporal per mantenir clara la diferència funcional.
+// També mostra si l’ascensió ja ha estat verificada per geolocalització.
 class _UndatedAscentCard extends StatelessWidget {
   const _UndatedAscentCard({
     required this.ascent,
@@ -178,16 +178,30 @@ class _UndatedAscentCard extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  ascent.hasNotes ? ascent.notes! : 'Ascensió registrada sense data',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    height: 1.3,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF344054),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      ascent.hasNotes
+                          ? ascent.notes!
+                          : 'Ascensió registrada sense data',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        height: 1.3,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF344054),
+                      ),
+                    ),
+                    if (ascent.isVerified) ...[
+                      const SizedBox(height: 8),
+                      const AscentVerifiedBadge(
+                        label: 'Verificada',
+                        compact: true,
+                      ),
+                    ],
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
