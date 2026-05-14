@@ -34,10 +34,12 @@ enum AscentVerificationErrorKind {
   locationPermissionDeniedForever,
   locationTimeout,
   locationUnknown,
+
   // Errors del flux de la càmera.
   cameraPermissionDenied,
   cameraCancelled,
   cameraFailed,
+
   // Errors de l’enviament final al backend. Es desglossen perquè la pantalla
   // pugui oferir l’acció correcta (reintentar, tornar al login, etc.).
   submitNetwork,
@@ -78,8 +80,8 @@ class AscentVerificationController extends ChangeNotifier {
   })  : _imagePicker = imagePicker ?? ImagePicker(),
         _findNearbyPeaksUseCase =
             findNearbyPeaksUseCase ?? FindNearbyPeaksUseCase(ApiClientImpl()),
-        _uploadAscentPhotoUseCase =
-            uploadAscentPhotoUseCase ?? UploadAscentPhotoUseCase(ApiClientImpl()),
+        _uploadAscentPhotoUseCase = uploadAscentPhotoUseCase ??
+            UploadAscentPhotoUseCase(ApiClientImpl()),
         _createVerifiedAscentUseCase = createVerifiedAscentUseCase ??
             CreateVerifiedAscentUseCase(ApiClientImpl()),
         _peakStatusStore = peakStatusStore ?? AppSession.peakStatusStore,
@@ -296,6 +298,7 @@ class AscentVerificationController extends ChangeNotifier {
     try {
       final pickedImage = await _imagePicker.pickImage(
         source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.rear,
         requestFullMetadata: false,
       );
 
@@ -354,7 +357,9 @@ class AscentVerificationController extends ChangeNotifier {
             ? AscentVerificationErrorKind.cameraPermissionDenied
             : AscentVerificationErrorKind.cameraFailed,
         message: isPermissionError
-            ? 'No s\'ha pogut accedir a la càmera. Concedeix el permís de càmera des de la configuració de l\'app.'
+            ? kIsWeb
+                ? 'No s\'ha pogut accedir a la càmera. Revisa el permís de càmera del navegador per a aquest lloc.'
+                : 'No s\'ha pogut accedir a la càmera. Concedeix el permís de càmera des de la configuració de l\'app.'
             : 'No s\'ha pogut fer la foto de verificació. Torna-ho a provar.',
       );
     } finally {
@@ -491,7 +496,7 @@ class AscentVerificationController extends ChangeNotifier {
       if (candidates.isEmpty) {
         // "No hi ha cims propers" és un avís d’estat (no ha fallat cap petició),
         // per això no es marca cap kind del flux: la UI només mostra el missatge.
-      _setError(
+        _setError(
           kind: null,
           message: 'No s\'ha trobat cap cim proper per verificar.',
         );
@@ -511,9 +516,24 @@ class AscentVerificationController extends ChangeNotifier {
     }
   }
 
-  // Aquest mètode comprova permisos i obté la posició actual del dispositiu.
-  // Llença excepcions tipades perquè la pantalla pugui oferir la millor acció.
+  // Aquest mètode obté la posició actual del dispositiu.
+  // En web es deixa que el navegador gestioni el permís quan l’usuari inicia el flux.
   Future<Position> _captureCurrentLocation() async {
+    if (kIsWeb) {
+      try {
+        return await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: _locationTimeout,
+          ),
+        );
+      } on TimeoutException {
+        throw const _LocationCaptureFailure(
+          AscentVerificationErrorKind.locationTimeout,
+        );
+      }
+    }
+
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
     if (!serviceEnabled) {
@@ -580,7 +600,8 @@ class AscentVerificationController extends ChangeNotifier {
             'No s\'ha pogut obtenir la ubicació a temps. Comprova la cobertura GPS i torna-ho a provar.';
         break;
       default:
-        message = 'No s\'ha pogut preparar la verificació. Torna-ho a provar.';
+        message =
+            'No s\'ha pogut preparar la verificació. Revisa el permís d’ubicació i torna-ho a intentar.';
         break;
     }
     _setError(kind: kind, message: message);
@@ -598,20 +619,20 @@ class AscentVerificationController extends ChangeNotifier {
         return const _SubmitErrorTranslation(
           AscentVerificationErrorKind.submitRejected,
           'Estàs massa lluny del cim per verificar l\'ascensió. '
-              'Apropa\'t al cim i torna-ho a provar.',
+          'Apropa\'t al cim i torna-ho a provar.',
         );
       }
       if (lower.contains('location_accuracy_too_low')) {
         return const _SubmitErrorTranslation(
           AscentVerificationErrorKind.submitRejected,
           'La precisió del GPS és massa baixa. Surt a un espai obert i '
-              'torna-ho a provar.',
+          'torna-ho a provar.',
         );
       }
       return const _SubmitErrorTranslation(
         AscentVerificationErrorKind.submitRejected,
         'No s\'ha pogut verificar l\'ascensió. Comprova la ubicació i la '
-            'distància al cim.',
+        'distància al cim.',
       );
     }
 
@@ -621,7 +642,7 @@ class AscentVerificationController extends ChangeNotifier {
       return const _SubmitErrorTranslation(
         AscentVerificationErrorKind.submitRejected,
         'No s\'ha pogut associar la foto a l\'ascensió. Torna a fer-ne '
-            'una i torna-ho a provar.',
+        'una i torna-ho a provar.',
       );
     }
 
@@ -643,7 +664,7 @@ class AscentVerificationController extends ChangeNotifier {
       return const _SubmitErrorTranslation(
         AscentVerificationErrorKind.submitRejected,
         'Aquest cim no té coordenades vàlides al catàleg, així que no '
-            'es pot verificar amb la ubicació.',
+        'es pot verificar amb la ubicació.',
       );
     }
 
@@ -651,7 +672,7 @@ class AscentVerificationController extends ChangeNotifier {
       return const _SubmitErrorTranslation(
         AscentVerificationErrorKind.submitRejected,
         'L\'hora del dispositiu és incorrecta. Revisa el rellotge del '
-            'mòbil i torna-ho a provar.',
+        'mòbil i torna-ho a provar.',
       );
     }
 
@@ -659,7 +680,7 @@ class AscentVerificationController extends ChangeNotifier {
       return const _SubmitErrorTranslation(
         AscentVerificationErrorKind.submitNetwork,
         'La pujada ha trigat massa. Comprova la cobertura i torna-ho '
-            'a provar.',
+        'a provar.',
       );
     }
 
@@ -674,14 +695,14 @@ class AscentVerificationController extends ChangeNotifier {
       return const _SubmitErrorTranslation(
         AscentVerificationErrorKind.submitNetwork,
         'El servidor no respon ara mateix. Torna-ho a provar d\'aquí '
-            'a una estona.',
+        'a una estona.',
       );
     }
 
     return const _SubmitErrorTranslation(
       AscentVerificationErrorKind.submitUnknown,
       'No s\'ha pogut crear l\'ascensió verificada. Revisa la connexió '
-          'i torna-ho a provar.',
+      'i torna-ho a provar.',
     );
   }
 

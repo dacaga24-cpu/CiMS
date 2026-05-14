@@ -241,18 +241,52 @@ class AscentRegisterRouteArgs {
 
 /// generated route for
 /// [AscentVerificationScreen]
-class AscentVerificationRoute extends PageRouteInfo<void> {
-  const AscentVerificationRoute({List<PageRouteInfo>? children})
-      : super(AscentVerificationRoute.name, initialChildren: children);
+class AscentVerificationRoute
+    extends PageRouteInfo<AscentVerificationRouteArgs> {
+  AscentVerificationRoute({
+    Key? key,
+    bool autoStart = false,
+    List<PageRouteInfo>? children,
+  }) : super(
+          AscentVerificationRoute.name,
+          args: AscentVerificationRouteArgs(key: key, autoStart: autoStart),
+          initialChildren: children,
+        );
 
   static const String name = 'AscentVerificationRoute';
 
   static PageInfo page = PageInfo(
     name,
     builder: (data) {
-      return const AscentVerificationScreen();
+      final args = data.argsAs<AscentVerificationRouteArgs>(
+        orElse: () => const AscentVerificationRouteArgs(),
+      );
+      return AscentVerificationScreen(key: args.key, autoStart: args.autoStart);
     },
   );
+}
+
+class AscentVerificationRouteArgs {
+  const AscentVerificationRouteArgs({this.key, this.autoStart = false});
+
+  final Key? key;
+
+  final bool autoStart;
+
+  @override
+  String toString() {
+    return 'AscentVerificationRouteArgs{key: $key, autoStart: $autoStart}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! AscentVerificationRouteArgs) return false;
+    return key == other.key && autoStart == other.autoStart;
+  }
+
+  @override
+  int get hashCode => key.hashCode ^ autoStart.hashCode;
 }
 
 /// generated route for

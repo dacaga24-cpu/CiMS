@@ -27,6 +27,7 @@ class AscentVerificationCaptureCard extends StatelessWidget {
     required this.selectedNearbyPeakCandidate,
     required this.isLoadingNearbyPeaks,
     required this.onNearbyPeakTap,
+    required this.onStartVerificationTap,
     required this.onCapturePhotoTap,
   });
 
@@ -50,6 +51,7 @@ class AscentVerificationCaptureCard extends StatelessWidget {
   final NearbyPeakCandidate? selectedNearbyPeakCandidate;
   final bool isLoadingNearbyPeaks;
   final ValueChanged<NearbyPeakCandidate> onNearbyPeakTap;
+  final VoidCallback onStartVerificationTap;
   final VoidCallback onCapturePhotoTap;
 
   @override
@@ -93,7 +95,7 @@ class AscentVerificationCaptureCard extends StatelessWidget {
                   ? 'Evidència capturada'
                   : hasLocation
                       ? 'Selecciona el cim'
-                      : 'Preparant verificació',
+                      : 'Inicia la verificació',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 22,
@@ -145,6 +147,28 @@ class AscentVerificationCaptureCard extends StatelessWidget {
                 label: const Text('Tornar-ho a intentar'),
               ),
             ] else ...[
+              if (!hasLocation) ...[
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed: onStartVerificationTap,
+                    icon: const Icon(Icons.my_location_rounded),
+                    label: const Text('Iniciar verificació'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Primer es demanarà accés a la ubicació. Després podràs seleccionar el cim proper i fer la foto.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF667085),
+                  ),
+                ),
+              ],
               if (photoBytes != null) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(20),
@@ -168,23 +192,10 @@ class AscentVerificationCaptureCard extends StatelessWidget {
                     color: Color(0xFF18B56A),
                   ),
                 ),
-              if (position != null) ...[
+              if (position != null && capturedAt != null) ...[
                 const SizedBox(height: 12),
                 Text(
-                  'Lat: ${position!.latitude.toStringAsFixed(6)} · Lng: ${position!.longitude.toStringAsFixed(6)} · Precisió: ${position!.accuracy.toStringAsFixed(0)} m',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    height: 1.35,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF667085),
-                  ),
-                ),
-              ],
-              if (capturedAt != null) ...[
-                const SizedBox(height: 6),
-                Text(
-                  'Capturat: ${capturedAt!.day.toString().padLeft(2, '0')}/${capturedAt!.month.toString().padLeft(2, '0')}/${capturedAt!.year} · ${capturedAt!.hour.toString().padLeft(2, '0')}:${capturedAt!.minute.toString().padLeft(2, '0')}',
+                  'Precisió aprox.: ${position!.accuracy.toStringAsFixed(0)} m - Data: ${capturedAt!.day.toString().padLeft(2, '0')}/${capturedAt!.month.toString().padLeft(2, '0')}/${capturedAt!.year} - ${capturedAt!.hour.toString().padLeft(2, '0')}:${capturedAt!.minute.toString().padLeft(2, '0')}',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 12,
@@ -212,9 +223,8 @@ class AscentVerificationCaptureCard extends StatelessWidget {
                   const CircularProgressIndicator()
                 else
                   ...nearbyPeakCandidates.map((candidate) {
-                    final isSelected =
-                        selectedNearbyPeakCandidate?.peak.id ==
-                            candidate.peak.id;
+                    final isSelected = selectedNearbyPeakCandidate?.peak.id ==
+                        candidate.peak.id;
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),

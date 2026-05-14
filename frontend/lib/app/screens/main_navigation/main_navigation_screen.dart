@@ -85,7 +85,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               tabsRouter.setActiveIndex(tab.index);
             },
             onVerificationTap: () {
-              context.router.root.push(const AscentVerificationRoute());
+              context.router.root.push(
+                AscentVerificationRoute(autoStart: true),
+              );
             },
           ),
         );
