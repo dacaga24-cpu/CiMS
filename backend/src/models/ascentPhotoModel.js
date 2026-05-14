@@ -6,23 +6,32 @@ const pool = require('../config/db');
 const AscentPhotoModel = {
 
   // Insereix diverses fotos vinculades a una mateixa ascensió.
-  // S'utilitza quan l'usuari registra una ascensió amb imatges ja pujades
-  // prèviament al sistema d'emmagatzematge.
+  // També permet marcar una imatge com a evidència principal de verificació.
   async createMany(ascentId, photos, connection) {
     if (!Array.isArray(photos) || photos.length === 0) {
       return [];
     }
 
     const executor = connection || pool;
-    const placeholders = photos.map(() => '(?, ?, ?)').join(', ');
+    const placeholders = photos.map(() => '(?, ?, ?, ?)').join(', ');
     const params = [];
 
     for (const photo of photos) {
-      params.push(ascentId, photo.storagePath, photo.isPrimary ? 1 : 0);
+      params.push(
+        ascentId,
+        photo.storagePath,
+        photo.isPrimary ? 1 : 0,
+        photo.isVerificationEvidence ? 1 : 0
+      );
     }
 
     const sql = `
-      INSERT INTO ascent_photos (ascent_id, storage_path, is_primary)
+      INSERT INTO ascent_photos (
+        ascent_id,
+        storage_path,
+        is_primary,
+        is_verification_evidence
+      )
       VALUES ${placeholders}
     `;
 
@@ -32,7 +41,7 @@ const AscentPhotoModel = {
     const lastId = firstId + photos.length - 1;
 
     const [rows] = await executor.execute(
-      `SELECT id, ascent_id, storage_path, is_primary, created_at
+      `SELECT id, ascent_id, storage_path, is_primary, is_verification_evidence, created_at
        FROM ascent_photos
        WHERE id BETWEEN ? AND ?
        ORDER BY id ASC`,
@@ -47,7 +56,7 @@ const AscentPhotoModel = {
   // per evitar l'accés a imatges d'altres comptes.
   async findAllByAscentIdAndUserId(ascentId, userId) {
     const sql = `
-      SELECT ap.id, ap.ascent_id, ap.storage_path, ap.is_primary, ap.created_at
+      SELECT ap.id, ap.ascent_id, ap.storage_path, ap.is_primary, ap.is_verification_evidence, ap.created_at
       FROM ascent_photos ap
       INNER JOIN ascents a ON a.id = ap.ascent_id
       WHERE ap.ascent_id = ? AND a.user_id = ?
@@ -62,7 +71,7 @@ const AscentPhotoModel = {
   // Serveix per validar la propietat abans de permetre operacions destructives.
   async findByIdAndUserId(photoId, userId) {
     const sql = `
-      SELECT ap.id, ap.ascent_id, ap.storage_path, ap.is_primary, ap.created_at
+      SELECT ap.id, ap.ascent_id, ap.storage_path, ap.is_primary, ap.is_verification_evidence, ap.created_at
       FROM ascent_photos ap
       INNER JOIN ascents a ON a.id = ap.ascent_id
       WHERE ap.id = ? AND a.user_id = ?
@@ -83,7 +92,7 @@ const AscentPhotoModel = {
 
     const placeholders = ascentIds.map(() => '?').join(', ');
     const sql = `
-      SELECT id, ascent_id, storage_path, is_primary, created_at
+      SELECT id, ascent_id, storage_path, is_primary, is_verification_evidence, created_at
       FROM ascent_photos
       WHERE ascent_id IN (${placeholders}) AND is_primary = 1
     `;
@@ -119,6 +128,7 @@ const AscentPhotoModel = {
         a.ascent_date,
         ap.storage_path,
         ap.is_primary,
+        ap.is_verification_evidence,
         ap.created_at
       FROM ascent_photos ap
       INNER JOIN ascents a ON a.id = ap.ascent_id
@@ -153,6 +163,7 @@ const AscentPhotoModel = {
         a.ascent_date,
         ap.storage_path,
         ap.is_primary,
+        ap.is_verification_evidence,
         ap.created_at
       FROM ascent_photos ap
       INNER JOIN ascents a ON a.id = ap.ascent_id

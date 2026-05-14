@@ -1,7 +1,10 @@
 const AscentModel = require('../models/ascentModel');
 const AscentPhotoModel = require('../models/ascentPhotoModel');
+const PeakModel = require('../models/peakModel');
+const AscentVerificationModel = require('../models/ascentVerificationModel');
 const StorageService = require('./storageService');
 const { buildUserPathPattern } = require('./storageService');
+const AscentVerificationService = require('./ascentVerificationService');
 const pool = require('../config/db');
 
 // Aquest servei manté coherent l'estat personal dels cims.
@@ -58,6 +61,7 @@ function ensureValidPhotosPayload(userId, photos) {
 
   const pathPattern = buildUserPathPattern(userId, 'ascents');
   let primaryCount = 0;
+  let verificationEvidenceCount = 0;
   const normalized = [];
 
   for (const photo of photos) {
@@ -65,21 +69,27 @@ function ensureValidPhotosPayload(userId, photos) {
       throw badRequest('Invalid photos: each entry must be an object');
     }
 
-    const { storagePath, isPrimary } = photo;
+    const { storagePath, isPrimary, isVerificationEvidence } = photo;
 
     if (typeof storagePath !== 'string' || !pathPattern.test(storagePath)) {
       throw badRequest('Invalid photos: storagePath has an unexpected shape or does not belong to the user namespace');
     }
 
     const isPrimaryBool = Boolean(isPrimary);
+    const isVerificationEvidenceBool = Boolean(isVerificationEvidence);
 
     if (isPrimaryBool) {
       primaryCount += 1;
     }
 
+    if (isVerificationEvidenceBool) {
+      verificationEvidenceCount += 1;
+    }
+
     normalized.push({
       storagePath,
       isPrimary: isPrimaryBool,
+      isVerificationEvidence: isVerificationEvidenceBool,
     });
   }
 
@@ -87,7 +97,38 @@ function ensureValidPhotosPayload(userId, photos) {
     throw badRequest('Invalid photos: at most one photo can be marked as primary');
   }
 
+  if (verificationEvidenceCount > 1) {
+    throw badRequest('Invalid photos: at most one photo can be marked as verification evidence');
+  }
+
   return normalized;
+}
+
+// Aquesta funció prepara les fotos d'una ascensió verificada.
+// Garanteix que hi hagi una imatge principal marcada com a evidència de verificació.
+function ensureVerificationPhotosPayload(userId, photos) {
+  const normalized = ensureValidPhotosPayload(userId, photos);
+
+  if (normalized.length === 0) {
+    throw badRequest('Invalid photos: a verification photo is required');
+  }
+
+  const evidenceIndex = normalized.findIndex(
+    (photo) => photo.isVerificationEvidence
+  );
+
+  const primaryIndex = normalized.findIndex((photo) => photo.isPrimary);
+  const selectedIndex = evidenceIndex !== -1
+    ? evidenceIndex
+    : primaryIndex !== -1
+      ? primaryIndex
+      : 0;
+
+  return normalized.map((photo, index) => ({
+    ...photo,
+    isPrimary: index === selectedIndex,
+    isVerificationEvidence: index === selectedIndex,
+  }));
 }
 
 // Aquesta funció comprova que les fotos declarades existeixen realment al bucket.
@@ -250,6 +291,7 @@ const AscentService = {
           ascentId: photo.ascent_id,
           storagePath: photo.storage_path,
           isPrimary: photo.is_primary === 1,
+          isVerificationEvidence: photo.is_verification_evidence === 1,
           downloadUrl,
           createdAt: photo.created_at,
         };
@@ -319,6 +361,112 @@ const AscentService = {
     return {
       ...createdAscent,
       photos: createdPhotos,
+    };
+  },
+
+  // Crea una ascensió verificada amb la ubicació capturada pel dispositiu.
+  // La data queda bloquejada perquè prové del moment real de captura de l'evidència.
+  async createVerifiedFromDeviceLocation(
+    userId,
+    {
+      peakId,
+      notes,
+      photos,
+      capturedLatitude,
+      capturedLongitude,
+      capturedAccuracyMeters,
+      capturedAt,
+    } = {}
+  ) {
+    const parsedPeakId = requireInteger(peakId, 'peakId');
+    const validatedNotes = ensureValidNotes(notes);
+    const validatedPhotos = ensureVerificationPhotosPayload(userId, photos);
+
+    await ensurePhotosExistInBucket(validatedPhotos);
+
+    const peak = await PeakModel.findById(parsedPeakId);
+
+    const verification = AscentVerificationService.evaluateVerification({
+      method: 'device_location',
+      peak,
+      capturedLatitude,
+      capturedLongitude,
+      capturedAccuracyMeters,
+      capturedAt,
+    });
+
+    if (verification.status === 'rejected') {
+      throw badRequest(`Verification rejected: ${verification.reason}`);
+    }
+
+    const ascentDate = verification.capturedAt.toISOString().slice(0, 10);
+
+    const connection = await pool.getConnection();
+    let createdAscent;
+    let createdPhotos = [];
+    let createdVerification;
+
+    try {
+      await connection.beginTransaction();
+
+      createdAscent = await AscentModel.create({
+        userId,
+        peakId: parsedPeakId,
+        ascentDate,
+        notes: validatedNotes ?? null,
+        isDateLocked: 1,
+      }, connection);
+
+      createdPhotos = await AscentPhotoModel.createMany(
+        createdAscent.id,
+        validatedPhotos,
+        connection
+      );
+
+      createdVerification = await AscentVerificationModel.create({
+        ascentId: createdAscent.id,
+        method: verification.method,
+        status: verification.status,
+        capturedLatitude: verification.capturedLatitude,
+        capturedLongitude: verification.capturedLongitude,
+        capturedAccuracyMeters: verification.capturedAccuracyMeters,
+        capturedAt: verification.capturedAt,
+        distanceToPeakMeters: verification.distanceToPeakMeters,
+        checkedAt: verification.checkedAt,
+        reason: verification.reason,
+      }, connection);
+
+      await connection.commit();
+    } catch (err) {
+      try {
+        await connection.rollback();
+      } catch (rollbackErr) {
+        console.error('[ascents] rollback failed after verified transaction error:', rollbackErr);
+      }
+
+      throw err;
+    } finally {
+      connection.release();
+    }
+
+    if (verification.status === 'verified') {
+      await safeSideEffect(
+        'peakStatus.upsert',
+        PeakStatusService.upsertPeakStatus(userId, parsedPeakId, {
+          isCompleted: true,
+        })
+      );
+
+      await safeSideEffect(
+        'monthlyChallenge.recompute',
+        MonthlyChallengeService.recomputeForUser(userId, ascentDate)
+      );
+    }
+
+    return {
+      ...createdAscent,
+      photos: createdPhotos,
+      verification: createdVerification,
     };
   },
 
