@@ -1,9 +1,9 @@
+import 'package:cims/app/widgets/ascent_verified_badge.dart';
 import 'package:cims/core/entity/ascent.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget representa les ascensions del cim en format de línia temporal.
 // Ajuda a visualitzar l’historial personal mantenint només els registres amb data.
-// Les ascensions sense data completen el cim, però no apareixen a la cronologia.
 class AscentHistoryTimeline extends StatelessWidget {
   const AscentHistoryTimeline({
     super.key,
@@ -11,15 +11,11 @@ class AscentHistoryTimeline extends StatelessWidget {
     required this.onAscentTap,
   });
 
-  // Aquesta llista conté les ascensions del cim ordenades pel backend.
   final List<Ascent> ascents;
-
-  // Aquesta acció permet obrir el detall o edició d’una ascensió concreta.
   final ValueChanged<Ascent> onAscentTap;
 
   // Aquest mètode construeix la línia vertical i els punts associats a cada ascensió.
-  // Abans de pintar-la, filtra els registres sense data perquè no formen part
-  // de la cronologia visual.
+  // Els registres sense data es mostren en una secció separada de l’historial.
   @override
   Widget build(BuildContext context) {
     final datedAscents = ascents
@@ -41,6 +37,7 @@ class AscentHistoryTimeline extends StatelessWidget {
 }
 
 // Aquest widget representa una ascensió individual dins de la línia temporal.
+// Mostra la data, les notes i l’etiqueta de verificació quan l’ascensió ha estat validada.
 class _TimelineItem extends StatelessWidget {
   const _TimelineItem({
     required this.ascent,
@@ -49,14 +46,11 @@ class _TimelineItem extends StatelessWidget {
     required this.onTap,
   });
 
-  // Aquest bloc rep la dada de l’ascensió i la seva posició dins de la llista.
-  // La posició permet ajustar el color del punt principal i l’espai inferior.
   final Ascent ascent;
   final bool isFirst;
   final bool isLast;
   final VoidCallback onTap;
 
-  // Aquest mètode construeix el punt de la línia temporal i el text associat.
   @override
   Widget build(BuildContext context) {
     final ascentDate = ascent.ascentDate;
@@ -106,7 +100,7 @@ class _TimelineItem extends StatelessWidget {
                         width: 6,
                         height: 6,
                         decoration: const BoxDecoration(
-                          color: Color.fromARGB(255, 255, 255, 255),
+                          color: Colors.white,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -117,9 +111,6 @@ class _TimelineItem extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-
-          // Aquest bloc fa que cada ascensió sigui interactiva.
-          // Permet obrir una pantalla posterior per consultar o editar el registre.
           Expanded(
             child: Material(
               color: Colors.transparent,
@@ -167,6 +158,13 @@ class _TimelineItem extends StatelessWidget {
                           ),
                         ],
                       ),
+                      if (ascent.isVerified) ...[
+                        const SizedBox(height: 7),
+                        const AscentVerifiedBadge(
+                          label: 'Verificada',
+                          compact: true,
+                        ),
+                      ],
                       const SizedBox(height: 5),
                       Text(
                         ascent.hasNotes
@@ -192,7 +190,6 @@ class _TimelineItem extends StatelessWidget {
     );
   }
 
-  // Aquest mètode transforma la data en el format curt del disseny.
   String _formatDate(DateTime date) {
     const months = [
       'gen',

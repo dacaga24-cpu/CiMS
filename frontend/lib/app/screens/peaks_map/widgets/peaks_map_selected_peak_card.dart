@@ -1,12 +1,12 @@
+import 'package:cims/app/widgets/ascent_verified_badge.dart';
 import 'package:cims/app/widgets/buttons/primary_gradient_button.dart';
 import 'package:cims/app/widgets/peaks/peak_circular_thumbnail.dart';
 import 'package:cims/core/entity/peak.dart';
 import 'package:cims/core/entity/peak_status.dart';
 import 'package:flutter/material.dart';
 
-// Aquesta targeta mostra el cim seleccionat dins del mateix mapa.
-// Manté el context de la selecció, mostra l’estat personal del cim
-// i ofereix un accés directe al detall.
+// Aquesta targeta mostra el cim seleccionat dins del mapa.
+// Manté visible la informació principal, l’estat del cim i les accions ràpides.
 class PeaksMapSelectedPeakCard extends StatelessWidget {
   const PeaksMapSelectedPeakCard({
     super.key,
@@ -17,16 +17,12 @@ class PeaksMapSelectedPeakCard extends StatelessWidget {
     this.onFavoriteTap,
   });
 
-  // Aquest bloc rep el cim seleccionat, el seu estat personal opcional
-  // i les accions disponibles des de la targeta ràpida del mapa.
   final Peak peak;
   final VoidCallback onDetailTap;
   final PeakStatus? status;
   final VoidCallback? onTargetTap;
   final VoidCallback? onFavoriteTap;
 
-  // Construeix una targeta compacta amb imatge, informació principal,
-  // estat completat i accions manuals d’objectiu i preferit.
   @override
   Widget build(BuildContext context) {
     final regionsText = peak.formattedRegions.isEmpty
@@ -62,28 +58,15 @@ class PeaksMapSelectedPeakCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Aquest bloc situa el nom del cim i el segell de completat
-                    // a la mateixa alçada per donar una lectura ràpida de l’estat.
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            peak.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF17212B),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        _CompletedMiniSeal(
-                          isCompleted: currentStatus.isCompleted,
-                        ),
-                      ],
+                    Text(
+                      peak.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF17212B),
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -96,6 +79,20 @@ class PeaksMapSelectedPeakCard extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                         color: Color(0xFF5B6573),
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _CompletedMiniSeal(
+                          isCompleted: currentStatus.isCompleted,
+                        ),
+                        if (currentStatus.hasVerifiedAscent)
+                          const AscentVerifiedBadge(
+                            compact: true,
+                          ),
+                      ],
                     ),
                   ],
                 ),
@@ -144,7 +141,7 @@ class PeaksMapSelectedPeakCard extends StatelessWidget {
 }
 
 // Aquest segell indica si el cim està completat.
-// No és interactiu perquè el completat deriva de les ascensions registrades.
+// Es mostra sempre perquè ajuda a entendre ràpidament l’estat del cim seleccionat.
 class _CompletedMiniSeal extends StatelessWidget {
   const _CompletedMiniSeal({
     required this.isCompleted,
@@ -172,7 +169,7 @@ class _CompletedMiniSeal extends StatelessWidget {
         children: [
           Icon(
             isCompleted
-                ? Icons.verified_rounded
+                ? Icons.check_circle_rounded
                 : Icons.radio_button_unchecked_rounded,
             size: 14,
             color: color,
@@ -193,7 +190,7 @@ class _CompletedMiniSeal extends StatelessWidget {
 }
 
 // Aquest botó representa una acció manual ràpida dins del mapa.
-// Només s’utilitza per objectiu i preferit.
+// Només s’utilitza per marcar el cim com a objectiu o preferit.
 class _MapStatusButton extends StatelessWidget {
   const _MapStatusButton({
     required this.label,

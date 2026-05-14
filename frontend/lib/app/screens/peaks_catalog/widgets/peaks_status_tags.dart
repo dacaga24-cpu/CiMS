@@ -1,21 +1,16 @@
 import 'package:cims/core/entity/peak_status.dart';
 import 'package:flutter/material.dart';
 
-// Aquest widget mostra els indicadors visuals dels estats personals d’un cim.
-// Només mostra els estats actius per evitar carregar visualment el catàleg
-// amb etiquetes innecessàries.
+// Aquest widget mostra les etiquetes d’estat d’un cim.
+// Permet veure ràpidament si està completat, verificat, marcat com a objectiu o preferit.
 class PeakStatusTags extends StatelessWidget {
   const PeakStatusTags({
     super.key,
     required this.status,
   });
 
-  // Aquesta propietat rep l’estat personal del cim.
-  // Si no hi ha cap estat actiu, el widget no mostra cap etiqueta.
   final PeakStatus? status;
 
-  // Aquest mètode construeix el conjunt d’etiquetes visibles segons l’estat del cim.
-  // Permet identificar ràpidament si el cim està completat, marcat com a objectiu o preferit.
   @override
   Widget build(BuildContext context) {
     final currentStatus = status;
@@ -34,6 +29,12 @@ class PeakStatusTags extends StatelessWidget {
             icon: Icons.check_circle_rounded,
             color: Color(0xFF18B56A),
           ),
+        if (currentStatus.hasVerifiedAscent)
+          const _PeakStatusTag(
+            label: 'Verificat',
+            icon: Icons.location_on_rounded,
+            color: Color(0xFF7C3AED),
+          ),
         if (currentStatus.isTarget)
           const _PeakStatusTag(
             label: 'Objectiu',
@@ -51,8 +52,8 @@ class PeakStatusTags extends StatelessWidget {
   }
 }
 
-// Aquest widget intern representa una etiqueta individual.
-// Combina icona, text i color per fer l’estat fàcil d’identificar.
+// Aquesta etiqueta representa un estat concret del cim.
+// Combina color, icona i text per mantenir una lectura visual clara al catàleg.
 class _PeakStatusTag extends StatelessWidget {
   const _PeakStatusTag({
     required this.label,
@@ -60,14 +61,10 @@ class _PeakStatusTag extends StatelessWidget {
     required this.color,
   });
 
-  // Aquestes propietats defineixen el contingut visual de cada etiqueta
-  // segons el tipus d’estat que representa.
   final String label;
   final IconData icon;
   final Color color;
 
-  // Aquest mètode construeix una etiqueta compacta d’estat.
-  // Es fa servir dins de les targetes del catàleg per resumir informació sense ocupar massa espai.
   @override
   Widget build(BuildContext context) {
     return Container(
