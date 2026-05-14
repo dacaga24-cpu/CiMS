@@ -14,8 +14,6 @@ class AscentHistoryTimeline extends StatelessWidget {
   final List<Ascent> ascents;
   final ValueChanged<Ascent> onAscentTap;
 
-  // Aquest mètode construeix la línia vertical i els punts associats a cada ascensió.
-  // Els registres sense data es mostren en una secció separada de l’historial.
   @override
   Widget build(BuildContext context) {
     final datedAscents = ascents
@@ -36,8 +34,8 @@ class AscentHistoryTimeline extends StatelessWidget {
   }
 }
 
-// Aquest widget representa una ascensió individual dins de la línia temporal.
-// Mostra la data, les notes i l’etiqueta de verificació quan l’ascensió ha estat validada.
+// Aquest widget representa una ascensió dins la línia temporal.
+// Mostra la data, la foto principal, les notes i l’estat de verificació.
 class _TimelineItem extends StatelessWidget {
   const _TimelineItem({
     required this.ascent,
@@ -54,6 +52,8 @@ class _TimelineItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ascentDate = ascent.ascentDate;
+    final primaryPhoto = ascent.primaryPhoto;
+    final photoUrl = primaryPhoto?.downloadUrl;
 
     if (ascentDate == null) {
       return const SizedBox.shrink();
@@ -165,7 +165,15 @@ class _TimelineItem extends StatelessWidget {
                           compact: true,
                         ),
                       ],
-                      const SizedBox(height: 5),
+                      if (photoUrl != null) ...[
+                        const SizedBox(height: 10),
+                        _AscentPhotoPreview(
+                          photoUrl: photoUrl,
+                          isEvidence:
+                              primaryPhoto?.isVerificationEvidence ?? false,
+                        ),
+                      ],
+                      const SizedBox(height: 8),
                       Text(
                         ascent.hasNotes
                             ? ascent.notes!
@@ -211,5 +219,87 @@ class _TimelineItem extends StatelessWidget {
     final year = date.year.toString();
 
     return '$day $month $year';
+  }
+}
+
+// Aquest widget mostra una vista prèvia de la foto principal de l’ascensió.
+// Si la imatge és l’evidència de verificació, ho indica amb una etiqueta visual.
+class _AscentPhotoPreview extends StatelessWidget {
+  const _AscentPhotoPreview({
+    required this.photoUrl,
+    required this.isEvidence,
+  });
+
+  final String photoUrl;
+  final bool isEvidence;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.network(
+              photoUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: const Color(0xFFF2F4F7),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.broken_image_rounded,
+                    color: Color(0xFF98A2B3),
+                  ),
+                );
+              },
+            ),
+            if (isEvidence)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF7C3AED),
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x33000000),
+                        blurRadius: 8,
+                        offset: Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.location_on_rounded,
+                        size: 13,
+                        color: Colors.white,
+                      ),
+                      SizedBox(width: 5),
+                      Text(
+                        'Evidència',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }

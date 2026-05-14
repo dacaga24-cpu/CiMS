@@ -30,7 +30,7 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
 
         if (data == null) {
           throw const ApiException(
-            'La resposta del registre d’ascensió no és vàlida',
+            'La resposta del registre d\'ascensió no és vàlida',
             statusCode: 201,
           );
         }
@@ -119,18 +119,21 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
   }
 
   // Actualitza una ascensió existent.
-  // Només envia les dades editables del formulari i manté el registre original.
+  // Pot ometre la data quan el registre prové d’una verificació i la data està bloquejada.
   @override
   Future<Ascent> updateAscent({
     required int ascentId,
     required DateTime? ascentDate,
+    bool includeAscentDate = true,
     String? notes,
   }) async {
     try {
       final response = await _putJson(
         ApiEndpoints.ascentById(ascentId),
         body: {
-          'ascentDate': ascentDate == null ? null : _formatDateOnly(ascentDate),
+          if (includeAscentDate)
+            'ascentDate':
+                ascentDate == null ? null : _formatDateOnly(ascentDate),
           'notes': notes,
         },
         requiresAuth: true,

@@ -3,21 +3,24 @@ import 'dart:math';
 import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/nearby_peak_candidate.dart';
 
-// Aquest cas d’ús calcula quins cims són més propers a una ubicació capturada.
-// Es farà servir després de fer la foto i obtenir la posició del dispositiu.
+// Aquest cas d’ús calcula quins cims són realment propers a una ubicació capturada.
+// Només retorna candidats dins d’un radi raonable perquè la verificació sigui coherent.
 class FindNearbyPeaksUseCase {
   const FindNearbyPeaksUseCase(this._apiClient);
 
   final ApiClient _apiClient;
 
   static const double _earthRadiusMeters = 6371000;
+  static const double _defaultMaxDistanceMeters = 500;
 
   // Aquest mètode carrega els cims amb coordenades i retorna els més propers.
-  // La pantalla podrà mostrar-los perquè l’usuari seleccioni quin cim vol verificar.
+  // Si només hi ha un cim dins del radi, només es mostra aquell; si n’hi ha més,
+  // es retornen com a màxim els candidats més propers.
   Future<List<NearbyPeakCandidate>> call({
     required double latitude,
     required double longitude,
     int limit = 3,
+    double maxDistanceMeters = _defaultMaxDistanceMeters,
   }) async {
     final peaks = await _apiClient.getMapPeaks();
 
@@ -34,6 +37,7 @@ class FindNearbyPeaksUseCase {
             ),
           ),
         )
+        .where((candidate) => candidate.distanceMeters <= maxDistanceMeters)
         .toList()
       ..sort(
         (a, b) => a.distanceMeters.compareTo(b.distanceMeters),
@@ -43,7 +47,7 @@ class FindNearbyPeaksUseCase {
   }
 
   // Aquest mètode calcula la distància aproximada entre dues coordenades.
-  // Permet ordenar els cims segons la proximitat a la ubicació capturada.
+  // Permet ordenar i filtrar els cims segons la proximitat real a l’usuari.
   double _calculateDistanceMeters(
     double lat1,
     double lon1,

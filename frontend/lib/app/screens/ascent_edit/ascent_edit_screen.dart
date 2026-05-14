@@ -76,9 +76,11 @@ class _AscentEditScreenState extends State<AscentEditScreen> {
   }
 
   // Aquest mètode obre el selector de calendari i actualitza la data local del formulari.
-  // Si l’ascensió no té data, el calendari s’obre situat al dia actual.
+  // Si la data prové d’una verificació, no permet modificar-la.
   Future<void> _selectAscentDate() async {
-    if (controller.isLoading || controller.isDeletingAscent) {
+    if (controller.isLoading ||
+        controller.isDeletingAscent ||
+        controller.isDateLocked) {
       return;
     }
 

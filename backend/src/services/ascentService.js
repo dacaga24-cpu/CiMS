@@ -249,8 +249,12 @@ async function attachPrimaryPhotoToAscents(ascents) {
     ascent.primaryPhoto = primary
       ? {
           id: primary.id,
+          ascentId: primary.ascent_id,
           storagePath: primary.storage_path,
+          isPrimary: primary.is_primary === 1,
+          isVerificationEvidence: primary.is_verification_evidence === 1,
           downloadUrl: signedUrlByPath.get(primary.storage_path),
+          createdAt: primary.created_at,
         }
       : null;
 

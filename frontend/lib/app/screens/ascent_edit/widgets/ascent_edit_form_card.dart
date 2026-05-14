@@ -39,6 +39,7 @@ class AscentEditFormCard extends StatelessWidget {
           _DateSelectorField(
             value: controller.formattedAscentDate,
             hasValue: controller.hasSelectedAscentDate,
+            isLocked: controller.isDateLocked,
             onTap: onDateTap,
             onClearTap: controller.onClearAscentDateTap,
           ),
@@ -86,75 +87,104 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// Aquest camp mostra la data seleccionada o permet deixar-la buida.
-// Això manté coherent l’edició amb els registres d’ascensió sense data.
+// Aquest camp mostra la data seleccionada de l’ascensió.
+// Si la data prové d’una verificació, queda bloquejada perquè representa el moment real de captura.
 class _DateSelectorField extends StatelessWidget {
   const _DateSelectorField({
     required this.value,
     required this.hasValue,
+    required this.isLocked,
     required this.onTap,
     required this.onClearTap,
   });
 
   final String value;
   final bool hasValue;
+  final bool isLocked;
   final VoidCallback onTap;
   final VoidCallback onClearTap;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFFF5F5F5),
-      borderRadius: BorderRadius.circular(28),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(28),
-        onTap: onTap,
-        child: Container(
-          height: 56,
-          padding: const EdgeInsets.only(
-            left: 18,
-            right: 8,
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.calendar_today_outlined,
-                size: 20,
-                color: Color(0xFF98A2B3),
+    final foregroundColor = isLocked
+        ? const Color(0xFF667085)
+        : hasValue
+            ? const Color(0xFF344054)
+            : const Color(0xFF98A2B3);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Material(
+          color: isLocked
+              ? const Color(0xFFEDEFF3)
+              : const Color(0xFFF5F5F5),
+          borderRadius: BorderRadius.circular(28),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(28),
+            onTap: isLocked ? null : onTap,
+            child: Container(
+              height: 56,
+              padding: const EdgeInsets.only(
+                left: 18,
+                right: 8,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: hasValue
-                        ? const Color(0xFF344054)
-                        : const Color(0xFF98A2B3),
+              child: Row(
+                children: [
+                  Icon(
+                    isLocked
+                        ? Icons.lock_rounded
+                        : Icons.calendar_today_outlined,
+                    size: 20,
+                    color: foregroundColor,
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: foregroundColor,
+                      ),
+                    ),
+                  ),
+                  if (hasValue && !isLocked)
+                    IconButton(
+                      onPressed: onClearTap,
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: Color(0xFF98A2B3),
+                      ),
+                    )
+                  else
+                    Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: Icon(
+                        isLocked
+                            ? Icons.verified_rounded
+                            : Icons.expand_more_rounded,
+                        color: foregroundColor,
+                      ),
+                    ),
+                ],
               ),
-              if (hasValue)
-                IconButton(
-                  onPressed: onClearTap,
-                  icon: const Icon(
-                    Icons.close_rounded,
-                    color: Color(0xFF98A2B3),
-                  ),
-                )
-              else
-                const Padding(
-                  padding: EdgeInsets.only(right: 10),
-                  child: Icon(
-                    Icons.expand_more_rounded,
-                    color: Color(0xFF98A2B3),
-                  ),
-                ),
-            ],
+            ),
           ),
         ),
-      ),
+        if (isLocked) ...[
+          const SizedBox(height: 8),
+          const Text(
+            'Data bloquejada per verificació geolocalitzada.',
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF667085),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -302,7 +332,9 @@ class _AscentEditPhotosSection extends StatelessWidget {
           photo: photo,
           isDeleting: deletingPhotoId == photo.id,
           onTap: () => onPhotoTap(photo),
-          onDeleteTap: () => onDeletePhotoTap(photo),
+          onDeleteTap: photo.isVerificationEvidence
+              ? null
+              : () => onDeletePhotoTap(photo),
         );
       }).toList(),
     );
@@ -310,7 +342,7 @@ class _AscentEditPhotosSection extends StatelessWidget {
 }
 
 // Aquesta miniatura representa una foto existent de l’ascensió.
-// Permet obrir-la en gran o eliminar-la sense ocupar massa espai dins del formulari.
+// Permet obrir-la en gran, eliminar-la i identificar si forma part de la verificació.
 class _AscentEditPhotoCard extends StatelessWidget {
   const _AscentEditPhotoCard({
     required this.photo,
@@ -322,7 +354,7 @@ class _AscentEditPhotoCard extends StatelessWidget {
   final AscentPhoto photo;
   final bool isDeleting;
   final VoidCallback onTap;
-  final VoidCallback onDeleteTap;
+  final VoidCallback? onDeleteTap;
 
   @override
   Widget build(BuildContext context) {
@@ -357,6 +389,40 @@ class _AscentEditPhotoCard extends StatelessWidget {
                       ),
               ),
             ),
+            if (photo.isVerificationEvidence)
+              Positioned(
+                left: 5,
+                top: 5,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xCC7C3AED),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.location_on_rounded,
+                        size: 10,
+                        color: Colors.white,
+                      ),
+                      SizedBox(width: 3),
+                      Text(
+                        'Evidència',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             Positioned(
               top: 5,
               right: 5,
@@ -379,8 +445,10 @@ class _AscentEditPhotoCard extends StatelessWidget {
                                 color: Colors.white,
                               ),
                             )
-                          : const Icon(
-                              Icons.close_rounded,
+                          : Icon(
+                              photo.isVerificationEvidence
+                                  ? Icons.lock_rounded
+                                  : Icons.close_rounded,
                               size: 18,
                               color: Colors.white,
                             ),

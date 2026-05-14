@@ -87,6 +87,7 @@ const AscentPhotoService = {
           ascentDate: photo.ascent_date,
           storagePath: photo.storage_path,
           isPrimary: photo.is_primary === 1,
+          isVerificationEvidence: photo.is_verification_evidence === 1,
           downloadUrl,
           createdAt: photo.created_at,
         };
@@ -103,8 +104,7 @@ const AscentPhotoService = {
   },
 
   // Elimina una foto d'una ascensió de l'usuari autenticat.
-  // Primer comprova que la foto sigui pròpia, després elimina el registre
-  // de base de dades i finalment intenta netejar el fitxer del bucket.
+  // La foto d’evidència no es pot eliminar sola perquè forma part de la prova de verificació.
   async deletePhoto(userId, photoId) {
     const parsedPhotoId = requireInteger(photoId, 'photoId');
 
@@ -117,6 +117,12 @@ const AscentPhotoService = {
       const error = new Error('Ascent photo not found');
       error.statusCode = 404;
       throw error;
+    }
+
+    if (photo.is_verification_evidence === 1) {
+      throw badRequest(
+        'Verification evidence photo cannot be deleted individually'
+      );
     }
 
     const affectedRows = await AscentPhotoModel.deleteByIdAndUserId(

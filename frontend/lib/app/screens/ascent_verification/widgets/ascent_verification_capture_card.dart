@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 // Aquesta targeta mostra el resultat del flux de verificació ràpida.
-// Inclou la foto capturada, la ubicació del dispositiu i els cims propers
-// perquè l’usuari pugui escollir quin cim vol verificar.
+// Inclou la ubicació capturada, els cims propers, la foto feta des de l’app
+// i les accions per crear l’ascensió verificada.
 class AscentVerificationCaptureCard extends StatelessWidget {
   const AscentVerificationCaptureCard({
     super.key,
@@ -23,6 +23,7 @@ class AscentVerificationCaptureCard extends StatelessWidget {
     required this.selectedNearbyPeakCandidate,
     required this.isLoadingNearbyPeaks,
     required this.onNearbyPeakTap,
+    required this.onCapturePhotoTap,
   });
 
   final bool isLoading;
@@ -38,9 +39,11 @@ class AscentVerificationCaptureCard extends StatelessWidget {
   final NearbyPeakCandidate? selectedNearbyPeakCandidate;
   final bool isLoadingNearbyPeaks;
   final ValueChanged<NearbyPeakCandidate> onNearbyPeakTap;
+  final VoidCallback onCapturePhotoTap;
 
   @override
   Widget build(BuildContext context) {
+    final hasLocation = position != null;
     final hasEvidence = position != null && photoBytes != null;
 
     return SingleChildScrollView(
@@ -75,7 +78,11 @@ class AscentVerificationCaptureCard extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Text(
-              hasEvidence ? 'Evidència capturada' : 'Preparant verificació',
+              hasEvidence
+                  ? 'Evidència capturada'
+                  : hasLocation
+                      ? 'Selecciona el cim'
+                      : 'Preparant verificació',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 22,
@@ -164,7 +171,7 @@ class AscentVerificationCaptureCard extends StatelessWidget {
                   ),
                 ),
               ],
-              if (hasEvidence) ...[
+              if (hasLocation) ...[
                 const SizedBox(height: 22),
                 Align(
                   alignment: Alignment.centerLeft,
@@ -240,26 +247,41 @@ class AscentVerificationCaptureCard extends StatelessWidget {
                       ),
                     );
                   }),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton.icon(
-                    onPressed: onCreateVerifiedAscentTap,
-                    icon: const Icon(Icons.verified_rounded),
-                    label: const Text('Crear ascensió verificada'),
+                if (!hasEvidence) ...[
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      onPressed: selectedNearbyPeakCandidate == null
+                          ? null
+                          : onCapturePhotoTap,
+                      icon: const Icon(Icons.photo_camera_rounded),
+                      label: const Text('Fer foto de verificació'),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: OutlinedButton.icon(
-                    onPressed: onCompleteLaterTap,
-                    icon: const Icon(Icons.schedule_rounded),
-                    label: const Text('Completar més tard'),
+                ] else ...[
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      onPressed: onCreateVerifiedAscentTap,
+                      icon: const Icon(Icons.verified_rounded),
+                      label: const Text('Crear ascensió verificada'),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: onCompleteLaterTap,
+                      icon: const Icon(Icons.schedule_rounded),
+                      label: const Text('Completar més tard'),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 TextButton.icon(
                   onPressed: onRetryTap,
