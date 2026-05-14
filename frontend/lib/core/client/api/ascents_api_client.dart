@@ -18,6 +18,18 @@ abstract class AscentsApiClient {
     List<AscentUploadPhoto> photos = const [],
   });
 
+  // Aquest mètode crea una ascensió verificada amb una foto feta des de l’app
+  // i la ubicació capturada pel dispositiu en el moment de la verificació.
+  Future<Ascent> createVerifiedAscent({
+    required int peakId,
+    String? notes,
+    required List<AscentUploadPhoto> photos,
+    required double capturedLatitude,
+    required double capturedLongitude,
+    required double capturedAccuracyMeters,
+    required DateTime capturedAt,
+  });
+
   // Aquest mètode actualitza una ascensió existent.
   // Permet modificar la data i les notes, i també deixar la data buida
   // quan l’usuari no vol conservar cap dia concret.

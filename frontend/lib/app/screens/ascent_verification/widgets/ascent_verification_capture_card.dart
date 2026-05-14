@@ -1,10 +1,12 @@
 import 'dart:typed_data';
 
+import 'package:cims/core/entity/nearby_peak_candidate.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
-// Aquesta targeta informa l’usuari del resultat de la verificació ràpida.
-// Mostra la ubicació capturada i la foto feta des de l’app abans d’enviar-les al backend.
+// Aquesta targeta mostra el resultat del flux de verificació ràpida.
+// Inclou la foto capturada, la ubicació del dispositiu i els cims propers
+// perquè l’usuari pugui escollir quin cim vol verificar.
 class AscentVerificationCaptureCard extends StatelessWidget {
   const AscentVerificationCaptureCard({
     super.key,
@@ -17,6 +19,10 @@ class AscentVerificationCaptureCard extends StatelessWidget {
     required this.onCreateVerifiedAscentTap,
     required this.onCompleteLaterTap,
     required this.onRetryTap,
+    required this.nearbyPeakCandidates,
+    required this.selectedNearbyPeakCandidate,
+    required this.isLoadingNearbyPeaks,
+    required this.onNearbyPeakTap,
   });
 
   final bool isLoading;
@@ -28,6 +34,10 @@ class AscentVerificationCaptureCard extends StatelessWidget {
   final VoidCallback onCreateVerifiedAscentTap;
   final VoidCallback onCompleteLaterTap;
   final VoidCallback onRetryTap;
+  final List<NearbyPeakCandidate> nearbyPeakCandidates;
+  final NearbyPeakCandidate? selectedNearbyPeakCandidate;
+  final bool isLoadingNearbyPeaks;
+  final ValueChanged<NearbyPeakCandidate> onNearbyPeakTap;
 
   @override
   Widget build(BuildContext context) {
@@ -156,6 +166,81 @@ class AscentVerificationCaptureCard extends StatelessWidget {
               ],
               if (hasEvidence) ...[
                 const SizedBox(height: 22),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Cim a verificar',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF344054),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (isLoadingNearbyPeaks)
+                  const CircularProgressIndicator()
+                else
+                  ...nearbyPeakCandidates.map((candidate) {
+                    final isSelected =
+                        selectedNearbyPeakCandidate?.peak.id ==
+                            candidate.peak.id;
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () => onNearbyPeakTap(candidate),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFFEAF1FF)
+                                : const Color(0xFFF8F9FB),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isSelected
+                                  ? const Color(0xFF0B57D0)
+                                  : const Color(0xFFE4E7EC),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isSelected
+                                    ? Icons.radio_button_checked_rounded
+                                    : Icons.radio_button_off_rounded,
+                                color: isSelected
+                                    ? const Color(0xFF0B57D0)
+                                    : const Color(0xFF98A2B3),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  candidate.peak.name,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF344054),
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '${candidate.distanceMeters.toStringAsFixed(0)} m',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF667085),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
                   height: 52,
