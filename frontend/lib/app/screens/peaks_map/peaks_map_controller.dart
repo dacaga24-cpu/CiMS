@@ -148,11 +148,26 @@ class PeaksMapController extends ChangeNotifier {
   }
 
   // Inicialitza les dades necessàries per mostrar el mapa.
-  // Primer carrega les regions i els estats personals, i després obté els cims visibles.
+  // Regions, estats personals i cims es demanen alhora perquè són crides
+  // independents. Així el mapa arriba abans i la pantalla queda llesta més
+  // ràpid. Cada Future captura els seus errors internament; el .catchError
+  // d’aquí és una xarxa de seguretat perquè un error inesperat en una crida
+  // no aborti Future.wait i descarti els resultats de les altres dues.
   Future<void> initialize() async {
-    await _loadRegions();
-    await _loadUserPeakStatuses();
-    await _loadPeaks();
+    await Future.wait([
+      _loadRegions().catchError((error, stack) {
+        debugPrint('[PeaksMapController] initialize/_loadRegions '
+            'escaped: $error\n$stack');
+      }),
+      _loadUserPeakStatuses().catchError((error, stack) {
+        debugPrint('[PeaksMapController] initialize/_loadUserPeakStatuses '
+            'escaped: $error\n$stack');
+      }),
+      _loadPeaks().catchError((error, stack) {
+        debugPrint('[PeaksMapController] initialize/_loadPeaks '
+            'escaped: $error\n$stack');
+      }),
+    ]);
   }
 
   // Carrega les regions disponibles per als filtres del mapa.
@@ -167,11 +182,17 @@ class PeaksMapController extends ChangeNotifier {
 
       availableRegions = loadedRegions;
       notifyListeners();
-    } catch (_) {
+    } catch (error, stack) {
       if (_disposed) {
         return;
       }
 
+      // Es loga el tipus i la traça perquè un canvi de contracte del backend
+      // (camps renombrats, format invàlid) no quedi enterrat com a llista buida.
+      debugPrint(
+        '[PeaksMapController] _loadRegions failed '
+        '(${error.runtimeType}): $error\n$stack',
+      );
       availableRegions = const [];
       notifyListeners();
     }
@@ -189,11 +210,15 @@ class PeaksMapController extends ChangeNotifier {
       }
 
       _peakStatusStore.setAll(statuses);
-    } catch (_) {
+    } catch (error, stack) {
       if (_disposed) {
         return;
       }
 
+      debugPrint(
+        '[PeaksMapController] _loadUserPeakStatuses failed '
+        '(${error.runtimeType}): $error\n$stack',
+      );
       _peakStatusStore.clear();
     }
   }

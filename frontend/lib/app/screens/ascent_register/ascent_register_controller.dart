@@ -19,8 +19,11 @@ const int _maxNotesLength = 2000;
 
 // Aquesta configuració redueix el pes de les fotos abans de pujar-les.
 // Es manté una mida suficient per veure la imatge amb qualitat dins de l’aplicació.
-const int _maxPhotoWidth = 1920;
-const int _maxPhotoHeight = 1920;
+// FlutterImageCompress interpreta minWidth/minHeight com a dimensions mínimes
+// del costat resultant, no màximes. Aquests valors limiten les fotos a una
+// caixa de 1920 px mantenint l’evidència visible amb un pes molt inferior.
+const int _minPhotoWidth = 1920;
+const int _minPhotoHeight = 1920;
 const int _photoJpegQuality = 82;
 const int _maxAscentPhotos = 8;
 const String _photoMimeType = 'image/jpeg';
@@ -238,8 +241,8 @@ class AscentRegisterController extends ChangeNotifier {
 
         final compressedBytes = await FlutterImageCompress.compressWithList(
           originalBytes,
-          minWidth: _maxPhotoWidth,
-          minHeight: _maxPhotoHeight,
+          minWidth: _minPhotoWidth,
+          minHeight: _minPhotoHeight,
           quality: _photoJpegQuality,
           format: CompressFormat.jpeg,
         );

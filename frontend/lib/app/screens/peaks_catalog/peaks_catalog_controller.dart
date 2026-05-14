@@ -147,12 +147,27 @@ class PeaksCatalogController extends ChangeNotifier {
   }
 
   // Aquest mètode carrega les dades inicials del catàleg.
-  // Primer recupera les comarques i els estats personals, i després
-  // carrega la primera pàgina de cims que es mostrarà a la pantalla.
+  // Les comarques, els estats personals i la primera pàgina de cims són
+  // independents entre elles, així que s’executen en paral·lel per reduir
+  // el temps d’espera total a la latència de la crida més lenta. Cada Future
+  // captura els seus errors internament; el .catchError d’aquí és una xarxa
+  // de seguretat extra perquè un error inesperat en una crida no aborti
+  // Future.wait i descarti els resultats de les altres dues.
   Future<void> initialize() async {
-    await _loadRegions();
-    await _loadUserPeakStatuses();
-    await _loadPeaks();
+    await Future.wait([
+      _loadRegions().catchError((error, stack) {
+        debugPrint('[PeaksCatalogController] initialize/_loadRegions '
+            'escaped: $error\n$stack');
+      }),
+      _loadUserPeakStatuses().catchError((error, stack) {
+        debugPrint('[PeaksCatalogController] initialize/_loadUserPeakStatuses '
+            'escaped: $error\n$stack');
+      }),
+      _loadPeaks().catchError((error, stack) {
+        debugPrint('[PeaksCatalogController] initialize/_loadPeaks '
+            'escaped: $error\n$stack');
+      }),
+    ]);
   }
 
   // Aquest mètode carrega la llista de comarques disponibles
@@ -167,11 +182,17 @@ class PeaksCatalogController extends ChangeNotifier {
 
       availableRegions = loadedRegions;
       notifyListeners();
-    } catch (_) {
+    } catch (error, stack) {
       if (_disposed) {
         return;
       }
 
+      // Es loga el tipus i la traça perquè un canvi de contracte del backend
+      // (camps renombrats, format invàlid) no quedi enterrat com a llista buida.
+      debugPrint(
+        '[PeaksCatalogController] _loadRegions failed '
+        '(${error.runtimeType}): $error\n$stack',
+      );
       availableRegions = const [];
       notifyListeners();
     }
@@ -189,11 +210,15 @@ class PeaksCatalogController extends ChangeNotifier {
       }
 
       _peakStatusStore.setAll(statuses);
-    } catch (_) {
+    } catch (error, stack) {
       if (_disposed) {
         return;
       }
 
+      debugPrint(
+        '[PeaksCatalogController] _loadUserPeakStatuses failed '
+        '(${error.runtimeType}): $error\n$stack',
+      );
       _peakStatusStore.clear();
     }
   }

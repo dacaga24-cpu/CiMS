@@ -138,6 +138,14 @@ class PeakDetailController extends ChangeNotifier {
   // que falla tard pot pisar el resultat correcte d'un fetch posterior.
   int _weatherLoadId = 0;
 
+  // Aquest comptador identifica cada càrrega de la pantalla del cim.
+  // Quan _loadPeak es torna a executar (reintent, pull-to-refresh) o el
+  // controller es destrueix, els unawaited de status i d’ascensions que
+  // encara estaven en vol comparen el seu id amb aquest valor i descarten
+  // el resultat si ja no és vigent. Així evitem actualitzar el store o
+  // assignar errors d’una càrrega antiga sobre una de nova.
+  int _peakLoadId = 0;
+
   // Aquest bloc manté l'estat del panell horari que es desplega quan
   // l'usuari toca una píldora del carrusel diari. Es modela com un
   // diccionari per data perquè diferents dies tinguin cache, estat de
@@ -230,11 +238,15 @@ class PeakDetailController extends ChangeNotifier {
 
   // Aquest mètode recupera les ascensions personals de l’usuari sobre aquest cim.
   // La data més recent es guarda per mostrar-la a la capçalera del detall.
-  Future<void> refreshLastAscentDate() async {
+  // El loadId opcional permet descartar resultats d’una càrrega anterior quan
+  // se n’ha disparat una de nova (p.ex. un reintent mentre aquesta encara hi és).
+  Future<void> refreshLastAscentDate({int? loadId}) async {
+    final requestId = loadId ?? _peakLoadId;
+
     try {
       final ascents = await _getAscentsByPeakUseCase(peakId);
 
-      if (_disposed) {
+      if (_disposed || requestId != _peakLoadId) {
         return;
       }
 
@@ -242,23 +254,31 @@ class PeakDetailController extends ChangeNotifier {
       ascentsErrorMessage = null;
       notifyListeners();
     } on ApiException catch (error) {
-      if (_disposed) {
+      if (_disposed || requestId != _peakLoadId) {
         return;
       }
 
       ascentsErrorMessage = error.message;
-    } catch (_) {
-      if (_disposed) {
+      notifyListeners();
+    } catch (error, stack) {
+      if (_disposed || requestId != _peakLoadId) {
         return;
       }
 
+      debugPrint(
+        '[PeakDetailController] refreshLastAscentDate failed '
+        '(${error.runtimeType}): $error\n$stack',
+      );
       ascentsErrorMessage = 'No s\'han pogut carregar les ascensions del cim';
+      notifyListeners();
     }
   }
 
   // Aquest bloc centralitza la càrrega real del cim, del seu estat personal
   // i de l’última ascensió registrada per l’usuari.
   Future<void> _loadPeak() async {
+    final requestId = ++_peakLoadId;
+
     isLoading = true;
     errorMessage = null;
     statusErrorMessage = null;
@@ -268,41 +288,43 @@ class PeakDetailController extends ChangeNotifier {
       notifyListeners();
     }
 
-    // La previsió meteorològica es dispara en paral·lel a la càrrega del
-    // cim perquè només depèn del peakId, que ja tenim. Així la card del
-    // clima pot començar a omplir-se mentre encara estem demanant les
-    // dades bàsiques del cim, i una fallada de Google no bloqueja la
-    // resta del detall. El Future no s'espera aquí: _loadWeather manté
-    // el seu propi estat (isWeatherLoading, weatherErrorMessage) i avisa
-    // els listeners quan acaba.
+    // La previsió meteorològica, l’estat personal del cim i l’última ascensió
+    // depenen només del peakId que ja tenim, així que es disparen ABANS del
+    // await principal per solapar les latències i que la pantalla s’ompli per
+    // parts. Cada Future manté el seu propi estat d’error (weatherErrorMessage,
+    // statusErrorMessage, ascentsErrorMessage) i el seu propi notifyListeners,
+    // sense tocar errorMessage global: una fallada en aquests no bloqueja la
+    // informació essencial del cim. El requestId es propaga perquè un resultat
+    // tardà d’aquesta càrrega no pisi una càrrega posterior si l’usuari ha
+    // reintentat o ja s’ha sortit de la pantalla.
     unawaited(_loadWeather());
+    unawaited(_refreshPeakStatusFromBackend(loadId: requestId));
+    unawaited(refreshLastAscentDate(loadId: requestId));
 
     try {
       final loadedPeak = await _getPeakByIdUseCase.execute(peakId);
 
-      if (_disposed) {
+      if (_disposed || requestId != _peakLoadId) {
         return;
       }
 
       peak = loadedPeak;
-      await _refreshPeakStatusFromBackend();
-      await refreshLastAscentDate();
     } on ApiException catch (error) {
-      if (_disposed) {
+      if (_disposed || requestId != _peakLoadId) {
         return;
       }
 
       peak = null;
       errorMessage = error.message;
     } catch (_) {
-      if (_disposed) {
+      if (_disposed || requestId != _peakLoadId) {
         return;
       }
 
       peak = null;
       errorMessage = 'No s\'ha pogut carregar el detall del cim';
     } finally {
-      if (!_disposed) {
+      if (!_disposed && requestId == _peakLoadId) {
         isLoading = false;
         notifyListeners();
       }
@@ -474,20 +496,39 @@ class PeakDetailController extends ChangeNotifier {
   // Aquest mètode demana al backend l'estat personal del cim i el bolca al
   // store. Si la petició falla, no es trenca la pantalla: es deixa el que ja
   // hi havia al store i es guarda un missatge d'error específic d'estat.
-  Future<void> _refreshPeakStatusFromBackend() async {
+  // El loadId permet descartar resultats d’una càrrega anterior quan se n’ha
+  // disparat una de nova, evitant escriure el store amb dades obsoletes.
+  Future<void> _refreshPeakStatusFromBackend({int? loadId}) async {
+    final requestId = loadId ?? _peakLoadId;
+
     try {
       final loadedStatus = await _getPeakStatusUseCase.execute(peakId);
-      statusErrorMessage = null;
 
-      if (_disposed) {
+      if (_disposed || requestId != _peakLoadId) {
         return;
       }
 
+      statusErrorMessage = null;
       _peakStatusStore.setStatus(loadedStatus);
+      notifyListeners();
     } on ApiException catch (error) {
+      if (_disposed || requestId != _peakLoadId) {
+        return;
+      }
+
       statusErrorMessage = error.message;
-    } catch (_) {
+      notifyListeners();
+    } catch (error, stack) {
+      if (_disposed || requestId != _peakLoadId) {
+        return;
+      }
+
+      debugPrint(
+        '[PeakDetailController] _refreshPeakStatusFromBackend failed '
+        '(${error.runtimeType}): $error\n$stack',
+      );
       statusErrorMessage = 'No s\'ha pogut carregar l\'estat del cim';
+      notifyListeners();
     }
   }
 
