@@ -446,7 +446,13 @@ const AscentService = {
       throw badRequest(`Verification rejected: ${verification.reason}`);
     }
 
-    const ascentDate = verification.capturedAt.toISOString().slice(0, 10);
+    // La data oficial de l'ascensió la posa el servidor amb el seu rellotge
+    // (sincronitzat per NTP a Cloud Run) en lloc d'utilitzar verification.capturedAt,
+    // que prové del rellotge del dispositiu. Així evitem que un rellotge desfasat
+    // del client (NTP fluix, hora manual) acabi assignant l'ascensió a un dia
+    // incorrecte i descalibri estadístiques o el repte mensual. El capturedAt
+    // del client es conserva a ascent_verifications.captured_at com a auditoria.
+    const ascentDate = new Date().toISOString().slice(0, 10);
 
     const connection = await pool.getConnection();
     let createdAscent;

@@ -48,8 +48,14 @@ function requireAccuracyMeters(value) {
   return parsed;
 }
 
-// Aquest mètode valida la data i hora de captura de l’evidència.
-// Aquesta data serà la base de l’ascensió verificada i no pot ser futura.
+// Aquest mètode valida que el capturedAt rebut sigui parseable. El valor el
+// genera el rellotge del dispositiu i serveix com a metadada d'auditoria a
+// ascent_verifications.captured_at. No fem cap comprovació de "no futur"
+// perquè els rellotges dels mòbils poden anar desfasats (NTP fluix, hora
+// manual, canvis de zona horària) i això no aporta cap garantia real: la
+// ubicació i la precisió del GPS són les dades que validen la verificació,
+// no la hora. La data efectiva de l'ascensió (ascents.ascent_date) la
+// deriva el servei a partir del seu propi rellotge.
 function requireCapturedAt(value) {
   if (value === undefined || value === null || value === '') {
     throw badRequest('Missing required field: capturedAt');
@@ -59,10 +65,6 @@ function requireCapturedAt(value) {
 
   if (Number.isNaN(parsed.getTime())) {
     throw badRequest('Invalid capturedAt: must be a valid date');
-  }
-
-  if (parsed.getTime() > Date.now()) {
-    throw badRequest('Invalid capturedAt: cannot be in the future');
   }
 
   return parsed;

@@ -647,14 +647,6 @@ class AscentVerificationController extends ChangeNotifier {
       );
     }
 
-    if (lower.contains('cannot be in the future')) {
-      return const _SubmitErrorTranslation(
-        AscentVerificationErrorKind.submitRejected,
-        'L\'hora del dispositiu és incorrecta. Revisa el rellotge del '
-            'mòbil i torna-ho a provar.',
-      );
-    }
-
     if (lower.contains('trigat massa') || lower.contains('timeout')) {
       return const _SubmitErrorTranslation(
         AscentVerificationErrorKind.submitNetwork,
