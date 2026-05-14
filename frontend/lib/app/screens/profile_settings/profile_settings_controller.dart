@@ -25,8 +25,11 @@ enum ProfileSettingsDestination {
 // el canvi de contrasenya, la foto de perfil i el tancament de sessió.
 // La pantalla només consumeix aquest estat i resol la part visual.
 class ProfileSettingsController extends ChangeNotifier {
-  static const int _profilePhotoMaxWidth = 768;
-  static const int _profilePhotoMaxHeight = 768;
+  // FlutterImageCompress interpreta minWidth/minHeight com a dimensions mínimes
+  // del costat resultant. La foto de perfil es limita a una caixa de 768 px
+  // perquè sigui prou nítida als avatars i carregui ràpid.
+  static const int _profilePhotoMinWidth = 768;
+  static const int _profilePhotoMinHeight = 768;
   static const int _profilePhotoJpegQuality = 82;
   static const String _profilePhotoMimeType = 'image/jpeg';
 
@@ -290,8 +293,8 @@ class ProfileSettingsController extends ChangeNotifier {
 
       final compressedBytes = await FlutterImageCompress.compressWithList(
         originalBytes,
-        minWidth: _profilePhotoMaxWidth,
-        minHeight: _profilePhotoMaxHeight,
+        minWidth: _profilePhotoMinWidth,
+        minHeight: _profilePhotoMinHeight,
         quality: _profilePhotoJpegQuality,
         format: CompressFormat.jpeg,
       );

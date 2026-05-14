@@ -67,7 +67,7 @@ abstract class _ApiClientBase {
           headers: await _buildHeaders(requiresAuth: requiresAuth),
           body: jsonEncode(body),
         )
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 20));
 
     await _handleUnauthorizedIfNeeded(
       response,
@@ -90,7 +90,7 @@ abstract class _ApiClientBase {
           headers: await _buildHeaders(requiresAuth: requiresAuth),
           body: jsonEncode(body),
         )
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 20));
 
     await _handleUnauthorizedIfNeeded(
       response,
@@ -118,7 +118,7 @@ abstract class _ApiClientBase {
           uri,
           headers: await _buildHeaders(requiresAuth: requiresAuth),
         )
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 20));
 
     await _handleUnauthorizedIfNeeded(
       response,
@@ -217,7 +217,7 @@ abstract class _ApiClientBase {
           headers: await _buildHeaders(requiresAuth: requiresAuth),
           body: body == null ? null : jsonEncode(body),
         )
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 20));
 
     await _handleUnauthorizedIfNeeded(
       response,

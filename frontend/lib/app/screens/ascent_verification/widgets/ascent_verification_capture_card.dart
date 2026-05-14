@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:cims/app/screens/ascent_verification/ascent_verification_controller.dart';
 import 'package:cims/core/entity/nearby_peak_candidate.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -14,7 +13,8 @@ class AscentVerificationCaptureCard extends StatelessWidget {
     required this.isLoading,
     required this.message,
     required this.errorMessage,
-    required this.errorKind,
+    required this.needsLocationSettings,
+    required this.needsAppSettings,
     required this.position,
     required this.capturedAt,
     required this.photoBytes,
@@ -33,7 +33,11 @@ class AscentVerificationCaptureCard extends StatelessWidget {
   final bool isLoading;
   final String? message;
   final String? errorMessage;
-  final AscentVerificationErrorKind errorKind;
+  // Aquests dos booleans els decideix el controller perquè la decisió
+  // "què cal oferir a l’usuari" (obrir ajustos del sistema, de l’app, o res a
+  // web) queda en un sol lloc i no es duplica entre controller i widget.
+  final bool needsLocationSettings;
+  final bool needsAppSettings;
   final Position? position;
   final DateTime? capturedAt;
   final Uint8List? photoBytes;
@@ -47,17 +51,6 @@ class AscentVerificationCaptureCard extends StatelessWidget {
   final bool isLoadingNearbyPeaks;
   final ValueChanged<NearbyPeakCandidate> onNearbyPeakTap;
   final VoidCallback onCapturePhotoTap;
-
-  // Aquest getter indica si l’error actual es resol obrint la configuració del sistema
-  // (servei d’ubicació desactivat).
-  bool get _needsLocationSettings =>
-      errorKind == AscentVerificationErrorKind.locationServiceDisabled;
-
-  // Aquest getter indica si l’error actual es resol obrint la configuració de l’app
-  // (permís denegat per sempre o de càmera).
-  bool get _needsAppSettings =>
-      errorKind == AscentVerificationErrorKind.locationPermissionDeniedForever ||
-      errorKind == AscentVerificationErrorKind.cameraPermissionDenied;
 
   @override
   Widget build(BuildContext context) {
@@ -134,13 +127,13 @@ class AscentVerificationCaptureCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 18),
-              if (_needsLocationSettings)
+              if (needsLocationSettings)
                 TextButton.icon(
                   onPressed: onOpenLocationSettingsTap,
                   icon: const Icon(Icons.settings_rounded),
                   label: const Text('Obrir ajustos d\'ubicació'),
                 )
-              else if (_needsAppSettings)
+              else if (needsAppSettings)
                 TextButton.icon(
                   onPressed: onOpenAppSettingsTap,
                   icon: const Icon(Icons.app_settings_alt_rounded),

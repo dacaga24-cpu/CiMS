@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cims/app/client/api/api_client_impl.dart';
+import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/ascent.dart';
 import 'package:cims/core/entity/nearby_peak_candidate.dart';
 import 'package:cims/core/session/app_session.dart';
@@ -10,6 +11,7 @@ import 'package:cims/core/usecase/ascents/create_verified_ascent_usecase.dart';
 import 'package:cims/core/usecase/ascents/upload_ascent_photo_usecase.dart';
 import 'package:cims/core/usecase/peaks/find_nearby_peaks_usecase.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -23,17 +25,25 @@ enum AscentVerificationDestination {
 
 // Aquest enum identifica el tipus d’error que ha aturat el flux de verificació.
 // La pantalla l’utilitza per oferir l’acció correcta (reintentar, obrir ajustos…).
+// Quan no hi ha error actiu, el controller exposa errorKind = null (per això
+// no hi ha cap valor "none" aquí: representem l’absència d’error amb null).
 enum AscentVerificationErrorKind {
-  none,
+  // Errors del flux de captura d’ubicació.
   locationServiceDisabled,
   locationPermissionDenied,
   locationPermissionDeniedForever,
   locationTimeout,
   locationUnknown,
+  // Errors del flux de la càmera.
   cameraPermissionDenied,
   cameraCancelled,
   cameraFailed,
-  submitFailed,
+  // Errors de l’enviament final al backend. Es desglossen perquè la pantalla
+  // pugui oferir l’acció correcta (reintentar, tornar al login, etc.).
+  submitNetwork,
+  submitRejected,
+  submitSessionExpired,
+  submitUnknown,
 }
 
 // Aquesta excepció interna porta el tipus d’error fins al catch del controller
@@ -42,6 +52,16 @@ class _LocationCaptureFailure implements Exception {
   const _LocationCaptureFailure(this.kind);
 
   final AscentVerificationErrorKind kind;
+}
+
+// Parell d’ús intern que retorna _translateSubmitError per propagar alhora
+// el tipus i el missatge ja traduït a català, sense exposar-los com a tuples
+// (els records requeririen Dart 3+ i ara la SDK mínima del projecte és 2.19).
+class _SubmitErrorTranslation {
+  const _SubmitErrorTranslation(this.kind, this.message);
+
+  final AscentVerificationErrorKind kind;
+  final String message;
 }
 
 // Aquest controller gestiona el flux de verificació ràpida.
@@ -70,6 +90,17 @@ class AscentVerificationController extends ChangeNotifier {
   // quan el dispositiu no aconsegueix una posició fiable.
   static const Duration _locationTimeout = Duration(seconds: 20);
 
+  // Aquesta configuració redueix el pes de la foto de verificació abans de pujar-la.
+  // FlutterImageCompress interpreta minWidth/minHeight com a dimensions mínimes
+  // del costat resultant; manté la imatge dins d’una caixa de 1920px sense
+  // ampliar-la si ja és més petita. Els valors coincideixen amb el registre
+  // normal d’ascensions (vegeu AscentRegisterController) i amb el límit de
+  // 8 MB del bucket configurat al backend.
+  static const int _minPhotoWidth = 1920;
+  static const int _minPhotoHeight = 1920;
+  static const int _photoJpegQuality = 82;
+  static const String _photoMimeTypeAfterCompression = 'image/jpeg';
+
   final ImagePicker _imagePicker;
   final FindNearbyPeaksUseCase _findNearbyPeaksUseCase;
   final UploadAscentPhotoUseCase _uploadAscentPhotoUseCase;
@@ -85,7 +116,7 @@ class AscentVerificationController extends ChangeNotifier {
   bool _isLoadingNearbyPeaks = false;
   String? _message;
   String? _errorMessage;
-  AscentVerificationErrorKind _errorKind = AscentVerificationErrorKind.none;
+  AscentVerificationErrorKind? _errorKind;
   Position? _position;
   DateTime? _capturedAt;
   Uint8List? _photoBytes;
@@ -100,7 +131,7 @@ class AscentVerificationController extends ChangeNotifier {
   bool get isLoadingNearbyPeaks => _isLoadingNearbyPeaks;
   String? get message => _message;
   String? get errorMessage => _errorMessage;
-  AscentVerificationErrorKind get errorKind => _errorKind;
+  AscentVerificationErrorKind? get errorKind => _errorKind;
   Position? get position => _position;
   DateTime? get capturedAt => _capturedAt;
   Uint8List? get photoBytes => _photoBytes;
@@ -113,21 +144,43 @@ class AscentVerificationController extends ChangeNotifier {
   bool get hasEvidence => _position != null && _photoBytes != null;
   bool get hasSelectedPeak => _selectedNearbyPeakCandidate != null;
 
-  // Aquest getter indica si l’error actual es resol obrint la configuració del sistema
-  // (servei d’ubicació desactivat). La pantalla l’utilitza per mostrar el botó adient.
+  // Aquest getter indica si l’error actual es resol obrint la configuració del
+  // sistema (servei d’ubicació desactivat). A web no s’ofereix perquè el botó
+  // natiu d’ubicació del sistema no aplica al navegador. La pantalla l’utilitza
+  // per decidir si mostra el botó corresponent.
   bool get errorNeedsLocationSettings =>
+      !kIsWeb &&
       _errorKind == AscentVerificationErrorKind.locationServiceDisabled;
 
-  // Aquest getter indica si l’error actual es resol obrint la configuració de l’app
-  // (permís denegat per sempre o denegat per la càmera).
+  // Aquest getter indica si l’error actual es resol obrint la configuració de
+  // l’app (permís denegat per sempre o denegat per la càmera). A web tampoc
+  // s’ofereix perquè els permisos del navegador es gestionen des de la
+  // mateixa pestanya, no des d’una pantalla d’ajustos de l’aplicació.
   bool get errorNeedsAppSettings =>
-      _errorKind == AscentVerificationErrorKind.locationPermissionDeniedForever ||
-      _errorKind == AscentVerificationErrorKind.cameraPermissionDenied;
+      !kIsWeb &&
+      (_errorKind ==
+              AscentVerificationErrorKind.locationPermissionDeniedForever ||
+          _errorKind == AscentVerificationErrorKind.cameraPermissionDenied);
 
   // Aquest mètode neteja la navegació pendent després que la pantalla l’hagi consumit.
   // Evita repetir la mateixa navegació en futures notificacions del controller.
   void consumeNavigation() {
     _destination = AscentVerificationDestination.none;
+  }
+
+  // Aquest helper garanteix que _errorKind i _errorMessage es mantenen
+  // sempre coherents: tots dos s’actualitzen alhora i no hi ha cap branca
+  // que oblidi cap dels dos camps. Passar kind=null neteja l’error.
+  void _setError({
+    required AscentVerificationErrorKind? kind,
+    required String? message,
+  }) {
+    _errorKind = kind;
+    _errorMessage = message;
+  }
+
+  void _clearError() {
+    _setError(kind: null, message: null);
   }
 
   // Aquest mètode inicia la verificació capturant ubicació i data.
@@ -140,8 +193,7 @@ class AscentVerificationController extends ChangeNotifier {
     _isPreparingCapture = true;
     _isLoadingNearbyPeaks = false;
     _message = 'Capturant la ubicació actual...';
-    _errorMessage = null;
-    _errorKind = AscentVerificationErrorKind.none;
+    _clearError();
     _position = null;
     _capturedAt = null;
     _photoBytes = null;
@@ -176,8 +228,7 @@ class AscentVerificationController extends ChangeNotifier {
   void selectNearbyPeakCandidate(NearbyPeakCandidate candidate) {
     _selectedNearbyPeakCandidate = candidate;
     _message = 'Cim seleccionat: ${candidate.peak.name}.';
-    _errorMessage = null;
-    _errorKind = AscentVerificationErrorKind.none;
+    _clearError();
     _safeNotifyListeners();
   }
 
@@ -217,23 +268,28 @@ class AscentVerificationController extends ChangeNotifier {
     }
 
     if (_position == null || _capturedAt == null) {
-      _errorMessage =
-          'Cal capturar la ubicació abans de fer la foto de verificació.';
-      _errorKind = AscentVerificationErrorKind.locationUnknown;
+      _setError(
+        kind: AscentVerificationErrorKind.locationUnknown,
+        message:
+            'Cal capturar la ubicació abans de fer la foto de verificació.',
+      );
       _safeNotifyListeners();
       return;
     }
 
     if (_selectedNearbyPeakCandidate == null) {
-      _errorMessage = 'Selecciona quin cim vols verificar abans de fer la foto.';
-      _errorKind = AscentVerificationErrorKind.none;
+      // Aquest avís és una pista de validació de formulari, no un estat
+      // d’error del flux: per això no s’associa cap kind concret.
+      _setError(
+        kind: null,
+        message: 'Selecciona quin cim vols verificar abans de fer la foto.',
+      );
       _safeNotifyListeners();
       return;
     }
 
     _isPreparingCapture = true;
-    _errorMessage = null;
-    _errorKind = AscentVerificationErrorKind.none;
+    _clearError();
     _message = 'Obrint la càmera...';
     _safeNotifyListeners();
 
@@ -244,26 +300,63 @@ class AscentVerificationController extends ChangeNotifier {
       );
 
       if (pickedImage == null) {
-        _errorMessage =
-            'No s\'ha fet cap foto de verificació. Torna a obrir la càmera per intentar-ho.';
-        _errorKind = AscentVerificationErrorKind.cameraCancelled;
+        _setError(
+          kind: AscentVerificationErrorKind.cameraCancelled,
+          message:
+              'No s\'ha fet cap foto de verificació. Torna a obrir la càmera per intentar-ho.',
+        );
         return;
       }
 
-      _photoMimeType = pickedImage.mimeType ?? 'image/jpeg';
-      _photoBytes = await pickedImage.readAsBytes();
+      final originalBytes = await pickedImage.readAsBytes();
+
+      // La foto es comprimeix abans de pujar-la perquè les càmeres dels mòbils
+      // generen fitxers de diversos megabytes que poden superar el temps màxim
+      // d’espera en xarxes mòbils. La compressió i la conversió a JPEG mantenen
+      // l’evidència visible amb un pes molt inferior i compatible amb el bucket.
+      final compressedBytes = await FlutterImageCompress.compressWithList(
+        originalBytes,
+        minWidth: _minPhotoWidth,
+        minHeight: _minPhotoHeight,
+        quality: _photoJpegQuality,
+        format: CompressFormat.jpeg,
+      );
+
+      // Si el plugin nadiu no pot processar la imatge (formats poc habituals,
+      // memòria insuficient, errors interns) retorna una llista buida sense
+      // llançar excepció. Si ho deixem passar, intentaríem pujar 0 bytes i
+      // l’error apareixeria molt més tard amb un missatge poc útil.
+      if (compressedBytes.isEmpty) {
+        debugPrint(
+          '[AscentVerificationController] Photo compression returned empty bytes',
+        );
+        _photoBytes = null;
+        _setError(
+          kind: AscentVerificationErrorKind.cameraFailed,
+          message:
+              'No s\'ha pogut processar la foto. Prova a fer-ne una altra.',
+        );
+        return;
+      }
+
+      _photoBytes = compressedBytes;
+      _photoMimeType = _photoMimeTypeAfterCompression;
       _message = 'Foto capturada correctament.';
-    } catch (error) {
-      debugPrint('[AscentVerificationController] Photo error: $error');
+    } catch (error, stack) {
+      debugPrint(
+        '[AscentVerificationController] Photo error (${error.runtimeType}): $error\n$stack',
+      );
       final isPermissionError = error.toString().toLowerCase().contains(
             'permission',
           );
-      _errorKind = isPermissionError
-          ? AscentVerificationErrorKind.cameraPermissionDenied
-          : AscentVerificationErrorKind.cameraFailed;
-      _errorMessage = isPermissionError
-          ? 'No s\'ha pogut accedir a la càmera. Concedeix el permís de càmera des de la configuració de l\'app.'
-          : 'No s\'ha pogut fer la foto de verificació. Torna-ho a provar.';
+      _setError(
+        kind: isPermissionError
+            ? AscentVerificationErrorKind.cameraPermissionDenied
+            : AscentVerificationErrorKind.cameraFailed,
+        message: isPermissionError
+            ? 'No s\'ha pogut accedir a la càmera. Concedeix el permís de càmera des de la configuració de l\'app.'
+            : 'No s\'ha pogut fer la foto de verificació. Torna-ho a provar.',
+      );
     } finally {
       _isPreparingCapture = false;
       _safeNotifyListeners();
@@ -283,23 +376,29 @@ class AscentVerificationController extends ChangeNotifier {
     if (currentPosition == null ||
         currentCapturedAt == null ||
         currentPhotoBytes == null) {
-      _errorMessage =
-          'Cal capturar una foto i la ubicació abans de crear l\'ascensió verificada.';
-      _errorKind = AscentVerificationErrorKind.none;
+      // Aquests dos missatges són pistes de validació de formulari (estat
+      // incomplet abans de submit), no errors d’un flux iniciat. Per això
+      // s’associen sense kind concret.
+      _setError(
+        kind: null,
+        message:
+            'Cal capturar una foto i la ubicació abans de crear l\'ascensió verificada.',
+      );
       _safeNotifyListeners();
       return;
     }
 
     if (selectedCandidate == null) {
-      _errorMessage = 'Selecciona quin cim vols verificar.';
-      _errorKind = AscentVerificationErrorKind.none;
+      _setError(
+        kind: null,
+        message: 'Selecciona quin cim vols verificar.',
+      );
       _safeNotifyListeners();
       return;
     }
 
     _isPreparingCapture = true;
-    _errorMessage = null;
-    _errorKind = AscentVerificationErrorKind.none;
+    _clearError();
     _destination = AscentVerificationDestination.none;
     _message = completeNow
         ? 'Creant l\'ascensió verificada...'
@@ -333,11 +432,26 @@ class AscentVerificationController extends ChangeNotifier {
       _destination = completeNow
           ? AscentVerificationDestination.editAscent
           : AscentVerificationDestination.back;
-    } catch (error) {
-      debugPrint('[AscentVerificationController] Submit error: $error');
-      _errorKind = AscentVerificationErrorKind.submitFailed;
-      _errorMessage =
-          'No s\'ha pogut crear l\'ascensió verificada. Revisa la connexió i torna-ho a provar.';
+    } on ApiException catch (error) {
+      // Loguem el missatge cru del backend per facilitar el diagnòstic, però
+      // a l’usuari li mostrem un text traduït i sense fragments tècnics com
+      // paths del bucket o codis interns (vegeu _humanReadableSubmitError).
+      debugPrint(
+        '[AscentVerificationController] Submit ApiException '
+        '(status=${error.statusCode}): ${error.message}',
+      );
+      final translated = _translateSubmitError(error);
+      _setError(kind: translated.kind, message: translated.message);
+    } catch (error, stack) {
+      debugPrint(
+        '[AscentVerificationController] Submit error '
+        '(${error.runtimeType}): $error\n$stack',
+      );
+      _setError(
+        kind: AscentVerificationErrorKind.submitUnknown,
+        message:
+            'No s\'ha pogut crear l\'ascensió verificada. Revisa la connexió i torna-ho a provar.',
+      );
     } finally {
       _isPreparingCapture = false;
       _safeNotifyListeners();
@@ -375,13 +489,22 @@ class AscentVerificationController extends ChangeNotifier {
           candidates.isNotEmpty ? candidates.first : null;
 
       if (candidates.isEmpty) {
-        _errorMessage = 'No s\'ha trobat cap cim proper per verificar.';
-        _errorKind = AscentVerificationErrorKind.none;
+        // "No hi ha cims propers" és un avís d’estat (no ha fallat cap petició),
+        // per això no es marca cap kind del flux: la UI només mostra el missatge.
+      _setError(
+          kind: null,
+          message: 'No s\'ha trobat cap cim proper per verificar.',
+        );
       }
-    } catch (error) {
-      debugPrint('[AscentVerificationController] Nearby peaks error: $error');
-      _errorMessage = 'No s\'han pogut carregar els cims propers.';
-      _errorKind = AscentVerificationErrorKind.none;
+    } catch (error, stack) {
+      debugPrint(
+        '[AscentVerificationController] Nearby peaks error '
+        '(${error.runtimeType}): $error\n$stack',
+      );
+      _setError(
+        kind: null,
+        message: 'No s\'han pogut carregar els cims propers.',
+      );
     } finally {
       _isLoadingNearbyPeaks = false;
       _safeNotifyListeners();
@@ -432,31 +555,134 @@ class AscentVerificationController extends ChangeNotifier {
   }
 
   // Aquest mètode tradueix el tipus d’error d’ubicació en un missatge clar
-  // i marca el tipus perquè la pantalla mostri l’acció més útil.
+  // i marca el tipus perquè la pantalla mostri l’acció més útil. Els missatges
+  // canvien en web perquè a l’app les opcions de “configuració del sistema”
+  // no apliquen de la mateixa manera que al navegador.
   void _applyLocationFailure(AscentVerificationErrorKind kind) {
-    _errorKind = kind;
+    final String message;
     switch (kind) {
       case AscentVerificationErrorKind.locationServiceDisabled:
-        _errorMessage =
-            'El servei d\'ubicació està desactivat. Activa\'l per verificar el cim.';
+        message = kIsWeb
+            ? 'El navegador no pot obtenir la ubicació. Comprova que tinguis el GPS o WiFi actiu i torna-ho a provar.'
+            : 'El servei d\'ubicació està desactivat. Activa\'l per verificar el cim.';
         break;
       case AscentVerificationErrorKind.locationPermissionDenied:
-        _errorMessage =
+        message =
             'Cal el permís d\'ubicació per verificar el cim. Torna-ho a intentar i concedeix el permís.';
         break;
       case AscentVerificationErrorKind.locationPermissionDeniedForever:
-        _errorMessage =
-            'El permís d\'ubicació està bloquejat. Obre la configuració de l\'app per activar-lo.';
+        message = kIsWeb
+            ? 'El navegador ha bloquejat la ubicació per a aquest lloc. Obre la configuració del lloc al navegador (icona del cadenat a la barra d\'adreces) i permet la ubicació.'
+            : 'El permís d\'ubicació està bloquejat. Obre la configuració de l\'app per activar-lo.';
         break;
       case AscentVerificationErrorKind.locationTimeout:
-        _errorMessage =
+        message =
             'No s\'ha pogut obtenir la ubicació a temps. Comprova la cobertura GPS i torna-ho a provar.';
         break;
       default:
-        _errorMessage =
-            'No s\'ha pogut preparar la verificació. Torna-ho a provar.';
+        message = 'No s\'ha pogut preparar la verificació. Torna-ho a provar.';
         break;
     }
+    _setError(kind: kind, message: message);
+  }
+
+  // Aquest mètode tradueix els errors del backend a un tipus + missatge en
+  // català sense exposar detalls interns (paths del bucket, codis com
+  // DEVICE_LOCATION_*…). El missatge cru es manté als logs per al diagnòstic,
+  // però no arriba a la UI.
+  _SubmitErrorTranslation _translateSubmitError(ApiException error) {
+    final lower = error.message.toLowerCase();
+
+    if (lower.contains('verification rejected')) {
+      if (lower.contains('device_location_too_far_from_peak')) {
+        return const _SubmitErrorTranslation(
+          AscentVerificationErrorKind.submitRejected,
+          'Estàs massa lluny del cim per verificar l\'ascensió. '
+              'Apropa\'t al cim i torna-ho a provar.',
+        );
+      }
+      if (lower.contains('location_accuracy_too_low')) {
+        return const _SubmitErrorTranslation(
+          AscentVerificationErrorKind.submitRejected,
+          'La precisió del GPS és massa baixa. Surt a un espai obert i '
+              'torna-ho a provar.',
+        );
+      }
+      return const _SubmitErrorTranslation(
+        AscentVerificationErrorKind.submitRejected,
+        'No s\'ha pogut verificar l\'ascensió. Comprova la ubicació i la '
+            'distància al cim.',
+      );
+    }
+
+    if (lower.contains('storagepath') ||
+        lower.contains('storage path') ||
+        lower.contains('namespace')) {
+      return const _SubmitErrorTranslation(
+        AscentVerificationErrorKind.submitRejected,
+        'No s\'ha pogut associar la foto a l\'ascensió. Torna a fer-ne '
+            'una i torna-ho a provar.',
+      );
+    }
+
+    if (lower.contains('a verification photo is required')) {
+      return const _SubmitErrorTranslation(
+        AscentVerificationErrorKind.submitRejected,
+        'Cal una foto per verificar el cim.',
+      );
+    }
+
+    if (lower.contains('peak not found')) {
+      return const _SubmitErrorTranslation(
+        AscentVerificationErrorKind.submitRejected,
+        'Aquest cim ja no està disponible. Torna a obrir la verificació.',
+      );
+    }
+
+    if (lower.contains('peak does not have valid coordinates')) {
+      return const _SubmitErrorTranslation(
+        AscentVerificationErrorKind.submitRejected,
+        'Aquest cim no té coordenades vàlides al catàleg, així que no '
+            'es pot verificar amb la ubicació.',
+      );
+    }
+
+    if (lower.contains('cannot be in the future')) {
+      return const _SubmitErrorTranslation(
+        AscentVerificationErrorKind.submitRejected,
+        'L\'hora del dispositiu és incorrecta. Revisa el rellotge del '
+            'mòbil i torna-ho a provar.',
+      );
+    }
+
+    if (lower.contains('trigat massa') || lower.contains('timeout')) {
+      return const _SubmitErrorTranslation(
+        AscentVerificationErrorKind.submitNetwork,
+        'La pujada ha trigat massa. Comprova la cobertura i torna-ho '
+            'a provar.',
+      );
+    }
+
+    if (error.statusCode == 401) {
+      return const _SubmitErrorTranslation(
+        AscentVerificationErrorKind.submitSessionExpired,
+        'La sessió ha caducat. Torna a entrar per verificar el cim.',
+      );
+    }
+
+    if (error.statusCode != null && error.statusCode! >= 500) {
+      return const _SubmitErrorTranslation(
+        AscentVerificationErrorKind.submitNetwork,
+        'El servidor no respon ara mateix. Torna-ho a provar d\'aquí '
+            'a una estona.',
+      );
+    }
+
+    return const _SubmitErrorTranslation(
+      AscentVerificationErrorKind.submitUnknown,
+      'No s\'ha pogut crear l\'ascensió verificada. Revisa la connexió '
+          'i torna-ho a provar.',
+    );
   }
 
   // Aquest mètode centralitza la notificació de canvis
