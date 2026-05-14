@@ -9,7 +9,14 @@ import 'package:flutter/material.dart';
 // quan l’usuari ja ha seleccionat quin cim vol verificar.
 @RoutePage()
 class AscentVerificationScreen extends StatefulWidget {
-  const AscentVerificationScreen({super.key});
+  const AscentVerificationScreen({
+    super.key,
+    this.autoStart = false,
+  });
+
+  // Aquest paràmetre permet iniciar la verificació automàticament quan
+  // l’usuari arriba a aquesta pantalla des del botó principal de càmera.
+  final bool autoStart;
 
   @override
   State<AscentVerificationScreen> createState() =>
@@ -26,7 +33,15 @@ class _AscentVerificationScreenState extends State<AscentVerificationScreen> {
     controller = AscentVerificationController()
       ..addListener(_handleControllerNavigation);
 
-    controller.prepareCapture();
+    // La verificació només s’inicia automàticament quan la ruta ho demana.
+    // El post frame evita executar la captura abans que la pantalla estigui muntada.
+    if (widget.autoStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          controller.prepareCapture();
+        }
+      });
+    }
   }
 
   @override
@@ -105,12 +120,12 @@ class _AscentVerificationScreenState extends State<AscentVerificationScreen> {
                   controller.selectedNearbyPeakCandidate,
               isLoadingNearbyPeaks: controller.isLoadingNearbyPeaks,
               onNearbyPeakTap: controller.selectNearbyPeakCandidate,
+              onStartVerificationTap: controller.prepareCapture,
               onCapturePhotoTap: controller.capturePhoto,
               onCreateVerifiedAscentTap: controller.createVerifiedAscent,
               onCompleteLaterTap: controller.completeLater,
               onRetryTap: controller.retryCapture,
-              onOpenLocationSettingsTap:
-                  controller.openLocationSystemSettings,
+              onOpenLocationSettingsTap: controller.openLocationSystemSettings,
               onOpenAppSettingsTap: controller.openAppSystemSettings,
             );
           },
