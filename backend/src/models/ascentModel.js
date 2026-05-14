@@ -2,17 +2,32 @@ const pool = require('../config/db');
 
 // Aquest model centralitza l'accés a les dades de les ascensions registrades pels usuaris.
 // Cada ascensió representa una pujada concreta d'un usuari a un cim, amb data opcional,
-// notes, bloqueig de data i possibles fotos associades.
+// notes, bloqueig de data, verificació i possibles fotos associades.
 const AscentModel = {
 
     // Aquest mètode retorna totes les ascensions d'un usuari.
-    // S'utilitza per construir l'historial personal i mantenir el seguiment de l'activitat.
+    // Inclou l'estat de verificació perquè l'historial pugui diferenciar ascensions manuals i verificades.
     async findAllByUserId(userId) {
         const sql = `
-        SELECT id, user_id, peak_id, ascent_date, notes, is_date_locked, created_at, updated_at
-        FROM ascents
-        WHERE user_id = ?
-        ORDER BY ascent_date DESC, id DESC
+        SELECT
+            a.id,
+            a.user_id,
+            a.peak_id,
+            a.ascent_date,
+            a.notes,
+            a.is_date_locked,
+            a.created_at,
+            a.updated_at,
+            av.id AS verification_id,
+            av.method AS verification_method,
+            av.status AS verification_status,
+            av.distance_to_peak_meters AS verification_distance_to_peak_meters,
+            av.checked_at AS verification_checked_at,
+            av.reason AS verification_reason
+        FROM ascents a
+        LEFT JOIN ascent_verifications av ON av.ascent_id = a.id
+        WHERE a.user_id = ?
+        ORDER BY a.ascent_date DESC, a.id DESC
         `;
 
         const [rows] = await pool.execute(sql, [userId]);
@@ -20,13 +35,28 @@ const AscentModel = {
     },
 
     // Aquest mètode retorna les ascensions d'un usuari sobre un cim concret.
-    // Permet mostrar l'historial personal associat al detall d'un cim.
+    // Permet mostrar l'historial del cim amb la informació de verificació associada.
     async findAllByUserAndPeak(userId, peakId) {
         const sql = `
-        SELECT id, user_id, peak_id, ascent_date, notes, is_date_locked, created_at, updated_at
-        FROM ascents
-        WHERE user_id = ? AND peak_id = ?
-        ORDER BY ascent_date DESC, id DESC
+        SELECT
+            a.id,
+            a.user_id,
+            a.peak_id,
+            a.ascent_date,
+            a.notes,
+            a.is_date_locked,
+            a.created_at,
+            a.updated_at,
+            av.id AS verification_id,
+            av.method AS verification_method,
+            av.status AS verification_status,
+            av.distance_to_peak_meters AS verification_distance_to_peak_meters,
+            av.checked_at AS verification_checked_at,
+            av.reason AS verification_reason
+        FROM ascents a
+        LEFT JOIN ascent_verifications av ON av.ascent_id = a.id
+        WHERE a.user_id = ? AND a.peak_id = ?
+        ORDER BY a.ascent_date DESC, a.id DESC
         `;
 
         const [rows] = await pool.execute(sql, [userId, peakId]);
@@ -34,13 +64,28 @@ const AscentModel = {
     },
 
     // Aquest mètode retorna una ascensió concreta només si pertany a l'usuari indicat.
-    // També accepta una connexió opcional per poder treballar dins d'una transacció.
+    // També inclou la verificació i accepta una connexió opcional per treballar dins d'una transacció.
     async findByIdAndUserId(userId, ascentId, connection) {
         const executor = connection || pool;
         const sql = `
-        SELECT id, user_id, peak_id, ascent_date, notes, is_date_locked, created_at, updated_at
-        FROM ascents
-        WHERE id = ? AND user_id = ?
+        SELECT
+            a.id,
+            a.user_id,
+            a.peak_id,
+            a.ascent_date,
+            a.notes,
+            a.is_date_locked,
+            a.created_at,
+            a.updated_at,
+            av.id AS verification_id,
+            av.method AS verification_method,
+            av.status AS verification_status,
+            av.distance_to_peak_meters AS verification_distance_to_peak_meters,
+            av.checked_at AS verification_checked_at,
+            av.reason AS verification_reason
+        FROM ascents a
+        LEFT JOIN ascent_verifications av ON av.ascent_id = a.id
+        WHERE a.id = ? AND a.user_id = ?
         LIMIT 1
         `;
 
