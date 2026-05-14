@@ -116,6 +116,48 @@ function ensurePeakHasCoordinates(peak) {
 const AscentVerificationService = {
   calculateDistanceMeters,
 
+  // Aquest mètode valida les coordenades capturades contra el cim seleccionat.
+  // Retorna la distància calculada i les dades normalitzades que després es desaran.
+  validateCapturedCoordinatesAgainstPeak({
+    peak,
+    capturedLatitude,
+    capturedLongitude,
+    capturedAccuracyMeters,
+    capturedAt,
+  }) {
+    const peakCoordinates = ensurePeakHasCoordinates(peak);
+
+    const latitude = requireCoordinate(capturedLatitude, 'capturedLatitude', {
+      min: -90,
+      max: 90,
+    });
+
+    const longitude = requireCoordinate(capturedLongitude, 'capturedLongitude', {
+      min: -180,
+      max: 180,
+    });
+
+    const accuracyMeters = requireAccuracyMeters(capturedAccuracyMeters);
+    const captureDate = requireCapturedAt(capturedAt);
+
+    const distanceToPeakMeters = calculateDistanceMeters(
+      latitude,
+      longitude,
+      peakCoordinates.latitude,
+      peakCoordinates.longitude
+    );
+
+    return {
+      capturedLatitude: latitude,
+      capturedLongitude: longitude,
+      capturedAccuracyMeters: accuracyMeters,
+      capturedAt: captureDate,
+      distanceToPeakMeters,
+      maxAllowedDistanceMeters: MAX_DEVICE_LOCATION_DISTANCE_METERS,
+      maxAllowedAccuracyMeters: MAX_DEVICE_LOCATION_ACCURACY_METERS,
+    };
+  },
+
   // Aquest mètode és el punt d’entrada general de la verificació.
   // Permet validar una ascensió sense que el controller conegui els detalls de cada mètode.
   evaluateVerification({
@@ -156,51 +198,43 @@ const AscentVerificationService = {
     capturedAccuracyMeters,
     capturedAt,
   }) {
-    const peakCoordinates = ensurePeakHasCoordinates(peak);
-
-    const latitude = requireCoordinate(capturedLatitude, 'capturedLatitude', {
-      min: -90,
-      max: 90,
+    const validation = this.validateCapturedCoordinatesAgainstPeak({
+      peak,
+      capturedLatitude,
+      capturedLongitude,
+      capturedAccuracyMeters,
+      capturedAt,
     });
 
-    const longitude = requireCoordinate(capturedLongitude, 'capturedLongitude', {
-      min: -180,
-      max: 180,
-    });
-
-    const accuracyMeters = requireAccuracyMeters(capturedAccuracyMeters);
-    const captureDate = requireCapturedAt(capturedAt);
-
-    const distanceToPeakMeters = calculateDistanceMeters(
-      latitude,
-      longitude,
-      peakCoordinates.latitude,
-      peakCoordinates.longitude
-    );
-
-    if (accuracyMeters > MAX_DEVICE_LOCATION_ACCURACY_METERS) {
+    if (
+      validation.capturedAccuracyMeters >
+      validation.maxAllowedAccuracyMeters
+    ) {
       return {
         method: 'device_location',
         status: 'pending',
-        capturedLatitude: latitude,
-        capturedLongitude: longitude,
-        capturedAccuracyMeters: accuracyMeters,
-        capturedAt: captureDate,
-        distanceToPeakMeters,
+        capturedLatitude: validation.capturedLatitude,
+        capturedLongitude: validation.capturedLongitude,
+        capturedAccuracyMeters: validation.capturedAccuracyMeters,
+        capturedAt: validation.capturedAt,
+        distanceToPeakMeters: validation.distanceToPeakMeters,
         checkedAt: new Date(),
         reason: 'LOCATION_ACCURACY_TOO_LOW',
       };
     }
 
-    if (distanceToPeakMeters <= MAX_DEVICE_LOCATION_DISTANCE_METERS) {
+    if (
+      validation.distanceToPeakMeters <=
+      validation.maxAllowedDistanceMeters
+    ) {
       return {
         method: 'device_location',
         status: 'verified',
-        capturedLatitude: latitude,
-        capturedLongitude: longitude,
-        capturedAccuracyMeters: accuracyMeters,
-        capturedAt: captureDate,
-        distanceToPeakMeters,
+        capturedLatitude: validation.capturedLatitude,
+        capturedLongitude: validation.capturedLongitude,
+        capturedAccuracyMeters: validation.capturedAccuracyMeters,
+        capturedAt: validation.capturedAt,
+        distanceToPeakMeters: validation.distanceToPeakMeters,
         checkedAt: new Date(),
         reason: 'DEVICE_LOCATION_WITHIN_ALLOWED_DISTANCE',
       };
@@ -209,11 +243,11 @@ const AscentVerificationService = {
     return {
       method: 'device_location',
       status: 'rejected',
-      capturedLatitude: latitude,
-      capturedLongitude: longitude,
-      capturedAccuracyMeters: accuracyMeters,
-      capturedAt: captureDate,
-      distanceToPeakMeters,
+      capturedLatitude: validation.capturedLatitude,
+      capturedLongitude: validation.capturedLongitude,
+      capturedAccuracyMeters: validation.capturedAccuracyMeters,
+      capturedAt: validation.capturedAt,
+      distanceToPeakMeters: validation.distanceToPeakMeters,
       checkedAt: new Date(),
       reason: 'DEVICE_LOCATION_TOO_FAR_FROM_PEAK',
     };
