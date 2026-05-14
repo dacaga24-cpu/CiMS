@@ -1,12 +1,13 @@
 // Aquesta entitat representa una foto associada a una ascensió.
-// Pot venir com a foto principal dins d’un llistat o com a foto completa
-// quan es consulta el detall d’una ascensió concreta.
+// Pot ser una imatge de record, una foto principal o una evidència
+// utilitzada per validar una ascensió verificada.
 class AscentPhoto {
   const AscentPhoto({
     required this.id,
     this.ascentId,
     required this.storagePath,
     required this.isPrimary,
+    this.isVerificationEvidence = false,
     this.downloadUrl,
     this.createdAt,
   });
@@ -15,6 +16,7 @@ class AscentPhoto {
   final int? ascentId;
   final String storagePath;
   final bool isPrimary;
+  final bool isVerificationEvidence;
   final String? downloadUrl;
   final DateTime? createdAt;
 
@@ -27,6 +29,9 @@ class AscentPhoto {
         'storagePath',
       ),
       isPrimary: _parseBool(json['isPrimary'] ?? json['is_primary']),
+      isVerificationEvidence: _parseBool(
+        json['isVerificationEvidence'] ?? json['is_verification_evidence'],
+      ),
       downloadUrl: _parseNullableString(
         json['downloadUrl'] ?? json['download_url'],
       ),

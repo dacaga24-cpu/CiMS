@@ -1,11 +1,15 @@
-import 'package:cims/core/entity/ascent.dart';
 import 'package:cims/app/client/api/api_client_impl.dart';
 import 'package:cims/core/client/api_client.dart';
-import 'package:cims/core/usecase/ascents/update_ascent_usecase.dart';
+import 'package:cims/core/entity/ascent.dart';
 import 'package:cims/core/entity/ascent_photo.dart';
-import 'package:cims/core/usecase/ascents/get_ascent_photos_usecase.dart';
+import 'package:cims/core/session/app_session.dart';
+import 'package:cims/core/store/peak_status_store.dart';
+import 'package:cims/core/store/user_stats_refresh_store.dart';
 import 'package:cims/core/usecase/ascents/delete_ascent_photo_usecase.dart';
 import 'package:cims/core/usecase/ascents/delete_ascent_usecase.dart';
+import 'package:cims/core/usecase/ascents/get_ascent_photos_usecase.dart';
+import 'package:cims/core/usecase/ascents/update_ascent_usecase.dart';
+import 'package:cims/core/usecase/peaks/get_peak_status_usecase.dart';
 import 'package:flutter/material.dart';
 
 // Aquest límit coincideix amb la validació del backend.
@@ -37,6 +41,9 @@ class AscentEditController extends ChangeNotifier {
     GetAscentPhotosUseCase? getAscentPhotosUseCase,
     DeleteAscentPhotoUseCase? deleteAscentPhotoUseCase,
     DeleteAscentUseCase? deleteAscentUseCase,
+    GetPeakStatusUseCase? getPeakStatusUseCase,
+    PeakStatusStore? peakStatusStore,
+    UserStatsRefreshStore? userStatsRefreshStore,
   })  : _selectedAscentDate = ascent.ascentDate == null
             ? null
             : DateUtils.dateOnly(ascent.ascentDate!),
@@ -48,7 +55,12 @@ class AscentEditController extends ChangeNotifier {
         _deleteAscentPhotoUseCase =
             deleteAscentPhotoUseCase ?? DeleteAscentPhotoUseCase(ApiClientImpl()),
         _deleteAscentUseCase =
-            deleteAscentUseCase ?? DeleteAscentUseCase(ApiClientImpl());
+            deleteAscentUseCase ?? DeleteAscentUseCase(ApiClientImpl()),
+        _getPeakStatusUseCase =
+            getPeakStatusUseCase ?? GetPeakStatusUseCase(ApiClientImpl()),
+        _peakStatusStore = peakStatusStore ?? AppSession.peakStatusStore,
+        _userStatsRefreshStore =
+            userStatsRefreshStore ?? AppSession.userStatsRefreshStore;
 
   // Aquesta ascensió és el registre original que l’usuari vol consultar o editar.
   final Ascent ascent;
@@ -68,6 +80,12 @@ class AscentEditController extends ChangeNotifier {
 
   // Aquest cas d’ús permet eliminar l’ascensió completa.
   final DeleteAscentUseCase _deleteAscentUseCase;
+
+  // Aquestes dependències mantenen sincronitzat l’estat global després dels canvis.
+  // Permeten que catàleg, mapa, dashboard i estadístiques reflecteixin l’edició.
+  final GetPeakStatusUseCase _getPeakStatusUseCase;
+  final PeakStatusStore _peakStatusStore;
+  final UserStatsRefreshStore _userStatsRefreshStore;
 
   // Aquest bloc manté l’estat intern del formulari:
   // data opcional, càrrega, errors, navegació i avisos puntuals.
@@ -93,6 +111,10 @@ class AscentEditController extends ChangeNotifier {
 
   bool get hasSelectedAscentDate => _selectedAscentDate != null;
 
+  // Aquest getter indica si la data està protegida per una verificació.
+  // Quan és així, la pantalla pot mostrar-la com a no editable.
+  bool get isDateLocked => ascent.isDateLocked;
+
   String get formattedAscentDate {
     final selectedDate = _selectedAscentDate;
 
@@ -117,10 +139,12 @@ class AscentEditController extends ChangeNotifier {
     final originalNotes = (ascent.notes ?? '').trim();
     final currentNotes = notesController.text.trim();
 
-    final hasDateChanged = originalDate == null
-        ? _selectedAscentDate != null
-        : _selectedAscentDate == null ||
-            !_selectedAscentDate!.isAtSameMomentAs(originalDate);
+    final hasDateChanged = isDateLocked
+        ? false
+        : originalDate == null
+            ? _selectedAscentDate != null
+            : _selectedAscentDate == null ||
+                !_selectedAscentDate!.isAtSameMomentAs(originalDate);
 
     return hasDateChanged || currentNotes != originalNotes;
   }
@@ -162,8 +186,25 @@ class AscentEditController extends ChangeNotifier {
     return _loadPhotos();
   }
 
+  // Aquest mètode elimina una foto individual si no forma part de la verificació.
+  // La foto d’evidència queda protegida perquè és la prova que valida l’ascensió.
   Future<void> onDeletePhotoTap(int photoId) async {
     if (isLoading || isDeletingAscent || deletingPhotoId != null) {
+      return;
+    }
+
+    final photo = _findPhotoById(photoId);
+
+    if (photo == null) {
+      photosErrorMessage = 'No s\'ha trobat la foto seleccionada';
+      _safeNotifyListeners();
+      return;
+    }
+
+    if (photo.isVerificationEvidence) {
+      photosErrorMessage =
+          'La foto d’evidència no es pot eliminar individualment. Pots eliminar l’ascensió completa si s’ha creat per error.';
+      _safeNotifyListeners();
       return;
     }
 
@@ -199,7 +240,7 @@ class AscentEditController extends ChangeNotifier {
   }
 
   void onAscentDateChanged(DateTime value) {
-    if (isLoading || isDeletingAscent) {
+    if (isLoading || isDeletingAscent || isDateLocked) {
       return;
     }
 
@@ -209,7 +250,7 @@ class AscentEditController extends ChangeNotifier {
   }
 
   void onClearAscentDateTap() {
-    if (isLoading || isDeletingAscent) {
+    if (isLoading || isDeletingAscent || isDateLocked) {
       return;
     }
 
@@ -243,8 +284,13 @@ class AscentEditController extends ChangeNotifier {
       await _updateAscentUseCase(
         ascentId: ascent.id,
         ascentDate: _selectedAscentDate,
+        includeAscentDate: !isDateLocked,
         notes: normalizedNotes,
       );
+
+      if (_disposed) return;
+
+      await _syncAfterAscentChange();
 
       if (_disposed) return;
 
@@ -279,6 +325,10 @@ class AscentEditController extends ChangeNotifier {
 
     try {
       await _deleteAscentUseCase(ascent.id);
+
+      if (_disposed) return;
+
+      await _syncAfterAscentChange();
 
       if (_disposed) return;
 
@@ -321,7 +371,7 @@ class AscentEditController extends ChangeNotifier {
     final selectedDate = _selectedAscentDate;
     final today = DateUtils.dateOnly(DateTime.now());
 
-    if (selectedDate != null && selectedDate.isAfter(today)) {
+    if (!isDateLocked && selectedDate != null && selectedDate.isAfter(today)) {
       errorMessage = 'La data de l\'ascensió no pot ser futura';
       return false;
     }
@@ -333,6 +383,34 @@ class AscentEditController extends ChangeNotifier {
     }
 
     return true;
+  }
+
+  // Aquest mètode refresca l’estat compartit després de modificar o eliminar una ascensió.
+  // Permet que el catàleg, el mapa, el dashboard i les estadístiques reflecteixin el canvi.
+  Future<void> _syncAfterAscentChange() async {
+    try {
+      final updatedStatus = await _getPeakStatusUseCase.execute(ascent.peakId);
+
+      if (_disposed) {
+        return;
+      }
+
+      _peakStatusStore.setStatus(updatedStatus);
+    } catch (error) {
+      debugPrint('[AscentEditController] Peak status refresh error: $error');
+    } finally {
+      _userStatsRefreshStore.notifyStatsChanged();
+    }
+  }
+
+  AscentPhoto? _findPhotoById(int photoId) {
+    for (final photo in photos) {
+      if (photo.id == photoId) {
+        return photo;
+      }
+    }
+
+    return null;
   }
 
   @override

@@ -36,6 +36,7 @@ abstract class AscentsApiClient {
   Future<Ascent> updateAscent({
     required int ascentId,
     required DateTime? ascentDate,
+    bool includeAscentDate = true,
     String? notes,
   });
 
