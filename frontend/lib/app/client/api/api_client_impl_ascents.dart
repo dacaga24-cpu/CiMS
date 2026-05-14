@@ -1,12 +1,10 @@
 part of 'api_client_impl.dart';
 
-// Aquest mixin implementa les peticions relacionades amb les ascensions.
-// Permet registrar i consultar ascensions per a l’usuari autenticat mantenint
-// la comunicació amb el backend separada de la pantalla i del controller.
+// Aquest mixin agrupa les peticions d’ascensions del client API.
+// Manté separada la comunicació amb el backend de les pantalles i controllers.
 mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
-  // Aquest mètode envia al backend les dades d’una nova ascensió.
-  // La data s’envia en format YYYY-MM-DD, que és el format esperat per l’API.
-  // Si l’usuari ha seleccionat fotos, també s’envien les rutes ja pujades a GCS.
+  // Envia al backend una nova ascensió manual.
+  // Pot incloure data, notes i fotos que ja s’han pujat prèviament a GCS.
   @override
   Future<Ascent> createAscent({
     required int peakId,
@@ -60,8 +58,68 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
     }
   }
 
-  // Aquest mètode actualitza una ascensió existent al backend.
-  // Manté el registre original i només modifica les dades editables del formulari.
+  // Envia al backend una ascensió verificada.
+  // Utilitza una foto feta des de l’app i la ubicació capturada pel dispositiu.
+  @override
+  Future<Ascent> createVerifiedAscent({
+    required int peakId,
+    String? notes,
+    required List<AscentUploadPhoto> photos,
+    required double capturedLatitude,
+    required double capturedLongitude,
+    required double capturedAccuracyMeters,
+    required DateTime capturedAt,
+  }) async {
+    try {
+      final response = await _postJson(
+        ApiEndpoints.verifiedAscent,
+        body: {
+          'peakId': peakId,
+          if (notes != null) 'notes': notes,
+          'photos': photos.map((photo) => photo.toJson()).toList(),
+          'capturedLatitude': capturedLatitude,
+          'capturedLongitude': capturedLongitude,
+          'capturedAccuracyMeters': capturedAccuracyMeters,
+          'capturedAt': capturedAt.toIso8601String(),
+        },
+        requiresAuth: true,
+      );
+
+      if (response.statusCode == 201) {
+        final data = _tryParseJson(response.body);
+
+        if (data == null) {
+          throw const ApiException(
+            'La resposta de l\'ascensió verificada no és vàlida',
+            statusCode: 201,
+          );
+        }
+
+        return Ascent.fromJson(data);
+      }
+
+      final data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'ha pogut crear l\'ascensió verificada';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
+
+  // Actualitza una ascensió existent.
+  // Només envia les dades editables del formulari i manté el registre original.
   @override
   Future<Ascent> updateAscent({
     required int ascentId,
@@ -122,8 +180,8 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
     }
   }
 
-  // Aquest mètode recupera totes les fotos d’una ascensió existent.
-  // Es fa servir a la pantalla d’edició per mostrar les imatges ja associades.
+  // Recupera totes les fotos d’una ascensió.
+  // S’utilitza a l’edició i al detall per mostrar les imatges ja associades.
   @override
   Future<List<AscentPhoto>> getAscentPhotos(int ascentId) async {
     try {
@@ -168,8 +226,8 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
     }
   }
 
-  // Aquest mètode demana al backend una URL temporal per pujar una foto.
-  // La imatge encara no queda associada a cap ascensió fins que s’envia el formulari final.
+  // Demana al backend una URL temporal per pujar una foto.
+  // La foto encara no queda associada a cap ascensió fins que es desa el registre final.
   @override
   Future<AscentSignedUploadUrl> createAscentPhotoSignedUploadUrl({
     required String mimeType,
@@ -218,12 +276,8 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
     }
   }
 
-  // Aquest mètode puja els bytes de la imatge directament a la URL temporal de GCS.
-  // Aquesta petició no fa servir el backend ni el token, perquè la URL ja
-  // incorpora el permís temporal. Els headers han de coincidir exactament
-  // amb els que el backend va incloure en signar la URL: Content-Type sempre
-  // i, si la signatura porta extensionHeaders (x-goog-content-length-range),
-  // també aquests. Si en falta cap, GCS retorna 403 SignatureDoesNotMatch.
+  // Puja els bytes de la imatge directament a Google Cloud Storage.
+  // Utilitza la URL temporal i els headers signats que ha retornat el backend.
   @override
   Future<void> uploadAscentPhotoBytes({
     required String uploadUrl,
@@ -262,9 +316,8 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
     }
   }
 
-  // Aquest mètode recupera les ascensions de l’usuari autenticat
-  // associades a un cim concret. Es farà servir per mostrar informació
-  // personal del cim, com la data de l’última ascensió registrada.
+  // Recupera les ascensions de l’usuari associades a un cim concret.
+  // Permet mostrar l’historial personal dins del detall del cim.
   @override
   Future<List<Ascent>> getAscentsByPeak(int peakId) async {
     try {
@@ -309,8 +362,8 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
     }
   }
 
-  // Aquest mètode recupera una pàgina de la galeria de fotos de l'usuari.
-  // La resposta és paginada perquè la pantalla pugui carregar més imatges quan calgui.
+  // Recupera una pàgina de la galeria de fotos de l’usuari.
+  // La paginació permet carregar més imatges només quan la pantalla les necessita.
   @override
   Future<AscentPhotoGalleryPage> getUserPhotoGallery({
     int limit = 30,
@@ -359,8 +412,8 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
     }
   }
 
-  // Aquest mètode transforma una data en el format simple que fa servir
-  // el backend per guardar ascensions sense hora.
+  // Converteix una data al format simple que espera el backend.
+  // Aquest format s’utilitza per guardar ascensions sense hora.
   String _formatDateOnly(DateTime date) {
     final year = date.year.toString().padLeft(4, '0');
     final month = date.month.toString().padLeft(2, '0');
@@ -369,8 +422,8 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
     return '$year-$month-$day';
   }
 
-  // Aquest mètode elimina una foto d’ascensió de l’usuari autenticat.
-  // Si la foto era principal, el backend s’encarrega de promocionar-ne una altra.
+  // Elimina una foto d’ascensió de l’usuari autenticat.
+  // Si era la foto principal, el backend pot promocionar-ne una altra.
   @override
   Future<void> deleteAscentPhoto(int photoId) async {
     final response = await _deleteJson(
@@ -388,8 +441,8 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
     );
   }
 
-  // Aquest mètode elimina una ascensió de l’usuari autenticat.
-  // Si era l’última ascensió del cim, el backend deixa el cim com a no completat.
+  // Elimina una ascensió de l’usuari autenticat.
+  // També permet al backend actualitzar l’estat del cim i el progrés mensual.
   @override
   Future<void> deleteAscent(int ascentId) async {
     final response = await _deleteJson(
