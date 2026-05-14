@@ -4,11 +4,22 @@ import 'package:cims/app/theme/app_theme.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
+// La importació condicional selecciona l'stub a builds natius i la versió
+// real a web. Cal mantenir-la perquè dart2js no eliminava el registre del
+// plugin web del geolocator i la captura d'ubicació petava amb
+// MissingPluginException (vegeu el comentari del fitxer web).
+import 'package:cims/core/platform/web_plugins_register.dart'
+    if (dart.library.js_interop)
+        'package:cims/core/platform/web_plugins_register_web.dart';
 
 // Aquest mètode prepara la sessió compartida, crea el router principal
 // i configura la redirecció global quan una sessió caduqui.
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Garanteix que els plugins web s'han registrat abans d'iniciar l'app.
+  // En builds natius és un no-op; a web força el registre del geolocator.
+  ensureWebPluginsRegistered();
 
   // Aquest ajust elimina el símbol # de les URLs a web
   // per fer la navegació més neta i més propera a una web convencional.
