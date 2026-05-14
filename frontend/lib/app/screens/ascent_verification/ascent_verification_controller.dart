@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cims/app/client/api/api_client_impl.dart';
 import 'package:cims/core/entity/ascent.dart';
 import 'package:cims/core/entity/nearby_peak_candidate.dart';
@@ -17,6 +19,29 @@ enum AscentVerificationDestination {
   none,
   editAscent,
   back,
+}
+
+// Aquest enum identifica el tipus d’error que ha aturat el flux de verificació.
+// La pantalla l’utilitza per oferir l’acció correcta (reintentar, obrir ajustos…).
+enum AscentVerificationErrorKind {
+  none,
+  locationServiceDisabled,
+  locationPermissionDenied,
+  locationPermissionDeniedForever,
+  locationTimeout,
+  locationUnknown,
+  cameraPermissionDenied,
+  cameraCancelled,
+  cameraFailed,
+  submitFailed,
+}
+
+// Aquesta excepció interna porta el tipus d’error fins al catch del controller
+// sense barrejar-se amb altres excepcions del sistema.
+class _LocationCaptureFailure implements Exception {
+  const _LocationCaptureFailure(this.kind);
+
+  final AscentVerificationErrorKind kind;
 }
 
 // Aquest controller gestiona el flux de verificació ràpida.
@@ -41,6 +66,10 @@ class AscentVerificationController extends ChangeNotifier {
         _userStatsRefreshStore =
             userStatsRefreshStore ?? AppSession.userStatsRefreshStore;
 
+  // Aquest temps màxim evita que la captura de GPS quedi penjada
+  // quan el dispositiu no aconsegueix una posició fiable.
+  static const Duration _locationTimeout = Duration(seconds: 20);
+
   final ImagePicker _imagePicker;
   final FindNearbyPeaksUseCase _findNearbyPeaksUseCase;
   final UploadAscentPhotoUseCase _uploadAscentPhotoUseCase;
@@ -51,10 +80,12 @@ class AscentVerificationController extends ChangeNotifier {
   final PeakStatusStore _peakStatusStore;
   final UserStatsRefreshStore _userStatsRefreshStore;
 
+  bool _disposed = false;
   bool _isPreparingCapture = false;
   bool _isLoadingNearbyPeaks = false;
   String? _message;
   String? _errorMessage;
+  AscentVerificationErrorKind _errorKind = AscentVerificationErrorKind.none;
   Position? _position;
   DateTime? _capturedAt;
   Uint8List? _photoBytes;
@@ -69,6 +100,7 @@ class AscentVerificationController extends ChangeNotifier {
   bool get isLoadingNearbyPeaks => _isLoadingNearbyPeaks;
   String? get message => _message;
   String? get errorMessage => _errorMessage;
+  AscentVerificationErrorKind get errorKind => _errorKind;
   Position? get position => _position;
   DateTime? get capturedAt => _capturedAt;
   Uint8List? get photoBytes => _photoBytes;
@@ -80,6 +112,17 @@ class AscentVerificationController extends ChangeNotifier {
   bool get hasLocation => _position != null;
   bool get hasEvidence => _position != null && _photoBytes != null;
   bool get hasSelectedPeak => _selectedNearbyPeakCandidate != null;
+
+  // Aquest getter indica si l’error actual es resol obrint la configuració del sistema
+  // (servei d’ubicació desactivat). La pantalla l’utilitza per mostrar el botó adient.
+  bool get errorNeedsLocationSettings =>
+      _errorKind == AscentVerificationErrorKind.locationServiceDisabled;
+
+  // Aquest getter indica si l’error actual es resol obrint la configuració de l’app
+  // (permís denegat per sempre o denegat per la càmera).
+  bool get errorNeedsAppSettings =>
+      _errorKind == AscentVerificationErrorKind.locationPermissionDeniedForever ||
+      _errorKind == AscentVerificationErrorKind.cameraPermissionDenied;
 
   // Aquest mètode neteja la navegació pendent després que la pantalla l’hagi consumit.
   // Evita repetir la mateixa navegació en futures notificacions del controller.
@@ -96,8 +139,9 @@ class AscentVerificationController extends ChangeNotifier {
 
     _isPreparingCapture = true;
     _isLoadingNearbyPeaks = false;
-    _message = null;
+    _message = 'Capturant la ubicació actual...';
     _errorMessage = null;
+    _errorKind = AscentVerificationErrorKind.none;
     _position = null;
     _capturedAt = null;
     _photoBytes = null;
@@ -106,23 +150,24 @@ class AscentVerificationController extends ChangeNotifier {
     _selectedNearbyPeakCandidate = null;
     _createdAscent = null;
     _destination = AscentVerificationDestination.none;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       _position = await _captureCurrentLocation();
       _capturedAt = DateTime.now();
       _message = 'Ubicació capturada. Selecciona quin cim vols verificar.';
-      notifyListeners();
+      _safeNotifyListeners();
 
       await _loadNearbyPeaks();
+    } on _LocationCaptureFailure catch (failure) {
+      _applyLocationFailure(failure.kind);
     } catch (error) {
       debugPrint('[AscentVerificationController] Location error: $error');
-      _errorMessage =
-          'No s\'ha pogut preparar la verificació. Revisa els permisos de càmera i ubicació.';
+      _applyLocationFailure(AscentVerificationErrorKind.locationUnknown);
     } finally {
       _isPreparingCapture = false;
       _isLoadingNearbyPeaks = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -132,7 +177,8 @@ class AscentVerificationController extends ChangeNotifier {
     _selectedNearbyPeakCandidate = candidate;
     _message = 'Cim seleccionat: ${candidate.peak.name}.';
     _errorMessage = null;
-    notifyListeners();
+    _errorKind = AscentVerificationErrorKind.none;
+    _safeNotifyListeners();
   }
 
   void capturePhoto() {
@@ -151,6 +197,18 @@ class AscentVerificationController extends ChangeNotifier {
     await prepareCapture();
   }
 
+  // Aquest mètode obre la configuració del sistema per activar el servei d’ubicació.
+  // Es fa servir quan la captura ha fallat perquè el GPS estava desactivat.
+  Future<void> openLocationSystemSettings() async {
+    await Geolocator.openLocationSettings();
+  }
+
+  // Aquest mètode obre la pantalla de permisos de l’app dins de la configuració.
+  // Permet recuperar permisos denegats per sempre per a càmera o ubicació.
+  Future<void> openAppSystemSettings() async {
+    await Geolocator.openAppSettings();
+  }
+
   // Aquest mètode obre la càmera quan ja hi ha un cim seleccionat.
   // La foto capturada serà l’evidència visual associada a l’ascensió verificada.
   Future<void> _capturePhoto() async {
@@ -161,20 +219,23 @@ class AscentVerificationController extends ChangeNotifier {
     if (_position == null || _capturedAt == null) {
       _errorMessage =
           'Cal capturar la ubicació abans de fer la foto de verificació.';
-      notifyListeners();
+      _errorKind = AscentVerificationErrorKind.locationUnknown;
+      _safeNotifyListeners();
       return;
     }
 
     if (_selectedNearbyPeakCandidate == null) {
       _errorMessage = 'Selecciona quin cim vols verificar abans de fer la foto.';
-      notifyListeners();
+      _errorKind = AscentVerificationErrorKind.none;
+      _safeNotifyListeners();
       return;
     }
 
     _isPreparingCapture = true;
     _errorMessage = null;
+    _errorKind = AscentVerificationErrorKind.none;
     _message = 'Obrint la càmera...';
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final pickedImage = await _imagePicker.pickImage(
@@ -183,7 +244,9 @@ class AscentVerificationController extends ChangeNotifier {
       );
 
       if (pickedImage == null) {
-        _errorMessage = 'No s\'ha fet cap foto de verificació.';
+        _errorMessage =
+            'No s\'ha fet cap foto de verificació. Torna a obrir la càmera per intentar-ho.';
+        _errorKind = AscentVerificationErrorKind.cameraCancelled;
         return;
       }
 
@@ -192,11 +255,18 @@ class AscentVerificationController extends ChangeNotifier {
       _message = 'Foto capturada correctament.';
     } catch (error) {
       debugPrint('[AscentVerificationController] Photo error: $error');
-      _errorMessage =
-          'No s\'ha pogut fer la foto de verificació. Revisa els permisos de càmera.';
+      final isPermissionError = error.toString().toLowerCase().contains(
+            'permission',
+          );
+      _errorKind = isPermissionError
+          ? AscentVerificationErrorKind.cameraPermissionDenied
+          : AscentVerificationErrorKind.cameraFailed;
+      _errorMessage = isPermissionError
+          ? 'No s\'ha pogut accedir a la càmera. Concedeix el permís de càmera des de la configuració de l\'app.'
+          : 'No s\'ha pogut fer la foto de verificació. Torna-ho a provar.';
     } finally {
       _isPreparingCapture = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -215,23 +285,26 @@ class AscentVerificationController extends ChangeNotifier {
         currentPhotoBytes == null) {
       _errorMessage =
           'Cal capturar una foto i la ubicació abans de crear l\'ascensió verificada.';
-      notifyListeners();
+      _errorKind = AscentVerificationErrorKind.none;
+      _safeNotifyListeners();
       return;
     }
 
     if (selectedCandidate == null) {
       _errorMessage = 'Selecciona quin cim vols verificar.';
-      notifyListeners();
+      _errorKind = AscentVerificationErrorKind.none;
+      _safeNotifyListeners();
       return;
     }
 
     _isPreparingCapture = true;
     _errorMessage = null;
+    _errorKind = AscentVerificationErrorKind.none;
     _destination = AscentVerificationDestination.none;
     _message = completeNow
         ? 'Creant l\'ascensió verificada...'
         : 'Guardant l\'ascensió per completar-la més endavant...';
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final uploadedPhoto = await _uploadAscentPhotoUseCase(
@@ -262,11 +335,12 @@ class AscentVerificationController extends ChangeNotifier {
           : AscentVerificationDestination.back;
     } catch (error) {
       debugPrint('[AscentVerificationController] Submit error: $error');
+      _errorKind = AscentVerificationErrorKind.submitFailed;
       _errorMessage =
           'No s\'ha pogut crear l\'ascensió verificada. Revisa la connexió i torna-ho a provar.';
     } finally {
       _isPreparingCapture = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -287,7 +361,7 @@ class AscentVerificationController extends ChangeNotifier {
     }
 
     _isLoadingNearbyPeaks = true;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final candidates = await _findNearbyPeaksUseCase(
@@ -302,23 +376,27 @@ class AscentVerificationController extends ChangeNotifier {
 
       if (candidates.isEmpty) {
         _errorMessage = 'No s\'ha trobat cap cim proper per verificar.';
+        _errorKind = AscentVerificationErrorKind.none;
       }
     } catch (error) {
       debugPrint('[AscentVerificationController] Nearby peaks error: $error');
       _errorMessage = 'No s\'han pogut carregar els cims propers.';
+      _errorKind = AscentVerificationErrorKind.none;
     } finally {
       _isLoadingNearbyPeaks = false;
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
   // Aquest mètode comprova permisos i obté la posició actual del dispositiu.
-  // La ubicació capturada serà la base de la verificació.
+  // Llença excepcions tipades perquè la pantalla pugui oferir la millor acció.
   Future<Position> _captureCurrentLocation() async {
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
     if (!serviceEnabled) {
-      throw Exception('Location service disabled');
+      throw const _LocationCaptureFailure(
+        AscentVerificationErrorKind.locationServiceDisabled,
+      );
     }
 
     var permission = await Geolocator.checkPermission();
@@ -327,15 +405,71 @@ class AscentVerificationController extends ChangeNotifier {
       permission = await Geolocator.requestPermission();
     }
 
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      throw Exception('Location permission denied');
+    if (permission == LocationPermission.deniedForever) {
+      throw const _LocationCaptureFailure(
+        AscentVerificationErrorKind.locationPermissionDeniedForever,
+      );
     }
 
-    return Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-      ),
-    );
+    if (permission == LocationPermission.denied) {
+      throw const _LocationCaptureFailure(
+        AscentVerificationErrorKind.locationPermissionDenied,
+      );
+    }
+
+    try {
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: _locationTimeout,
+        ),
+      );
+    } on TimeoutException {
+      throw const _LocationCaptureFailure(
+        AscentVerificationErrorKind.locationTimeout,
+      );
+    }
+  }
+
+  // Aquest mètode tradueix el tipus d’error d’ubicació en un missatge clar
+  // i marca el tipus perquè la pantalla mostri l’acció més útil.
+  void _applyLocationFailure(AscentVerificationErrorKind kind) {
+    _errorKind = kind;
+    switch (kind) {
+      case AscentVerificationErrorKind.locationServiceDisabled:
+        _errorMessage =
+            'El servei d\'ubicació està desactivat. Activa\'l per verificar el cim.';
+        break;
+      case AscentVerificationErrorKind.locationPermissionDenied:
+        _errorMessage =
+            'Cal el permís d\'ubicació per verificar el cim. Torna-ho a intentar i concedeix el permís.';
+        break;
+      case AscentVerificationErrorKind.locationPermissionDeniedForever:
+        _errorMessage =
+            'El permís d\'ubicació està bloquejat. Obre la configuració de l\'app per activar-lo.';
+        break;
+      case AscentVerificationErrorKind.locationTimeout:
+        _errorMessage =
+            'No s\'ha pogut obtenir la ubicació a temps. Comprova la cobertura GPS i torna-ho a provar.';
+        break;
+      default:
+        _errorMessage =
+            'No s\'ha pogut preparar la verificació. Torna-ho a provar.';
+        break;
+    }
+  }
+
+  // Aquest mètode centralitza la notificació de canvis
+  // i evita intentar actualitzar la vista quan el controller ja s’ha tancat.
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

@@ -95,6 +95,7 @@ class _AscentVerificationScreenState extends State<AscentVerificationScreen> {
               isLoading: controller.isPreparingCapture,
               message: controller.message,
               errorMessage: controller.errorMessage,
+              errorKind: controller.errorKind,
               position: controller.position,
               capturedAt: controller.capturedAt,
               photoBytes: controller.photoBytes,
@@ -107,6 +108,9 @@ class _AscentVerificationScreenState extends State<AscentVerificationScreen> {
               onCreateVerifiedAscentTap: controller.createVerifiedAscent,
               onCompleteLaterTap: controller.completeLater,
               onRetryTap: controller.retryCapture,
+              onOpenLocationSettingsTap:
+                  controller.openLocationSystemSettings,
+              onOpenAppSettingsTap: controller.openAppSystemSettings,
             );
           },
         ),
