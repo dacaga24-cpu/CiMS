@@ -1,6 +1,7 @@
 import 'package:cims/app/screens/peaks_catalog/widgets/peak_detail_card.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_empty_state.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_error_state.dart';
+import 'package:cims/app/widgets/layout/app_responsive.dart';
 import 'package:cims/core/entity/peak.dart';
 import 'package:cims/core/entity/peak_status.dart';
 import 'package:flutter/material.dart';
@@ -53,13 +54,13 @@ class PeaksCatalogContent extends StatelessWidget {
 
     return RefreshIndicator(
       onRefresh: onRefresh,
-      child: _buildContent(),
+      child: _buildContent(context),
     );
   }
 
   // Aquest mètode escull el contingut concret segons l’estat actual del catàleg.
   // Manté separats els casos d’error, llista buida i llista amb resultats.
-  Widget _buildContent() {
+  Widget _buildContent(BuildContext context) {
     if (errorMessage != null) {
       return ListView(
         controller: scrollController,
@@ -89,6 +90,56 @@ class PeaksCatalogContent extends StatelessWidget {
     }
 
     final hasFooter = isLoadingMore || loadMoreErrorMessage != null;
+
+    if (!AppResponsive.isCompact(context)) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final crossAxisCount = constraints.maxWidth >= 760 ? 2 : 1;
+          final itemWidth = crossAxisCount == 1
+              ? constraints.maxWidth
+              : (constraints.maxWidth - 16) / crossAxisCount;
+          final itemHeight = crossAxisCount == 1 ? 228.0 : 246.0;
+
+          return CustomScrollView(
+            controller: scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverGrid(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final peak = peaks[index];
+
+                    return PeakDetailCard(
+                      peak: peak,
+                      status: statusForPeak(peak.id),
+                      onTap: () => onPeakTap(peak),
+                    );
+                  },
+                  childCount: peaks.length,
+                ),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: itemWidth / itemHeight,
+                ),
+              ),
+              if (hasFooter)
+                SliverToBoxAdapter(
+                  child: _LoadMoreFooter(
+                    isLoadingMore: isLoadingMore,
+                    errorMessage: loadMoreErrorMessage,
+                    onRetryTap: onLoadMoreRetryTap,
+                  ),
+                ),
+              const SliverToBoxAdapter(
+                child: SizedBox(height: 24),
+              ),
+            ],
+          );
+        },
+      );
+    }
 
     return ListView.separated(
       controller: scrollController,

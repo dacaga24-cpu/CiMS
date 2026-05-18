@@ -3,12 +3,10 @@ import 'package:cims/app/screens/peaks_catalog/widgets/peaks_altitude_range_fiel
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_filters_actions.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_region_filter_field.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_status_filter_section.dart';
+import 'package:cims/app/widgets/layout/app_responsive.dart';
 import 'package:cims/core/entity/region.dart';
 import 'package:flutter/material.dart';
 
-// Aquest widget mostra el panell de filtres del catàleg.
-// S’obre com un bottom sheet i permet filtrar per comarca,
-// rang d’altitud i estat personal sense perdre de vista el llistat del darrere.
 class PeaksFiltersSheet extends StatefulWidget {
   const PeaksFiltersSheet({
     super.key,
@@ -21,8 +19,6 @@ class PeaksFiltersSheet extends StatefulWidget {
     required this.onClear,
   });
 
-  // Aquestes propietats reben les dades disponibles i l’estat inicial dels filtres
-  // perquè el panell es pugui obrir mostrant la configuració actual del catàleg.
   final List<Region> availableRegions;
   final int? initialRegionId;
   final int? initialMinAltitude;
@@ -40,20 +36,13 @@ class PeaksFiltersSheet extends StatefulWidget {
   State<PeaksFiltersSheet> createState() => _PeaksFiltersSheetState();
 }
 
-// Aquesta classe gestiona l’estat temporal del panell de filtres.
-// Manté els valors seleccionats mentre el modal està obert i comunica els canvis a la pantalla principal.
 class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
-  // Aquests controladors mantenen el contingut dels camps d’altitud
-  // mentre l’usuari interactua amb el formulari.
   late final TextEditingController _minAltitudeController;
   late final TextEditingController _maxAltitudeController;
 
-  // Aquestes variables guarden els filtres seleccionats dins del panell.
   int? _selectedRegionId;
   late PeakStatusFilter _selectedStatusFilter;
 
-  // Aquest mètode prepara el panell amb els filtres que ja estaven aplicats.
-  // Així l’usuari pot veure i modificar la configuració actual sense perdre-la.
   @override
   void initState() {
     super.initState();
@@ -70,15 +59,11 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     _maxAltitudeController.addListener(_handleAltitudeChanged);
   }
 
-  // Aquest mètode actualitza el panell quan canvien les altures.
-  // Permet mostrar l’avís d’error i bloquejar l’aplicació de filtres invàlids.
   void _handleAltitudeChanged() {
     if (!mounted) return;
     setState(() {});
   }
 
-  // Aquest mètode converteix el text introduït en una altitud numèrica.
-  // Si el camp està buit o no és vàlid, retorna null per indicar que no s’aplica aquest filtre.
   int? _parseAltitude(String value) {
     final trimmedValue = value.trim();
     if (trimmedValue.isEmpty) {
@@ -88,8 +73,6 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     return int.tryParse(trimmedValue);
   }
 
-  // Aquest mètode comprova si el rang d'altura introduït és possible.
-  // Només marca error quan els dos camps tenen valor i la mínima supera la màxima.
   bool get _hasInvalidAltitudeRange {
     final minAltitude = _parseAltitude(_minAltitudeController.text);
     final maxAltitude = _parseAltitude(_maxAltitudeController.text);
@@ -101,8 +84,6 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     return minAltitude > maxAltitude;
   }
 
-  // Aquest mètode reinicia tots els filtres visibles del panell.
-  // Primer tanca el panell i després executa la neteja per evitar reconstruir el mapa sota el modal.
   Future<void> _handleClear() async {
     _minAltitudeController.clear();
     _maxAltitudeController.clear();
@@ -121,8 +102,6 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     });
   }
 
-  // Aquest mètode recull els valors seleccionats i els envia a la pantalla principal.
-  // Si el rang d'altura no és possible, no permet aplicar el filtre.
   void _handleApply() {
     if (_hasInvalidAltitudeRange) {
       return;
@@ -146,8 +125,6 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     });
   }
 
-  // Aquest mètode allibera els controladors dels camps quan es tanca el panell.
-  // Evita mantenir recursos actius que ja no són necessaris.
   @override
   void dispose() {
     _minAltitudeController.removeListener(_handleAltitudeChanged);
@@ -157,15 +134,12 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     super.dispose();
   }
 
-  // Aquest mètode construeix el contingut visual del panell de filtres.
-  // Agrupa els filtres per comarca, altitud i estat personal en un únic formulari.
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasInvalidAltitudeRange = _hasInvalidAltitudeRange;
+    final isCompact = AppResponsive.isCompact(context);
 
-    // Aquesta construcció mostra el full inferior amb el formulari de filtres,
-    // mantenint una presentació clara i adaptada al teclat quan apareix.
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.only(
@@ -175,75 +149,80 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
           bottom: MediaQuery.of(context).viewInsets.bottom + 16,
         ),
         child: Align(
-          alignment: Alignment.bottomCenter,
-          child: Material(
-            color: theme.colorScheme.surface,
-            elevation: 8,
-            borderRadius: BorderRadius.circular(24),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 44,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.outlineVariant,
-                          borderRadius: BorderRadius.circular(999),
+          alignment: isCompact ? Alignment.bottomCenter : Alignment.center,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: isCompact ? double.infinity : 620,
+            ),
+            child: Material(
+              color: theme.colorScheme.surface,
+              elevation: 8,
+              borderRadius: BorderRadius.circular(24),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 44,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.outlineVariant,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Filtres',
-                      style: theme.textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-                    PeaksRegionFilterField(
-                      availableRegions: widget.availableRegions,
-                      selectedRegionId: _selectedRegionId,
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedRegionId = value;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    PeaksAltitudeRangeFields(
-                      minAltitudeController: _minAltitudeController,
-                      maxAltitudeController: _maxAltitudeController,
-                    ),
-                    if (hasInvalidAltitudeRange) ...[
-                      const SizedBox(height: 8),
-                      const Text(
-                        'L\'altura mínima no pot ser superior a l\'altura màxima.',
-                        style: TextStyle(
-                          color: Color(0xFFB42318),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                      const SizedBox(height: 16),
+                      Text(
+                        'Filtres',
+                        style: theme.textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 16),
+                      PeaksRegionFilterField(
+                        availableRegions: widget.availableRegions,
+                        selectedRegionId: _selectedRegionId,
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedRegionId = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      PeaksAltitudeRangeFields(
+                        minAltitudeController: _minAltitudeController,
+                        maxAltitudeController: _maxAltitudeController,
+                      ),
+                      if (hasInvalidAltitudeRange) ...[
+                        const SizedBox(height: 8),
+                        const Text(
+                          'L\'altura mínima no pot ser superior a l\'altura màxima.',
+                          style: TextStyle(
+                            color: Color(0xFFB42318),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
+                      ],
+                      const SizedBox(height: 20),
+                      PeaksStatusFilterSection(
+                        selectedStatusFilter: _selectedStatusFilter,
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedStatusFilter = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      PeaksFiltersActions(
+                        onClear: _handleClear,
+                        onApply: _handleApply,
+                        canApply: !hasInvalidAltitudeRange,
                       ),
                     ],
-                    const SizedBox(height: 20),
-                    PeaksStatusFilterSection(
-                      selectedStatusFilter: _selectedStatusFilter,
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedStatusFilter = value;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    PeaksFiltersActions(
-                      onClear: _handleClear,
-                      onApply: _handleApply,
-                      canApply: !hasInvalidAltitudeRange,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
