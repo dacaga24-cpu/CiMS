@@ -29,6 +29,7 @@ dependencies:
   flutter_image_compress: ^2.4.0
   material_symbols_icons: ^4.2928.1
   geolocator: ^14.0.2
+  geolocator_web: ^4.1.3
   pointer_interceptor: ^0.10.1+2
 
 dev_dependencies:
