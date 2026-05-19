@@ -339,7 +339,7 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
           GoogleMap(
             initialCameraPosition: _initialCameraPosition(),
             markers: _buildMarkers(),
-            mapType: MapType.terrain,
+            mapType: MapType.normal,
             onMapCreated: _onMapCreated,
             onTap: (_) => widget.onMapTap(),
             myLocationButtonEnabled: false,
