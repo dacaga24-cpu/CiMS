@@ -15,6 +15,9 @@ dependencies:
     sdk: flutter
   flutter_web_plugins:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
   auto_route: ^11.1.0
   flutter_svg: ^2.0.10+1
   http: ^1.2.1
@@ -27,6 +30,7 @@ dependencies:
   material_symbols_icons: ^4.2928.1
   geolocator: ^14.0.2
   geolocator_web: ^4.1.3
+  pointer_interceptor: ^0.10.1+2
 
 dev_dependencies:
   flutter_test:

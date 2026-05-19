@@ -50,8 +50,8 @@ class ProfileSettingsController extends ChangeNotifier {
             GetUserProfileUseCase(
               apiClient: ApiClientImpl(),
             ),
-        _updateUserProfileUseCase =
-            updateUserProfileUseCase ?? UpdateUserProfileUseCase(ApiClientImpl()),
+        _updateUserProfileUseCase = updateUserProfileUseCase ??
+            UpdateUserProfileUseCase(ApiClientImpl()),
         _changePasswordUseCase =
             changePasswordUseCase ?? ChangePasswordUseCase(ApiClientImpl()),
         _deleteAccountUseCase =
@@ -353,7 +353,8 @@ class ProfileSettingsController extends ChangeNotifier {
     } on ApiException catch (error) {
       _errorMessage = error.message;
     } catch (error) {
-      debugPrint('[ProfileSettingsController] Delete profile photo error: $error');
+      debugPrint(
+          '[ProfileSettingsController] Delete profile photo error: $error');
       _errorMessage = 'No s\'ha pogut eliminar la foto de perfil';
     } finally {
       _isUpdatingProfilePhoto = false;

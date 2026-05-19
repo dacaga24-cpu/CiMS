@@ -54,8 +54,7 @@ class HalfDayForecast {
       condition: WeatherCondition.fromNullableJson(json['condition']),
       precipProbabilityPct: _parseInt(json['precipProbabilityPct']),
       precipQuantityMm: _parseDouble(json['precipQuantityMm']),
-      thunderstormProbabilityPct:
-          _parseInt(json['thunderstormProbabilityPct']),
+      thunderstormProbabilityPct: _parseInt(json['thunderstormProbabilityPct']),
       windSpeedKmh: _parseNullableDouble(json['windSpeedKmh']),
       windGustKmh: _parseNullableDouble(json['windGustKmh']),
       windDirectionDegrees: _parseNullableInt(json['windDirectionDegrees']),

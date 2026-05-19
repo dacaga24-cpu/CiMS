@@ -187,9 +187,8 @@ class _AscentRegisterScreenState extends State<AscentRegisterScreen> {
                 PrimaryGradientButton(
                   label: 'Confirmar',
                   isLoading: controller.isLoading,
-                  onPressed: controller.isUploadingPhoto
-                      ? null
-                      : _handleConfirmTap,
+                  onPressed:
+                      controller.isUploadingPhoto ? null : _handleConfirmTap,
                 ),
                 const SizedBox(height: 12),
                 SecondaryPillButton(

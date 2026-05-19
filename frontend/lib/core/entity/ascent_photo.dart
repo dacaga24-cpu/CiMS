@@ -35,7 +35,8 @@ class AscentPhoto {
       downloadUrl: _parseNullableString(
         json['downloadUrl'] ?? json['download_url'],
       ),
-      createdAt: _parseOptionalDateTime(json['createdAt'] ?? json['created_at']),
+      createdAt:
+          _parseOptionalDateTime(json['createdAt'] ?? json['created_at']),
     );
   }
 

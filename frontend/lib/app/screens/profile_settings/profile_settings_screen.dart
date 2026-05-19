@@ -248,12 +248,12 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     onBackTap: controller.onBackTap,
                   ),
                   const SizedBox(height: 28),
-                    ProfileSettingsHeader(
-                      displayName: controller.displayName,
-                      displayEmail: controller.displayEmail,
-                      profilePhotoUrl: controller.profilePhotoUrl,
-                      isUpdatingProfilePhoto: controller.isUpdatingProfilePhoto,
-                    ),
+                  ProfileSettingsHeader(
+                    displayName: controller.displayName,
+                    displayEmail: controller.displayEmail,
+                    profilePhotoUrl: controller.profilePhotoUrl,
+                    isUpdatingProfilePhoto: controller.isUpdatingProfilePhoto,
+                  ),
                   const Spacer(),
                   const ProfileSettingsSectionTitle(),
                   const SizedBox(height: 14),

@@ -1,7 +1,12 @@
+import 'package:cims/core/util/format.dart';
 import 'package:flutter/material.dart';
 
-// Aquesta capçalera mostra la informació principal del cim seleccionat.
-// El bloc superior reserva l’espai on en el futur es podrà mostrar una fotografia real del cim.
+// Aquesta capçalera mostra la informació principal del cim seleccionat
+// dins de l'historial d'ascensions. Reutilitza el mateix tractament
+// visual que la capçalera del detall del cim (mateix tipografia,
+// caixa blanca que s'adapta al text i imatge de muntanya com a fons)
+// per mantenir una experiència consistent quan l'usuari salta entre
+// les dues pantalles.
 class AscentHistoryHeader extends StatelessWidget {
   const AscentHistoryHeader({
     super.key,
@@ -18,11 +23,9 @@ class AscentHistoryHeader extends StatelessWidget {
   final List<String> regions;
   final int totalAscents;
 
-  // Aquest mètode construeix la targeta superior amb placeholder d’imatge
-  // i una etiqueta inferior amb el total d’ascensions del cim.
   @override
   Widget build(BuildContext context) {
-    final regionsText = regions.isEmpty ? 'Catalunya' : regions.join(', ');
+    final regionsText = regions.isEmpty ? 'CATALUNYA' : regions.join(', ');
 
     return Stack(
       clipBehavior: Clip.none,
@@ -30,17 +33,11 @@ class AscentHistoryHeader extends StatelessWidget {
       children: [
         Container(
           width: double.infinity,
-          height: 142,
-          padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(28),
             image: const DecorationImage(
               image: AssetImage('assets/images/montana_0001.png'),
               fit: BoxFit.cover,
-              colorFilter: ColorFilter.mode(
-                Color.fromARGB(157, 255, 255, 255),
-                BlendMode.srcATop,
-              ),
             ),
             boxShadow: const [
               BoxShadow(
@@ -50,49 +47,60 @@ class AscentHistoryHeader extends StatelessWidget {
               ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                peakName.toUpperCase(),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 15,
-                  height: 1.05,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.4,
-                  color: Color(0xFF111111),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: IntrinsicWidth(
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.82),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      regionsText.toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.1,
+                        color: Color(0xFF24465D),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      peakName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w800,
+                        height: 0.95,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      formatAltitude(altitude, longUnit: true),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 5),
-              Text(
-                regionsText.toString(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 15,
-                  height: 1.05,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.4,
-                  color: Color(0xFF111111),
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                '${_formatNumber(altitude)} M',
-                style: const TextStyle(
-                  fontSize: 15,
-                  height: 1.05,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.4,
-                  color: Color(0xFF111111),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
+        // Aquest comptador es manté com a element distintiu de l'historial:
+        // resumeix de cop d'ull quantes ascensions té el cim. Es posiciona
+        // a sobre del límit inferior de la imatge perquè destaqui sense
+        // ocupar espai dins la capçalera principal.
         Positioned(
           bottom: -17,
           child: Container(
@@ -114,7 +122,6 @@ class AscentHistoryHeader extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(width: 6),
                 Text(
                   'ASCENSIONS TOTALS: $totalAscents',
                   style: const TextStyle(
@@ -130,23 +137,5 @@ class AscentHistoryHeader extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  // Aquest mètode formata l’altitud amb separador de milers si cal.
-  String _formatNumber(int value) {
-    final text = value.toString();
-    final buffer = StringBuffer();
-
-    for (var i = 0; i < text.length; i++) {
-      final positionFromEnd = text.length - i;
-
-      buffer.write(text[i]);
-
-      if (positionFromEnd > 1 && positionFromEnd % 3 == 1) {
-        buffer.write('.');
-      }
-    }
-
-    return buffer.toString();
   }
 }

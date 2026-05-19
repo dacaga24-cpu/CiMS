@@ -1,4 +1,5 @@
 import 'package:cims/core/entity/user_stats.dart';
+import 'package:cims/core/util/format.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget mostra les últimes ascensions de l’usuari.
@@ -166,7 +167,7 @@ class _RecentAscentTile extends StatelessWidget {
   // Aquest mètode prepara el subtítol de l’ascensió combinant territori i altitud.
   // Si el cim no té regions associades, mostra només l’altitud.
   String _buildSubtitle(RecentAscentStats ascent) {
-    final altitude = '${_formatNumber(ascent.altitude)}m';
+    final altitude = formatAltitude(ascent.altitude);
 
     if (ascent.regions.isEmpty) {
       return altitude;
@@ -196,25 +197,6 @@ class _RecentAscentTile extends StatelessWidget {
     final month = months[date.month - 1];
 
     return '$day $month';
-  }
-
-  // Aquest mètode formata valors numèrics grans amb separador de milers.
-  // Facilita la lectura d’altituds dins de les targetes.
-  String _formatNumber(int value) {
-    final text = value.toString();
-    final buffer = StringBuffer();
-
-    for (var i = 0; i < text.length; i++) {
-      final positionFromEnd = text.length - i;
-
-      buffer.write(text[i]);
-
-      if (positionFromEnd > 1 && positionFromEnd % 3 == 1) {
-        buffer.write('.');
-      }
-    }
-
-    return buffer.toString();
   }
 }
 

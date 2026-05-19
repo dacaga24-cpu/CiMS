@@ -52,8 +52,8 @@ class AscentEditController extends ChangeNotifier {
             updateAscentUseCase ?? UpdateAscentUseCase(ApiClientImpl()),
         _getAscentPhotosUseCase =
             getAscentPhotosUseCase ?? GetAscentPhotosUseCase(ApiClientImpl()),
-        _deleteAscentPhotoUseCase =
-            deleteAscentPhotoUseCase ?? DeleteAscentPhotoUseCase(ApiClientImpl()),
+        _deleteAscentPhotoUseCase = deleteAscentPhotoUseCase ??
+            DeleteAscentPhotoUseCase(ApiClientImpl()),
         _deleteAscentUseCase =
             deleteAscentUseCase ?? DeleteAscentUseCase(ApiClientImpl()),
         _getPeakStatusUseCase =

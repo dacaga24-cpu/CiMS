@@ -52,7 +52,7 @@ mixin _StatsApiClientImplMixin on _ApiClientBase implements StatsApiClient {
     }
   }
 
-  // Aquest mètode recupera el resum necessari per construir el dashboard. 
+  // Aquest mètode recupera el resum necessari per construir el dashboard.
   // Fa servir l’endpoint específic de dashboard perquè aquesta pantalla té un contracte propi.
   @override
   Future<DashboardSummary> getDashboardSummary() async {

@@ -382,8 +382,7 @@ class PeakDetailController extends ChangeNotifier {
       debugPrintStack(stackTrace: stackTrace);
 
       weatherForecast = null;
-      weatherErrorMessage =
-          'No s\'ha pogut carregar la previsió meteorològica';
+      weatherErrorMessage = 'No s\'ha pogut carregar la previsió meteorològica';
     } finally {
       if (!_disposed && loadId == _weatherLoadId) {
         isWeatherLoading = false;
@@ -483,8 +482,7 @@ class PeakDetailController extends ChangeNotifier {
       );
       debugPrintStack(stackTrace: stackTrace);
 
-      _hourlyErrorByDay[date] =
-          'No s\'ha pogut carregar la previsió horària';
+      _hourlyErrorByDay[date] = 'No s\'ha pogut carregar la previsió horària';
     } finally {
       if (!_disposed && _hourlyLoadIdByDay[date] == loadId) {
         _hourlyLoadingDays.remove(date);
@@ -537,9 +535,9 @@ class PeakDetailController extends ChangeNotifier {
   // respongui a l'instant, i només si el backend rebutja la petició es
   // restaura el valor anterior.
   Future<void> _updateStatus({
-  bool? isTarget,
-  bool? isFavorite,
-}) async {
+    bool? isTarget,
+    bool? isFavorite,
+  }) async {
     if (isUpdatingStatus || isLoading) {
       return;
     }

@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 // Aquest widget encapsula el component real de Google Maps.
 // Rep una llista de cims amb coordenades i els transforma en marcadors interactius.
@@ -363,12 +364,20 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
               left: 18,
               right: 18,
               top: 18,
-              child: PeaksMapSelectedPeakCard(
-                peak: selectedPeak,
-                status: widget.statusForPeak?.call(selectedPeak.id),
-                onDetailTap: widget.onSelectedPeakDetailTap,
-                onTargetTap: widget.onSelectedPeakTargetTap,
-                onFavoriteTap: widget.onSelectedPeakFavoriteTap,
+              // PointerInterceptor és imprescindible aquí: sobre el platform
+              // view del Google Map (un iframe a web) els clics que reben els
+              // widgets Flutter superposats "travessen" cap a l'iframe i el
+              // mapa de sota els tracta com un map-tap, que tanca la
+              // selecció. Aquest widget afegeix una capa HTML invisible que
+              // captura els events del puntero abans que arribin a l'iframe.
+              child: PointerInterceptor(
+                child: PeaksMapSelectedPeakCard(
+                  peak: selectedPeak,
+                  status: widget.statusForPeak?.call(selectedPeak.id),
+                  onDetailTap: widget.onSelectedPeakDetailTap,
+                  onTargetTap: widget.onSelectedPeakTargetTap,
+                  onFavoriteTap: widget.onSelectedPeakFavoriteTap,
+                ),
               ),
             ),
           if (widget.showSummary && visiblePeaks.isNotEmpty)

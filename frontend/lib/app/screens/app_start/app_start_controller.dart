@@ -48,9 +48,8 @@ class AppStartController extends ChangeNotifier {
 
     // Aquest bloc decideix el destí final segons si l’usuari
     // conserva una sessió prèvia o ha de tornar al login.
-    _destination = hasSession
-        ? AppStartDestination.dashboard
-        : AppStartDestination.login;
+    _destination =
+        hasSession ? AppStartDestination.dashboard : AppStartDestination.login;
 
     notifyListeners();
   }

@@ -74,8 +74,8 @@ abstract class AscentsApiClient {
   // El backend comprova que la imatge pertanyi a l’usuari autenticat.
   Future<void> deleteAscentPhoto(int photoId);
 
-    // Aquest mètode elimina una ascensió concreta de l’usuari autenticat.
-    // El backend comprova que el registre pertanyi a l’usuari i actualitza
-    // l’estat completat del cim si era l’última ascensió associada.
-    Future<void> deleteAscent(int ascentId);
+  // Aquest mètode elimina una ascensió concreta de l’usuari autenticat.
+  // El backend comprova que el registre pertanyi a l’usuari i actualitza
+  // l’estat completat del cim si era l’última ascensió associada.
+  Future<void> deleteAscent(int ascentId);
 }

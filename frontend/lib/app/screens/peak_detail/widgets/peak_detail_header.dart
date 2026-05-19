@@ -1,5 +1,6 @@
 import 'package:cims/app/widgets/ascent_verified_badge.dart';
 import 'package:cims/core/entity/peak.dart';
+import 'package:cims/core/util/format.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget construeix la capçalera principal del detall del cim.
@@ -53,8 +54,7 @@ class PeakDetailHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    if (isCompleted)
-                      const _CompletedHeaderBadge(),
+                    if (isCompleted) const _CompletedHeaderBadge(),
                     if (isCompleted && hasVerifiedAscent)
                       const SizedBox(height: 8),
                     if (hasVerifiedAscent)
@@ -109,47 +109,54 @@ class PeakDetailHeader extends StatelessWidget {
 
                 // Aquest bloc mostra la ubicació general i les dades principals del cim.
                 // El fons clar garanteix que el text sigui llegible damunt la imatge.
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.82),
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        regionsText.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.1,
-                          color: Color(0xFF24465D),
-                        ),
+                // Amb `IntrinsicWidth + Align` el card s'adapta a l'amplada del
+                // text més llarg en lloc d'ocupar tota la pantalla.
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IntrinsicWidth(
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.82),
+                        borderRadius: BorderRadius.circular(22),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        peak.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 34,
-                          fontWeight: FontWeight.w800,
-                          height: 0.95,
-                          color: Color(0xFF111827),
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            regionsText.toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.1,
+                              color: Color(0xFF24465D),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            peak.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 34,
+                              fontWeight: FontWeight.w800,
+                              height: 0.95,
+                              color: Color(0xFF111827),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            formatAltitude(peak.altitude, longUnit: true),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF111827),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 10),
-                      Text(
-                        '${peak.altitude} metres',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF111827),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ],

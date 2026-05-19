@@ -1,3 +1,4 @@
+import 'package:cims/core/util/format.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta targeta mostra els metres acumulats dins del rang temporal seleccionat.
@@ -70,7 +71,7 @@ class StatsTotalMetersCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  '${_formatNumber(totalMeters)} m',
+                  formatAltitude(totalMeters),
                   style: const TextStyle(
                     fontSize: 31,
                     height: 1,
@@ -96,24 +97,5 @@ class StatsTotalMetersCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  // Aquest mètode formata els metres amb separador de milers.
-  // Facilita la lectura de valors acumulats grans dins de la targeta.
-  String _formatNumber(int value) {
-    final text = value.toString();
-    final buffer = StringBuffer();
-
-    for (var i = 0; i < text.length; i++) {
-      final positionFromEnd = text.length - i;
-
-      buffer.write(text[i]);
-
-      if (positionFromEnd > 1 && positionFromEnd % 3 == 1) {
-        buffer.write('.');
-      }
-    }
-
-    return buffer.toString();
   }
 }

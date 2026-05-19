@@ -55,81 +55,96 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         final tabsRouter = AutoTabsRouter.of(context);
         final selectedTab =
             MainBottomNavigationTab.values[tabsRouter.activeIndex];
-        final isCompact = AppResponsive.isCompact(context);
 
-        return Scaffold(
-          backgroundColor: const Color(0xFFF4F4F6),
-          body: isCompact
-              ? SafeArea(
-                  bottom: false,
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-                        child: AnimatedBuilder(
+        // Evitem dependre de MediaQuery dins del build inicial perquè en el
+        // primer frame post-login pot retornar mesures encara no estables i
+        // això provocava que a 1440px aparegués el layout mòbil. Amb
+        // LayoutBuilder reaccionem directament als constraints reals i el
+        // layout es manté coherent tant si l'usuari acaba d'entrar com si
+        // recarrega la pantalla.
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final screenSize =
+                AppResponsive.screenSizeForWidth(constraints.maxWidth);
+            final isCompact = screenSize == AppScreenSize.compact;
+            final isExpanded = screenSize == AppScreenSize.expanded;
+
+            return Scaffold(
+              backgroundColor: const Color(0xFFF4F4F6),
+              body: isCompact
+                  ? SafeArea(
+                      bottom: false,
+                      child: Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                            child: AnimatedBuilder(
+                              animation: AppSession.userProfileStore,
+                              builder: (context, _) {
+                                return MainNavigationHeader(
+                                  profilePhotoUrl: AppSession
+                                      .userProfileStore.profilePhotoUrl,
+                                  onProfileTap: () {
+                                    context.router.root.push(
+                                      ProfileSettingsRoute(),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                          Expanded(
+                            child: child,
+                          ),
+                        ],
+                      ),
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        AnimatedBuilder(
                           animation: AppSession.userProfileStore,
                           builder: (context, _) {
-                            return MainNavigationHeader(
+                            return MainNavigationRail(
+                              selectedTab: selectedTab,
+                              extended: isExpanded,
                               profilePhotoUrl:
                                   AppSession.userProfileStore.profilePhotoUrl,
-                              onProfileTap: () {
+                              onTabSelected: (tab) {
+                                tabsRouter.setActiveIndex(tab.index);
+                              },
+                              onVerificationTap: () {
                                 context.router.root.push(
-                                  ProfileSettingsRoute(),
+                                  AscentVerificationRoute(autoStart: true),
                                 );
+                              },
+                              onProfileTap: () {
+                                context.router.root
+                                    .push(ProfileSettingsRoute());
                               },
                             );
                           },
                         ),
-                      ),
-                      Expanded(
-                        child: child,
-                      ),
-                    ],
-                  ),
-                )
-              : Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    AnimatedBuilder(
-                      animation: AppSession.userProfileStore,
-                      builder: (context, _) {
-                        return MainNavigationRail(
-                          selectedTab: selectedTab,
-                          extended: AppResponsive.isExpanded(context),
-                          profilePhotoUrl:
-                              AppSession.userProfileStore.profilePhotoUrl,
-                          onTabSelected: (tab) {
-                            tabsRouter.setActiveIndex(tab.index);
-                          },
-                          onVerificationTap: () {
-                            context.router.root.push(
-                              AscentVerificationRoute(autoStart: true),
-                            );
-                          },
-                          onProfileTap: () {
-                            context.router.root.push(ProfileSettingsRoute());
-                          },
+                        Expanded(
+                          child: child,
+                        ),
+                      ],
+                    ),
+              bottomNavigationBar: isCompact
+                  ? MainBottomNavigationBar(
+                      selectedTab: selectedTab,
+                      onTabSelected: (tab) {
+                        tabsRouter.setActiveIndex(tab.index);
+                      },
+                      onVerificationTap: () {
+                        context.router.root.push(
+                          AscentVerificationRoute(autoStart: true),
                         );
                       },
-                    ),
-                    Expanded(
-                      child: child,
-                    ),
-                  ],
-                ),
-          bottomNavigationBar: isCompact
-              ? MainBottomNavigationBar(
-                  selectedTab: selectedTab,
-                  onTabSelected: (tab) {
-                    tabsRouter.setActiveIndex(tab.index);
-                  },
-                  onVerificationTap: () {
-                    context.router.root.push(
-                      AscentVerificationRoute(autoStart: true),
-                    );
-                  },
-                )
-              : null,
+                    )
+                  : null,
+            );
+          },
         );
       },
     );

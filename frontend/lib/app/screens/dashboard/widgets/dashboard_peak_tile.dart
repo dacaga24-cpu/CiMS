@@ -1,5 +1,6 @@
 import 'package:cims/app/widgets/peaks/peak_circular_thumbnail.dart';
 import 'package:cims/core/entity/dashboard_summary.dart';
+import 'package:cims/core/util/format.dart';
 import 'package:flutter/material.dart';
 
 // Aquest element representa un cim dins d’una secció del dashboard.
@@ -23,7 +24,7 @@ class DashboardPeakTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final details = [
       if (peak.regionName != null) peak.regionName!,
-      if (peak.altitude != null) '${peak.altitude} m',
+      if (peak.altitude != null) formatAltitude(peak.altitude),
       if (peak.ascentCount != null) '${peak.ascentCount} ascensions',
     ].join(' · ');
 
