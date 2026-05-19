@@ -1,13 +1,15 @@
-import 'package:cims/app/widgets/branding/cims_logo.dart';
+import 'package:cims/app/widgets/profile/profile_avatar.dart';
 import 'package:flutter/material.dart';
 
-// Aquest bloc mostra el logotip de CiMS, el nom de l’usuari
+// Aquest bloc mostra la imatge de perfil, el nom de l’usuari
 // i el correu associat al compte com a informació principal del perfil.
 class ProfileSettingsHeader extends StatelessWidget {
   const ProfileSettingsHeader({
     super.key,
     required this.displayName,
     required this.displayEmail,
+    this.profilePhotoUrl,
+    this.isUpdatingProfilePhoto = false,
   });
 
   // Nom que es mostra a la capçalera del perfil.
@@ -16,8 +18,15 @@ class ProfileSettingsHeader extends StatelessWidget {
   // Correu del compte autenticat que ajuda a identificar la sessió actual.
   final String displayEmail;
 
+  // URL de la foto de perfil de l’usuari, si ja en té una associada.
+  final String? profilePhotoUrl;
+
+  // Indica si la foto de perfil s’està actualitzant.
+  // Permet mostrar una capa de càrrega mentre finalitza la pujada.
+  final bool isUpdatingProfilePhoto;
+
   // Aquest mètode construeix la capçalera visual del perfil.
-  // Mostra el logotip, el nom de l’usuari i el correu del compte.
+  // Mostra la foto de l’usuari si existeix i manté una icona genèrica si no n’hi ha cap.
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -36,11 +45,36 @@ class ProfileSettingsHeader extends StatelessWidget {
               ),
             ],
           ),
-          child: const Center(
-            child: CimsLogo(
-              width: 68,
-              height: 68,
-            ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              ProfileAvatar(
+                size: 112,
+                profilePhotoUrl: profilePhotoUrl,
+                backgroundColor: Colors.white,
+                iconColor: const Color(0xFF0B57D0),
+                iconSize: 58,
+              ),
+              if (isUpdatingProfilePhoto)
+                Container(
+                  width: 112,
+                  height: 112,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
         const SizedBox(height: 22),

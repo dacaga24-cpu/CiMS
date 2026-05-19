@@ -1,26 +1,35 @@
+import 'package:cims/app/widgets/ascent_verified_badge.dart';
 import 'package:cims/app/widgets/buttons/primary_gradient_button.dart';
+import 'package:cims/app/widgets/peaks/peak_circular_thumbnail.dart';
 import 'package:cims/core/entity/peak.dart';
+import 'package:cims/core/entity/peak_status.dart';
 import 'package:flutter/material.dart';
 
-// Aquesta targeta mostra el cim seleccionat dins del mateix mapa.
-// Manté el context de la selecció i ofereix un accés directe al detall.
+// Aquesta targeta mostra el cim seleccionat dins del mapa.
+// Manté visible la informació principal, l’estat del cim i les accions ràpides.
 class PeaksMapSelectedPeakCard extends StatelessWidget {
   const PeaksMapSelectedPeakCard({
     super.key,
     required this.peak,
     required this.onDetailTap,
+    this.status,
+    this.onTargetTap,
+    this.onFavoriteTap,
   });
 
-  // Aquest bloc rep el cim seleccionat i l’acció per obrir-ne el detall.
   final Peak peak;
   final VoidCallback onDetailTap;
+  final PeakStatus? status;
+  final VoidCallback? onTargetTap;
+  final VoidCallback? onFavoriteTap;
 
-  // Construeix una targeta compacta amb la informació principal i el botó d’acció.
   @override
   Widget build(BuildContext context) {
     final regionsText = peak.formattedRegions.isEmpty
         ? 'Sense comarca informada'
         : peak.formattedRegions;
+
+    final currentStatus = status ?? PeakStatus.emptyForPeak(peak.id);
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -36,47 +45,218 @@ class PeaksMapSelectedPeakCard extends StatelessWidget {
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            peak.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF17212B),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${peak.altitude} m · $regionsText',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 13,
-              height: 1.3,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF5B6573),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: SizedBox(
-              width: 118,
-              child: PrimaryGradientButton(
-                label: 'Detall',
-                icon: Icons.open_in_new_rounded,
-                height: 38,
-                fontSize: 15,
-                iconSize: 16,
-                onPressed: onDetailTap,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const PeakCircularThumbnail(
+                size: 56,
               ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      peak.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF17212B),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${peak.altitude} m · $regionsText',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        height: 1.25,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF5B6573),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _CompletedMiniSeal(
+                          isCompleted: currentStatus.isCompleted,
+                        ),
+                        if (currentStatus.hasVerifiedAscent)
+                          const AscentVerifiedBadge(
+                            compact: true,
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _MapStatusButton(
+                  label: 'Objectiu',
+                  icon: Icons.flag_rounded,
+                  isActive: currentStatus.isTarget,
+                  color: const Color(0xFFF97316),
+                  onTap: onTargetTap,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MapStatusButton(
+                  label: 'Preferit',
+                  icon: Icons.favorite_rounded,
+                  isActive: currentStatus.isFavorite,
+                  color: const Color(0xFFE84A4A),
+                  onTap: onFavoriteTap,
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 104,
+                child: PrimaryGradientButton(
+                  label: 'Detall',
+                  height: 38,
+                  fontSize: 14,
+                  iconSize: 15,
+                  onPressed: onDetailTap,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Aquest segell indica si el cim està completat.
+// Es mostra sempre perquè ajuda a entendre ràpidament l’estat del cim seleccionat.
+class _CompletedMiniSeal extends StatelessWidget {
+  const _CompletedMiniSeal({
+    required this.isCompleted,
+  });
+
+  final bool isCompleted;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isCompleted
+        ? const Color(0xFF18B56A)
+        : const Color(0xFF98A2B3);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isCompleted
+                ? Icons.check_circle_rounded
+                : Icons.radio_button_unchecked_rounded,
+            size: 14,
+            color: color,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            isCompleted ? 'Completat' : 'No completat',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: color,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Aquest botó representa una acció manual ràpida dins del mapa.
+// Només s’utilitza per marcar el cim com a objectiu o preferit.
+class _MapStatusButton extends StatelessWidget {
+  const _MapStatusButton({
+    required this.label,
+    required this.icon,
+    required this.isActive,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool isActive;
+  final Color color;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isEnabled = onTap != null;
+
+    final backgroundColor = isActive
+        ? color
+        : isEnabled
+            ? color.withValues(alpha: 0.12)
+            : const Color(0xFFF2F4F7);
+
+    final foregroundColor = isActive
+        ? Colors.white
+        : isEnabled
+            ? color
+            : const Color(0xFF98A2B3);
+
+    return SizedBox(
+      height: 38,
+      child: Material(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 9),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 15,
+                  color: foregroundColor,
+                ),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: foregroundColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

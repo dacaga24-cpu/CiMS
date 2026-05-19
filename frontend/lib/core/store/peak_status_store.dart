@@ -26,6 +26,21 @@ class PeakStatusStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Aquest mètode marca un cim com a completat i verificat dins l’estat compartit.
+  // S’utilitza quan una ascensió verificada s’ha creat correctament al backend,
+  // perquè el catàleg, el mapa i el detall mostrin el canvi sense recarregar tota l’aplicació.
+  void markCompletedAndVerified(int peakId) {
+    final currentStatus =
+        getStatus(peakId) ?? PeakStatus.emptyForPeak(peakId);
+
+    setStatus(
+      currentStatus.copyWith(
+        isCompleted: true,
+        hasVerifiedAscent: true,
+      ),
+    );
+  }
+
   // Aquest mètode reemplaça tots els estats del store de cop. S'utilitza
   // després d'una càrrega massiva (per exemple, al carregar el catàleg) per
   // garantir que el store reflecteix exactament la realitat del backend.

@@ -1,4 +1,5 @@
 import 'package:cims/core/entity/user.dart';
+import 'package:cims/core/entity/profile_photo_upload.dart';
 
 // Aquest contracte agrupa les operacions relacionades amb el perfil d’usuari.
 abstract class ProfileApiClient {
@@ -25,4 +26,24 @@ abstract class ProfileApiClient {
   Future<void> deleteAccount({
     required String password,
   });
+
+  // Aquest mètode demana al backend una URL temporal per pujar una foto de perfil.
+  Future<ProfilePhotoSignedUploadUrl> createProfilePhotoSignedUploadUrl({
+    required String mimeType,
+  });
+
+  // Aquest mètode puja els bytes de la imatge directament a la URL temporal.
+  Future<void> uploadProfilePhotoBytes({
+    required String uploadUrl,
+    required List<int> bytes,
+    required Map<String, String> headers,
+  });
+
+  // Aquest mètode confirma al backend quina imatge pujada s’ha d’associar al perfil.
+  Future<User> setProfilePhoto({
+    required String storagePath,
+  });
+
+  // Aquest mètode elimina la foto de perfil actual de l’usuari autenticat.
+  Future<User> deleteProfilePhoto();
 }

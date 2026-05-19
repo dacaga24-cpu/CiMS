@@ -9,12 +9,17 @@ class PeaksFiltersActions extends StatelessWidget {
     super.key,
     required this.onClear,
     required this.onApply,
+    this.canApply = true,
   });
 
   // Aquestes accions es reben des del panell principal perquè la lògica
   // de netejar i aplicar filtres continuï centralitzada en un sol lloc.
   final Future<void> Function() onClear;
   final VoidCallback onApply;
+
+  // Indica si els filtres actuals es poden aplicar.
+  // Quan el rang d’altura no és vàlid, el botó queda visualment desactivat.
+  final bool canApply;
 
   @override
   Widget build(BuildContext context) {
@@ -28,9 +33,15 @@ class PeaksFiltersActions extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: PrimaryGradientButton(
-            label: 'Aplica',
-            onPressed: onApply,
+          child: Opacity(
+            opacity: canApply ? 1 : 0.45,
+            child: IgnorePointer(
+              ignoring: !canApply,
+              child: PrimaryGradientButton(
+                label: 'Aplica',
+                onPressed: onApply,
+              ),
+            ),
           ),
         ),
       ],

@@ -1,16 +1,14 @@
 part of 'api_client_impl.dart';
 
-// Aquest mixin implementa les peticions relacionades amb les ascensions.
-// Permet registrar i consultar ascensions per a l’usuari autenticat mantenint
-// la comunicació amb el backend separada de la pantalla i del controller.
+// Aquest mixin agrupa les peticions d’ascensions del client API.
+// Manté separada la comunicació amb el backend de les pantalles i controllers.
 mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
-  // Aquest mètode envia al backend les dades d’una nova ascensió.
-  // La data s’envia en format YYYY-MM-DD, que és el format esperat per l’API.
-  // Si l’usuari ha seleccionat fotos, també s’envien les rutes ja pujades a GCS.
+  // Envia al backend una nova ascensió manual.
+  // Pot incloure data, notes i fotos que ja s’han pujat prèviament a GCS.
   @override
   Future<Ascent> createAscent({
     required int peakId,
-    required DateTime ascentDate,
+    DateTime? ascentDate,
     String? notes,
     List<AscentUploadPhoto> photos = const [],
   }) async {
@@ -19,7 +17,7 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
         ApiEndpoints.ascents,
         body: {
           'peakId': peakId,
-          'ascentDate': _formatDateOnly(ascentDate),
+          if (ascentDate != null) 'ascentDate': _formatDateOnly(ascentDate),
           if (notes != null) 'notes': notes,
           if (photos.isNotEmpty)
             'photos': photos.map((photo) => photo.toJson()).toList(),
@@ -32,7 +30,7 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
 
         if (data == null) {
           throw const ApiException(
-            'La resposta del registre d’ascensió no és vàlida',
+            'La resposta del registre d\'ascensió no és vàlida',
             statusCode: 201,
           );
         }
@@ -60,8 +58,179 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
     }
   }
 
-  // Aquest mètode demana al backend una URL temporal per pujar una foto.
-  // La imatge encara no queda associada a cap ascensió fins que s’envia el formulari final.
+  // Envia al backend una ascensió verificada.
+  // Utilitza una foto feta des de l’app i la ubicació capturada pel dispositiu.
+  @override
+  Future<Ascent> createVerifiedAscent({
+    required int peakId,
+    String? notes,
+    required List<AscentUploadPhoto> photos,
+    required double capturedLatitude,
+    required double capturedLongitude,
+    required double capturedAccuracyMeters,
+    required DateTime capturedAt,
+  }) async {
+    try {
+      final response = await _postJson(
+        ApiEndpoints.verifiedAscent,
+        body: {
+          'peakId': peakId,
+          if (notes != null) 'notes': notes,
+          'photos': photos.map((photo) => photo.toJson()).toList(),
+          'capturedLatitude': capturedLatitude,
+          'capturedLongitude': capturedLongitude,
+          'capturedAccuracyMeters': capturedAccuracyMeters,
+          'capturedAt': capturedAt.toIso8601String(),
+        },
+        requiresAuth: true,
+      );
+
+      if (response.statusCode == 201) {
+        final data = _tryParseJson(response.body);
+
+        if (data == null) {
+          throw const ApiException(
+            'La resposta de l\'ascensió verificada no és vàlida',
+            statusCode: 201,
+          );
+        }
+
+        return Ascent.fromJson(data);
+      }
+
+      final data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'ha pogut crear l\'ascensió verificada';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
+
+  // Actualitza una ascensió existent.
+  // Pot ometre la data quan el registre prové d’una verificació i la data està bloquejada.
+  @override
+  Future<Ascent> updateAscent({
+    required int ascentId,
+    required DateTime? ascentDate,
+    bool includeAscentDate = true,
+    String? notes,
+  }) async {
+    try {
+      final response = await _putJson(
+        ApiEndpoints.ascentById(ascentId),
+        body: {
+          if (includeAscentDate)
+            'ascentDate':
+                ascentDate == null ? null : _formatDateOnly(ascentDate),
+          'notes': notes,
+        },
+        requiresAuth: true,
+      );
+
+      if (response.statusCode == 200) {
+        final data = _tryParseJson(response.body);
+
+        if (data == null) {
+          throw const ApiException(
+            'La resposta de l\'actualització no és vàlida',
+            statusCode: 200,
+          );
+        }
+
+        final rawAscent = data['ascent'] ?? data['data'] ?? data;
+
+        if (rawAscent is! Map) {
+          throw const ApiException(
+            'La resposta de l\'actualització no conté cap ascensió vàlida',
+            statusCode: 200,
+          );
+        }
+
+        return Ascent.fromJson(
+          Map<String, dynamic>.from(rawAscent),
+        );
+      }
+
+      final data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'ha pogut actualitzar l\'ascensió';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
+
+  // Recupera totes les fotos d’una ascensió.
+  // S’utilitza a l’edició i al detall per mostrar les imatges ja associades.
+  @override
+  Future<List<AscentPhoto>> getAscentPhotos(int ascentId) async {
+    try {
+      final response = await _getJson(
+        ApiEndpoints.ascentPhotosByAscentId(ascentId),
+        requiresAuth: true,
+      );
+
+      if (response.statusCode == 200) {
+        final decodedBody = jsonDecode(response.body);
+
+        if (decodedBody is! List) {
+          throw const ApiException(
+            'La resposta de les fotos no és vàlida',
+            statusCode: 200,
+          );
+        }
+
+        return decodedBody
+            .whereType<Map>()
+            .map((item) => AscentPhoto.fromJson(Map<String, dynamic>.from(item)))
+            .toList();
+      }
+
+      final data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'han pogut carregar les fotos de l\'ascensió';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
+
+  // Demana al backend una URL temporal per pujar una foto.
+  // La foto encara no queda associada a cap ascensió fins que es desa el registre final.
   @override
   Future<AscentSignedUploadUrl> createAscentPhotoSignedUploadUrl({
     required String mimeType,
@@ -82,7 +251,7 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
 
         if (data == null) {
           throw ApiException(
-            'La resposta de pujada d’imatge no és vàlida',
+            'La resposta de pujada d\'imatge no és vàlida',
             statusCode: response.statusCode,
           );
         }
@@ -110,21 +279,19 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
     }
   }
 
-  // Aquest mètode puja els bytes de la imatge directament a la URL temporal de GCS.
-  // Aquesta petició no fa servir el backend ni el token, perquè la URL ja incorpora el permís temporal.
+  // Puja els bytes de la imatge directament a Google Cloud Storage.
+  // Utilitza la URL temporal i els headers signats que ha retornat el backend.
   @override
   Future<void> uploadAscentPhotoBytes({
     required String uploadUrl,
     required List<int> bytes,
-    required String mimeType,
+    required Map<String, String> headers,
   }) async {
     try {
       final response = await _client
           .put(
             Uri.parse(uploadUrl),
-            headers: {
-              'Content-Type': mimeType,
-            },
+            headers: headers,
             body: bytes,
           )
           .timeout(const Duration(seconds: 30));
@@ -152,9 +319,8 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
     }
   }
 
-  // Aquest mètode recupera les ascensions de l’usuari autenticat
-  // associades a un cim concret. Es farà servir per mostrar informació
-  // personal del cim, com la data de l’última ascensió registrada.
+  // Recupera les ascensions de l’usuari associades a un cim concret.
+  // Permet mostrar l’historial personal dins del detall del cim.
   @override
   Future<List<Ascent>> getAscentsByPeak(int peakId) async {
     try {
@@ -199,13 +365,101 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
     }
   }
 
-  // Aquest mètode transforma una data en el format simple que fa servir
-  // el backend per guardar ascensions sense hora.
+  // Recupera una pàgina de la galeria de fotos de l’usuari.
+  // La paginació permet carregar més imatges només quan la pantalla les necessita.
+  @override
+  Future<AscentPhotoGalleryPage> getUserPhotoGallery({
+    int limit = 30,
+    int offset = 0,
+  }) async {
+    try {
+      final response = await _getJson(
+        ApiEndpoints.ascentPhotosGallery,
+        queryParameters: {
+          'limit': limit.toString(),
+          'offset': offset.toString(),
+        },
+        requiresAuth: true,
+      );
+
+      if (response.statusCode == 200) {
+        final data = _tryParseJson(response.body);
+
+        if (data == null) {
+          throw const ApiException(
+            'La resposta de la galeria de fotos no és vàlida',
+            statusCode: 200,
+          );
+        }
+
+        return AscentPhotoGalleryPage.fromJson(data);
+      }
+
+      final data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'ha pogut carregar la galeria de fotos';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
+
+  // Converteix una data al format simple que espera el backend.
+  // Aquest format s’utilitza per guardar ascensions sense hora.
   String _formatDateOnly(DateTime date) {
     final year = date.year.toString().padLeft(4, '0');
     final month = date.month.toString().padLeft(2, '0');
     final day = date.day.toString().padLeft(2, '0');
 
     return '$year-$month-$day';
+  }
+
+  // Elimina una foto d’ascensió de l’usuari autenticat.
+  // Si era la foto principal, el backend pot promocionar-ne una altra.
+  @override
+  Future<void> deleteAscentPhoto(int photoId) async {
+    final response = await _deleteJson(
+      ApiEndpoints.ascentPhotoById(photoId),
+      requiresAuth: true,
+    );
+
+    if (response.statusCode == 204) {
+      return;
+    }
+
+    throw ApiException(
+      'No s\'ha pogut eliminar la foto',
+      statusCode: response.statusCode,
+    );
+  }
+
+  // Elimina una ascensió de l’usuari autenticat.
+  // També permet al backend actualitzar l’estat del cim i el progrés mensual.
+  @override
+  Future<void> deleteAscent(int ascentId) async {
+    final response = await _deleteJson(
+      ApiEndpoints.ascentById(ascentId),
+      requiresAuth: true,
+    );
+
+    if (response.statusCode == 204) {
+      return;
+    }
+
+    throw ApiException(
+      'No s\'ha pogut eliminar l\'ascensió',
+      statusCode: response.statusCode,
+    );
   }
 }

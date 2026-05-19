@@ -1,77 +1,94 @@
-// Aquesta classe centralitza els camins dels endpoints del backend.
-// La seva funció és evitar rutes duplicades o escrites manualment
-// en diferents punts del client API.
+// Aquesta classe centralitza les rutes del backend utilitzades pel frontend.
+// Evita duplicar textos d’endpoint i facilita mantenir la comunicació amb l’API.
 class ApiEndpoints {
-  // Aquest prefix agrupa totes les rutes exposades per l’API del backend.
+  // Prefix comú de totes les rutes del backend.
   static const String api = '/api';
 
-  // Aquest prefix agrupa les operacions relacionades amb autenticació.
+  // Rutes relacionades amb autenticació i sessió d’usuari.
   static const String auth = '$api/auth';
-
-  // Aquest bloc defineix les rutes concretes que fa servir el frontend
-  // per comunicar-se amb les funcionalitats d’autenticació i perfil.
   static const String register = '$auth/register';
   static const String login = '$auth/login';
   static const String profile = '$auth/profile';
 
-  // Aquestes rutes corresponen al flux de recuperació de contrasenya.
-  // Permeten iniciar la sol·licitud de canvi i enviar la nova contrasenya al backend.
+  // Rutes del flux de recuperació de contrasenya.
+  // Permeten sol·licitar el canvi i confirmar la nova contrasenya.
   static const String forgotPassword = '$auth/forgot-password';
   static const String resetPassword = '$auth/reset-password';
 
-  // Aquestes rutes corresponen al catàleg públic de cims i comarques.
-  // Permeten carregar el llistat principal i deixar preparats futurs filtres.
+  // Rutes del catàleg de cims i comarques.
+  // Permeten carregar la informació principal que es mostra al llistat i als filtres.
   static const String peaks = '$api/peaks';
   static const String regions = '$api/regions';
 
-  // Aquesta ruta recupera els cims pensats per pintar-los al mapa.
-  // A diferència del catàleg, no utilitza la resposta paginada amb "items".
+  // Ruta específica per obtenir els cims preparats per mostrar-se al mapa.
   static const String peaksMap = '$peaks/map';
 
-  // Aquesta ajuda construeix la ruta d’un cim concret.
-  // Permet consultar el detall d’un cim a partir del seu identificador.
+  // Construeix la ruta del detall d’un cim concret.
   static String peakById(int peakId) => '$peaks/$peakId';
 
-  // Aquestes rutes permeten consultar i actualitzar l’estat personal
-  // que l’usuari té assignat als cims.
+  // Rutes de l’estat personal dels cims.
+  // Permeten consultar i modificar si un cim és assolit, objectiu o favorit.
   static const String peakStatus = '$api/peak-status';
 
-  // Aquesta ajuda construeix la ruta de l’estat personal d’un cim concret.
-  // Es farà servir des del detall per consultar o modificar els botons d’estat.
+  // Construeix la ruta de l’estat personal d’un cim concret.
   static String peakStatusByPeakId(int peakId) => '$peakStatus/$peakId';
 
-  // Aquesta ruta correspon al registre i gestió d’ascensions.
-  // Permet enviar al backend una nova ascensió associada a un cim concret.
+  // Rutes de registre i gestió d’ascensions.
+  // Permeten crear, consultar, actualitzar i eliminar ascensions de l’usuari.
   static const String ascents = '$api/ascents';
 
-  // Aquesta ajuda construeix la ruta de les ascensions d’un cim concret.
-  // Permet consultar l’historial personal de l’usuari sobre aquell cim.
+  // Ruta per crear una ascensió verificada.
+  // Utilitza una foto feta des de l’app i la ubicació capturada pel dispositiu.
+  static const String verifiedAscent = '$ascents/verified';
+
+  // Construeix la ruta de l’historial d’ascensions d’un cim concret.
   static String ascentsByPeakId(int peakId) => '$ascents/peak/$peakId';
 
-  // Aquesta ruta correspon a les estadístiques personals de l’usuari.
-  // Permet carregar el resum de progrés amb una sola petició autenticada.
+  // Construeix la ruta d’una ascensió concreta.
+  static String ascentById(int ascentId) => '$ascents/$ascentId';
+
+  // Construeix la ruta de les fotos associades a una ascensió concreta.
+  static String ascentPhotosByAscentId(int ascentId) =>
+      '$ascents/$ascentId/photos';
+
+  // Ruta de les estadístiques personals de l’usuari.
   static const String stats = '$api/stats';
 
-  // Aquest prefix agrupa les operacions relacionades amb el compte de l'usuari.
+  // Rutes relacionades amb el compte de l’usuari.
   static const String users = '$api/users';
-
-  // Aquestes rutes permeten consultar i modificar el perfil de l'usuari autenticat.
   static const String userProfile = '$users/profile';
   static const String changePassword = '$users/password';
   static const String deleteAccount = '$users/account';
 
-  // Aquest endpoint permet obtenir les dades resumides del dashboard.
-  // Retorna el progrés general, els reptes i els cims destacats de l’usuari autenticat.
+  // Rutes per gestionar la foto de perfil.
+  // La imatge es puja amb una URL temporal i després queda associada al perfil.
+  static const String profilePhoto = '$users/profile-photo';
+  static const String profilePhotoSignedUploadUrl =
+      '$profilePhoto/signed-upload-url';
+
+  // Ruta del dashboard principal.
+  // Retorna informació resumida sobre progrés, reptes i cims destacats.
   static const String dashboard = '$api/dashboard';
 
-  // Aquestes rutes corresponen al repte mensual de l'usuari autenticat.
-  // Permeten consultar el repte actiu i el progrés calculat pel backend.
+  // Rutes del repte mensual.
+  // Permeten consultar el repte actiu i el progrés calculat per l’usuari.
   static const String monthlyChallenges = '$api/monthly-challenges';
   static const String currentMonthlyChallenge = '$monthlyChallenges/current';
 
-  // Aquestes rutes permeten preparar la pujada de fotos associades a una ascensió.
-  // El backend retorna una URL temporal perquè el frontend pugui pujar la imatge directament.
+  // Rutes per preparar, consultar i eliminar fotos d’ascensions.
   static const String ascentPhotos = '$api/ascent-photos';
+  static const String ascentPhotosGallery = '$ascentPhotos/me';
   static const String ascentPhotoSignedUploadUrl =
       '$ascentPhotos/signed-upload-url';
+
+  // Construeix la ruta d’una foto concreta d’ascensió.
+  static String ascentPhotoById(int photoId) => '$ascentPhotos/$photoId';
+
+  // Construeix la ruta de la previsió diària d’un cim.
+  static String peakWeatherDaily(int peakId) =>
+      '${peakById(peakId)}/weather/daily';
+
+  // Construeix la ruta de la previsió horària d’un cim.
+  static String peakWeatherHourly(int peakId) =>
+      '${peakById(peakId)}/weather/hourly';
 }

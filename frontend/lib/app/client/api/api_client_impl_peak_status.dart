@@ -1,8 +1,8 @@
 part of 'api_client_impl.dart';
 
 // Aquest mixin implementa les peticions relacionades amb l’estat personal dels cims.
-// Gestiona la consulta i actualització dels flags de completat, objectiu i preferit
-// per a l’usuari autenticat.
+// Permet consultar l’estat complet i modificar només els flags manuals,
+// com objectiu i preferit, per a l’usuari autenticat.
 mixin _PeakStatusApiClientImplMixin on _ApiClientBase
     implements PeakStatusApiClient {
   // Aquest mètode carrega tots els estats de cims associats a l’usuari autenticat.
@@ -63,21 +63,15 @@ mixin _PeakStatusApiClientImplMixin on _ApiClientBase
     );
   }
 
-  // Aquest mètode actualitza l’estat personal d’un cim concret.
-  // Rep només els valors que s’han de modificar, de manera que es pot canviar
-  // un únic flag sense alterar la resta de l’estat del cim.
+  // Aquest mètode actualitza només els estats manuals d’un cim concret.
+  // El completat no s’envia al backend perquè es calcula a partir de les ascensions.
   @override
   Future<PeakStatus> updatePeakStatus({
     required int peakId,
-    bool? isCompleted,
     bool? isTarget,
     bool? isFavorite,
   }) async {
     final body = <String, dynamic>{};
-
-    if (isCompleted != null) {
-      body['isCompleted'] = isCompleted;
-    }
 
     if (isTarget != null) {
       body['isTarget'] = isTarget;

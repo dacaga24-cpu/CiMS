@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-// Aquesta targeta mostra els metres totals acumulats per l’usuari.
+// Aquesta targeta mostra els metres acumulats dins del rang temporal seleccionat.
 // Representa una mètrica motivacional vinculada a les ascensions registrades.
 class StatsTotalMetersCard extends StatelessWidget {
   const StatsTotalMetersCard({
@@ -9,7 +9,7 @@ class StatsTotalMetersCard extends StatelessWidget {
     required this.comparisonLabel,
   });
 
-  // Aquestes dades permeten mostrar el desnivell acumulat i una comparativa breu.
+  // Aquestes dades permeten mostrar el desnivell acumulat i el rang temporal aplicat.
   // Ajuden l’usuari a interpretar el seu progrés més enllà del nombre d’ascensions.
   final int totalMeters;
   final String comparisonLabel;
@@ -38,31 +38,41 @@ class StatsTotalMetersCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.landscape_outlined,
-            color: Colors.white,
-            size: 24,
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Icon(
+              Icons.landscape_outlined,
+              color: Colors.white,
+              size: 28,
+            ),
           ),
           const SizedBox(width: 14),
-          // Aquest bloc agrupa la mètrica principal i el text de comparativa.
-          // Dona prioritat visual als metres totals perquè és la dada més rellevant.
+
+          // Aquest bloc agrupa la mètrica principal i el text del rang temporal.
+          // Dona prioritat visual als metres perquè és la dada més rellevant.
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Metres totals',
+                  'METRES ACUMULATS',
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                    letterSpacing: 0.7,
+                    fontWeight: FontWeight.w900,
                     color: Color(0xFFD7E6FF),
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 5),
                 Text(
-                  '${_formatNumber(totalMeters)}m',
+                  '${_formatNumber(totalMeters)} m',
                   style: const TextStyle(
-                    fontSize: 30,
+                    fontSize: 31,
                     height: 1,
                     fontWeight: FontWeight.w900,
                     color: Colors.white,
@@ -71,8 +81,11 @@ class StatsTotalMetersCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   comparisonLabel,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
+                    height: 1.25,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFFD7E6FF),
                   ),

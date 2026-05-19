@@ -221,11 +221,25 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
             isUpdatingStatus: controller.isUpdatingStatus,
             statusErrorMessage: controller.statusErrorMessage,
             ascentsErrorMessage: controller.ascentsErrorMessage,
+            weatherForecast: controller.weatherForecast,
+            isWeatherLoading: controller.isWeatherLoading,
+            weatherErrorMessage: controller.weatherErrorMessage,
+            expandedWeatherDay: controller.expandedDay,
+            expandedWeatherHourly: controller.expandedDay == null
+                ? null
+                : controller.hourlyForDay(controller.expandedDay!),
+            isExpandedHourlyLoading: controller.expandedDay != null &&
+                controller.isHourlyLoading(controller.expandedDay!),
+            expandedHourlyError: controller.expandedDay == null
+                ? null
+                : controller.hourlyErrorFor(controller.expandedDay!),
             onRetryTap: controller.onRetryTap,
             onTargetTap: controller.onTargetTap,
-            onCompletedTap: controller.onCompletedTap,
             onFavoriteTap: controller.onFavoriteTap,
             onMapTap: _openPeakMap,
+            onWeatherRetryTap: controller.onWeatherRetryTap,
+            onWeatherDayTap: controller.toggleDayExpansion,
+            onWeatherHourlyRetryTap: controller.onHourlyRetryTap,
           ),
           bottomNavigationBar: PeakDetailBottomAction(
             onPressed: controller.onRegisterAscentTap,

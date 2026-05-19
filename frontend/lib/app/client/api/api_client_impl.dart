@@ -14,6 +14,11 @@ import 'package:cims/core/entity/user_stats.dart';
 import 'package:cims/core/entity/dashboard_summary.dart';
 import 'package:cims/core/entity/ascent_upload_photo.dart';
 import 'package:cims/core/entity/peaks_page.dart';
+import 'package:cims/core/entity/ascent_photo.dart';
+import 'package:cims/core/entity/profile_photo_upload.dart';
+import 'package:cims/core/entity/ascent_photo_gallery.dart';
+import 'package:cims/core/entity/peak_weather.dart';
+import 'package:cims/core/entity/peak_hourly_weather.dart';
 import 'package:http/http.dart' as http;
 
 // Aquests fitxers separen les peticions de l’API per àmbits funcionals.
@@ -26,6 +31,7 @@ part 'api_client_impl_peak_status.dart';
 part 'api_client_impl_ascents.dart';
 part 'api_client_impl_stats.dart';
 part 'api_client_impl_monthly_challenge.dart';
+part 'api_client_impl_weather.dart';
 
 // Aquesta classe base centralitza la infraestructura comuna del client d’API.
 // Les operacions funcionals es reparteixen en fitxers separats per àmbit
@@ -61,7 +67,7 @@ abstract class _ApiClientBase {
           headers: await _buildHeaders(requiresAuth: requiresAuth),
           body: jsonEncode(body),
         )
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 20));
 
     await _handleUnauthorizedIfNeeded(
       response,
@@ -84,7 +90,7 @@ abstract class _ApiClientBase {
           headers: await _buildHeaders(requiresAuth: requiresAuth),
           body: jsonEncode(body),
         )
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 20));
 
     await _handleUnauthorizedIfNeeded(
       response,
@@ -112,7 +118,7 @@ abstract class _ApiClientBase {
           uri,
           headers: await _buildHeaders(requiresAuth: requiresAuth),
         )
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 20));
 
     await _handleUnauthorizedIfNeeded(
       response,
@@ -193,20 +199,25 @@ abstract class _ApiClientBase {
     }
   }
 
+  // Aquest mètode elimina una ascensió concreta de l’usuari autenticat.
+  // El backend comprova la propietat del registre i actualitza l’estat completat del cim si cal.
+  Future<void> deleteAscent(int ascentId);
+
   // Aquest mètode permet fer peticions DELETE JSON sobre endpoints autenticats.
-  // S’utilitza per accions destructives com la desactivació del compte.
+  // S’utilitza per accions destructives com eliminar fotos, ascensions o el compte.
+  // El body és opcional perquè alguns endpoints DELETE només necessiten l’identificador a la URL.
   Future<http.Response> _deleteJson(
     String endpoint, {
-    required Map<String, dynamic> body,
+    Map<String, dynamic>? body,
     bool requiresAuth = false,
   }) async {
     final response = await _client
         .delete(
           Uri.parse('$_baseUrl$endpoint'),
           headers: await _buildHeaders(requiresAuth: requiresAuth),
-          body: jsonEncode(body),
+          body: body == null ? null : jsonEncode(body),
         )
-        .timeout(const Duration(seconds: 10));
+        .timeout(const Duration(seconds: 20));
 
     await _handleUnauthorizedIfNeeded(
       response,
@@ -228,7 +239,8 @@ class ApiClientImpl extends _ApiClientBase
         _RegionsApiClientImplMixin,
         _PeakStatusApiClientImplMixin,
         _StatsApiClientImplMixin,
-        _MonthlyChallengeApiClientImplMixin
+        _MonthlyChallengeApiClientImplMixin,
+        _WeatherApiClientImplMixin
     implements ApiClient {
   // Aquest constructor permet crear el client final de l’API.
   // Reutilitza la configuració comuna definida a la classe base.

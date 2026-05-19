@@ -10,6 +10,7 @@ import 'package:cims/core/session/app_session.dart';
 import 'package:cims/core/store/peak_status_store.dart';
 import 'package:cims/core/usecase/get_regions_usecase.dart';
 import 'package:cims/core/usecase/peak_status/get_user_peak_statuses_usecase.dart';
+import 'package:cims/core/usecase/peak_status/update_peak_status_usecase.dart';
 import 'package:cims/core/usecase/peaks/get_map_peaks_usecase.dart';
 import 'package:flutter/material.dart';
 
@@ -31,6 +32,7 @@ class PeaksMapController extends ChangeNotifier {
     GetMapPeaksUseCase? getMapPeaksUseCase,
     GetRegionsUseCase? getRegionsUseCase,
     GetUserPeakStatusesUseCase? getUserPeakStatusesUseCase,
+    UpdatePeakStatusUseCase? updatePeakStatusUseCase,
     PeakStatusStore? peakStatusStore,
   }) : _peakStatusStore = peakStatusStore ?? AppSession.peakStatusStore {
     final apiClient = ApiClientImpl();
@@ -41,6 +43,8 @@ class PeaksMapController extends ChangeNotifier {
         getRegionsUseCase ?? GetRegionsUseCase(apiClient: apiClient);
     _getUserPeakStatusesUseCase =
         getUserPeakStatusesUseCase ?? GetUserPeakStatusesUseCase(apiClient);
+    _updatePeakStatusUseCase =
+        updatePeakStatusUseCase ?? UpdatePeakStatusUseCase(apiClient);
 
     _peakStatusStore.addListener(_onStoreChanged);
 
@@ -59,6 +63,7 @@ class PeaksMapController extends ChangeNotifier {
   late final GetMapPeaksUseCase _getMapPeaksUseCase;
   late final GetRegionsUseCase _getRegionsUseCase;
   late final GetUserPeakStatusesUseCase _getUserPeakStatusesUseCase;
+  late final UpdatePeakStatusUseCase _updatePeakStatusUseCase;
   final PeakStatusStore _peakStatusStore;
 
   // Aquest controller gestiona el text de cerca introduït per l’usuari.
@@ -68,6 +73,7 @@ class PeaksMapController extends ChangeNotifier {
   // Inclou la càrrega, els possibles errors, els cims visibles al mapa
   // i les regions disponibles per aplicar filtres.
   bool isLoading = false;
+  bool isUpdatingSelectedPeakStatus = false;
   String? errorMessage;
 
   // peaks conté els cims finals que es poden mostrar al mapa.
@@ -142,11 +148,26 @@ class PeaksMapController extends ChangeNotifier {
   }
 
   // Inicialitza les dades necessàries per mostrar el mapa.
-  // Primer carrega les regions i els estats personals, i després obté els cims visibles.
+  // Regions, estats personals i cims es demanen alhora perquè són crides
+  // independents. Així el mapa arriba abans i la pantalla queda llesta més
+  // ràpid. Cada Future captura els seus errors internament; el .catchError
+  // d’aquí és una xarxa de seguretat perquè un error inesperat en una crida
+  // no aborti Future.wait i descarti els resultats de les altres dues.
   Future<void> initialize() async {
-    await _loadRegions();
-    await _loadUserPeakStatuses();
-    await _loadPeaks();
+    await Future.wait([
+      _loadRegions().catchError((error, stack) {
+        debugPrint('[PeaksMapController] initialize/_loadRegions '
+            'escaped: $error\n$stack');
+      }),
+      _loadUserPeakStatuses().catchError((error, stack) {
+        debugPrint('[PeaksMapController] initialize/_loadUserPeakStatuses '
+            'escaped: $error\n$stack');
+      }),
+      _loadPeaks().catchError((error, stack) {
+        debugPrint('[PeaksMapController] initialize/_loadPeaks '
+            'escaped: $error\n$stack');
+      }),
+    ]);
   }
 
   // Carrega les regions disponibles per als filtres del mapa.
@@ -161,11 +182,17 @@ class PeaksMapController extends ChangeNotifier {
 
       availableRegions = loadedRegions;
       notifyListeners();
-    } catch (_) {
+    } catch (error, stack) {
       if (_disposed) {
         return;
       }
 
+      // Es loga el tipus i la traça perquè un canvi de contracte del backend
+      // (camps renombrats, format invàlid) no quedi enterrat com a llista buida.
+      debugPrint(
+        '[PeaksMapController] _loadRegions failed '
+        '(${error.runtimeType}): $error\n$stack',
+      );
       availableRegions = const [];
       notifyListeners();
     }
@@ -183,11 +210,15 @@ class PeaksMapController extends ChangeNotifier {
       }
 
       _peakStatusStore.setAll(statuses);
-    } catch (_) {
+    } catch (error, stack) {
       if (_disposed) {
         return;
       }
 
+      debugPrint(
+        '[PeaksMapController] _loadUserPeakStatuses failed '
+        '(${error.runtimeType}): $error\n$stack',
+      );
       _peakStatusStore.clear();
     }
   }
@@ -243,6 +274,85 @@ class PeaksMapController extends ChangeNotifier {
   void onPeakSelected(Peak peak) {
     selectedPeak = peak;
     notifyListeners();
+  }
+
+  // Activa o desactiva el flag d’objectiu del cim seleccionat.
+  // El canvi es desa al backend i després s’escriu al store compartit.
+  Future<void> onSelectedPeakTargetTap() async {
+    final peak = selectedPeak;
+
+    if (peak == null || isUpdatingSelectedPeakStatus) {
+      return;
+    }
+
+    final currentStatus =
+        _peakStatusStore.getStatus(peak.id) ?? PeakStatus.emptyForPeak(peak.id);
+
+    await _updateSelectedPeakStatus(
+      peakId: peak.id,
+      isTarget: !currentStatus.isTarget,
+    );
+  }
+
+  // Activa o desactiva el flag de preferit del cim seleccionat.
+  // El completat no es modifica des del mapa perquè deriva de les ascensions.
+  Future<void> onSelectedPeakFavoriteTap() async {
+    final peak = selectedPeak;
+
+    if (peak == null || isUpdatingSelectedPeakStatus) {
+      return;
+    }
+
+    final currentStatus =
+        _peakStatusStore.getStatus(peak.id) ?? PeakStatus.emptyForPeak(peak.id);
+
+    await _updateSelectedPeakStatus(
+      peakId: peak.id,
+      isFavorite: !currentStatus.isFavorite,
+    );
+  }
+
+  // Actualitza un estat manual del cim seleccionat.
+  // Només envia el camp que canvia i deixa la resta d’estats intactes.
+  Future<void> _updateSelectedPeakStatus({
+    required int peakId,
+    bool? isTarget,
+    bool? isFavorite,
+  }) async {
+    isUpdatingSelectedPeakStatus = true;
+    errorMessage = null;
+    notifyListeners();
+
+    try {
+      final updatedStatus = await _updatePeakStatusUseCase.execute(
+        peakId: peakId,
+        isTarget: isTarget,
+        isFavorite: isFavorite,
+      );
+
+      if (_disposed) {
+        return;
+      }
+
+      _peakStatusStore.setStatus(updatedStatus);
+    } on ApiException catch (error) {
+      if (_disposed) {
+        return;
+      }
+
+      errorMessage = error.message;
+    } catch (_) {
+      if (_disposed) {
+        return;
+      }
+
+      errorMessage = 'No s\'ha pogut actualitzar l\'estat del cim';
+    } finally {
+      if (!_disposed) {
+        isUpdatingSelectedPeakStatus = false;
+        notifyListeners();
+      }
+    }
   }
 
   // Prepara la navegació cap al detall del cim seleccionat.

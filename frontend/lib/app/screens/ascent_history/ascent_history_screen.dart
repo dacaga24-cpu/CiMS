@@ -1,6 +1,8 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:cims/app/screens/ascent_history/ascent_history_controller.dart';
 import 'package:cims/app/screens/ascent_history/widgets/ascent_history_content.dart';
+import 'package:cims/core/entity/ascent.dart';
+import 'package:cims/app/router/app_router.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta pantalla mostra l’historial d’ascensions d’un cim seleccionat.
@@ -44,6 +46,23 @@ class _AscentHistoryScreenState extends State<AscentHistoryScreen> {
     super.dispose();
   }
 
+  // Aquest mètode obre la pantalla d’edició de l’ascensió seleccionada.
+  // Si l’edició o eliminació modifica dades, es refresca l’historial en tornar.
+  Future<void> _openAscentEdit(Ascent ascent) async {
+    final shouldRefresh = await context.router.root.push<bool>(
+      AscentEditRoute(
+        ascent: ascent,
+        peakName: widget.peakName,
+        altitude: widget.altitude,
+        regions: widget.regions,
+      ),
+    );
+
+    if (shouldRefresh == true) {
+      await controller.onRefresh();
+    }
+  }
+
   // Aquest mètode construeix la pantalla completa amb una barra superior simple
   // i el contingut principal inspirat en el disseny de Figma.
   @override
@@ -76,6 +95,7 @@ class _AscentHistoryScreenState extends State<AscentHistoryScreen> {
             errorMessage: controller.errorMessage,
             onRefresh: controller.onRefresh,
             onRetryTap: controller.onRetryTap,
+            onAscentTap: _openAscentEdit,
           );
         },
       ),

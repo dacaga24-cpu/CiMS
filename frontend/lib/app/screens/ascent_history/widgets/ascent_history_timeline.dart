@@ -1,50 +1,64 @@
+import 'package:cims/app/widgets/ascent_verified_badge.dart';
 import 'package:cims/core/entity/ascent.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget representa les ascensions del cim en format de línia temporal.
-// Ajuda a visualitzar l’historial personal mantenint la data i les notes de cada registre.
+// Ajuda a visualitzar l’historial personal mantenint només els registres amb data.
 class AscentHistoryTimeline extends StatelessWidget {
   const AscentHistoryTimeline({
     super.key,
     required this.ascents,
+    required this.onAscentTap,
   });
 
-  // Aquesta llista conté les ascensions del cim ordenades pel backend.
   final List<Ascent> ascents;
+  final ValueChanged<Ascent> onAscentTap;
 
-  // Aquest mètode construeix la línia vertical i els punts associats a cada ascensió.
   @override
   Widget build(BuildContext context) {
+    final datedAscents = ascents
+        .where((ascent) => ascent.ascentDate != null)
+        .toList();
+
     return Column(
       children: [
-        for (var index = 0; index < ascents.length; index++)
+        for (var index = 0; index < datedAscents.length; index++)
           _TimelineItem(
-            ascent: ascents[index],
+            ascent: datedAscents[index],
             isFirst: index == 0,
-            isLast: index == ascents.length - 1,
+            isLast: index == datedAscents.length - 1,
+            onTap: () => onAscentTap(datedAscents[index]),
           ),
       ],
     );
   }
 }
 
-// Aquest widget representa una ascensió individual dins de la línia temporal.
+// Aquest widget representa una ascensió dins la línia temporal.
+// Mostra la data, la foto principal, les notes i l’estat de verificació.
 class _TimelineItem extends StatelessWidget {
   const _TimelineItem({
     required this.ascent,
     required this.isFirst,
     required this.isLast,
+    required this.onTap,
   });
 
-  // Aquest bloc rep la dada de l’ascensió i la seva posició dins de la llista.
-  // La posició permet ajustar el color del punt principal i l’espai inferior.
   final Ascent ascent;
   final bool isFirst;
   final bool isLast;
+  final VoidCallback onTap;
 
-  // Aquest mètode construeix el punt de la línia temporal i el text associat.
   @override
   Widget build(BuildContext context) {
+    final ascentDate = ascent.ascentDate;
+    final primaryPhoto = ascent.primaryPhoto;
+    final photoUrl = primaryPhoto?.downloadUrl;
+
+    if (ascentDate == null) {
+      return const SizedBox.shrink();
+    }
+
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -60,7 +74,7 @@ class _TimelineItem extends StatelessWidget {
                     bottom: 0,
                     child: Container(
                       width: 2,
-                      color: const Color(0xFFE3E6EB),
+                      color: const Color(0xFF0E63F4),
                     ),
                   ),
                 if (!isFirst)
@@ -69,7 +83,7 @@ class _TimelineItem extends StatelessWidget {
                     height: 9,
                     child: Container(
                       width: 2,
-                      color: const Color(0xFFE3E6EB),
+                      color: const Color(0xFF0E63F4),
                     ),
                   ),
                 Positioned(
@@ -77,10 +91,8 @@ class _TimelineItem extends StatelessWidget {
                   child: Container(
                     width: 18,
                     height: 18,
-                    decoration: BoxDecoration(
-                      color: isFirst
-                          ? const Color(0xFFFFD176)
-                          : const Color(0xFFE3E6EB),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF0E63F4),
                       shape: BoxShape.circle,
                     ),
                     child: Center(
@@ -88,7 +100,7 @@ class _TimelineItem extends StatelessWidget {
                         width: 6,
                         height: 6,
                         decoration: const BoxDecoration(
-                          color: Color(0xFF202020),
+                          color: Colors.white,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -100,54 +112,84 @@ class _TimelineItem extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(
-                top: 8,
-                bottom: isLast ? 0 : 26,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: onTap,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    top: 8,
+                    bottom: isLast ? 0 : 26,
+                  ),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Expanded(
-                        child: Text(
-                          'Ascensió registrada',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 14,
-                            height: 1.1,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF252525),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Ascensió registrada',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 14,
+                                height: 1.1,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF252525),
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _formatDate(ascentDate),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF5E6572),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            size: 18,
+                            color: Color(0xFF98A2B3),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
+                      if (ascent.isVerified) ...[
+                        const SizedBox(height: 7),
+                        const AscentVerifiedBadge(
+                          label: 'Verificada',
+                          compact: true,
+                        ),
+                      ],
+                      if (photoUrl != null) ...[
+                        const SizedBox(height: 10),
+                        _AscentPhotoPreview(
+                          photoUrl: photoUrl,
+                          isEvidence:
+                              primaryPhoto?.isVerificationEvidence ?? false,
+                        ),
+                      ],
+                      const SizedBox(height: 8),
                       Text(
-                        _formatDate(ascent.ascentDate),
+                        ascent.hasNotes
+                            ? ascent.notes!
+                            : 'Sense notes registrades.',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF5E6572),
+                          height: 1.25,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF6E7480),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 5),
-                  Text(
-                    ascent.hasNotes ? ascent.notes! : 'Sense notes registrades.',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      height: 1.25,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF6E7480),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -156,7 +198,6 @@ class _TimelineItem extends StatelessWidget {
     );
   }
 
-  // Aquest mètode transforma la data en el format curt del disseny.
   String _formatDate(DateTime date) {
     const months = [
       'gen',
@@ -178,5 +219,87 @@ class _TimelineItem extends StatelessWidget {
     final year = date.year.toString();
 
     return '$day $month $year';
+  }
+}
+
+// Aquest widget mostra una vista prèvia de la foto principal de l’ascensió.
+// Si la imatge és l’evidència de verificació, ho indica amb una etiqueta visual.
+class _AscentPhotoPreview extends StatelessWidget {
+  const _AscentPhotoPreview({
+    required this.photoUrl,
+    required this.isEvidence,
+  });
+
+  final String photoUrl;
+  final bool isEvidence;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.network(
+              photoUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: const Color(0xFFF2F4F7),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.broken_image_rounded,
+                    color: Color(0xFF98A2B3),
+                  ),
+                );
+              },
+            ),
+            if (isEvidence)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF7C3AED),
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x33000000),
+                        blurRadius: 8,
+                        offset: Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.location_on_rounded,
+                        size: 13,
+                        color: Colors.white,
+                      ),
+                      SizedBox(width: 5),
+                      Text(
+                        'Evidència',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }

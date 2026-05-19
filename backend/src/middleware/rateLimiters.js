@@ -78,6 +78,21 @@ const signedUploadUrlRateLimiter = rateLimit({
   message: { error: 'Too many upload URL requests. Please try again later.' },
 });
 
+// Aquest limitador protegeix els endpoints meteorològics. Cada petició que
+// no troba resposta a la cache es tradueix en una crida a la Google Weather
+// API, que consumeix quota i té un cost econòmic. Un sostre per IP evita
+// que un client (legítim però mal programat, o malintencionat) pugui
+// disparar centenars de crides en bucle i esgotar la quota compartida.
+// El límit és prou generós perquè un usuari real que navegui per diversos
+// cims i provi filtres no el toqui mai dins d'una sessió.
+const weatherRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minuts
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many weather requests. Please try again later.' },
+});
+
 module.exports = {
   loginRateLimiter,
   forgotPasswordRateLimiter,
@@ -85,4 +100,5 @@ module.exports = {
   resetPasswordRateLimiter,
   changePasswordRateLimiter,
   signedUploadUrlRateLimiter,
+  weatherRateLimiter,
 };

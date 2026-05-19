@@ -151,11 +151,14 @@ const PeakModel = {
         return Number(rows[0].total);
     },
 
-    // Retorna tots els cims que coincideixen amb els filtres amb només els
-    // camps mínims que necessita el mapa (id, nom, coordenades i altitud).
-    // S'evita exposar regions i description perquè el mapa no els pinta i
-    // el seu volum faria inflar la resposta innecessàriament. Aquest
-    // endpoint no té límit de resultats: és la vista que ha de mostrar
+    // Retorna tots els cims que coincideixen amb els filtres amb els camps
+    // necessaris per pintar-los al mapa: id, nom, coordenades, altitud i
+    // les comarques associades. Les comarques s'inclouen perquè la targeta
+    // del cim seleccionat al mapa les mostra; sense aquest camp el frontend
+    // no té manera de saber a quina comarca pertany cada cim sense fer una
+    // petició addicional per cada selecció. Es manté l'omissió de description
+    // perquè el mapa no la pinta i sí que afegiria volum significatiu.
+    // Aquest endpoint no té límit de resultats: és la vista que ha de mostrar
     // sempre el conjunt complet de cims que casen amb els filtres.
     async findAllForMap({ regionId, minAltitude, maxAltitude, search } = {}) {
         const { join, where, params } = buildPeakFilters({
@@ -171,7 +174,7 @@ const PeakModel = {
         `;
 
         const [rows] = await pool.execute(sql, params);
-        return rows;
+        return attachRegionsToPeaks(rows);
     },
 
     // Aquest mètode busca un cim pel seu identificador i hi afegeix la

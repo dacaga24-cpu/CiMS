@@ -3,6 +3,28 @@ part of 'api_client_impl.dart';
 // Aquest mixin agrupa les operacions relacionades amb el catàleg
 // i el detall dels cims dins del client d’API.
 mixin _PeaksApiClientImplMixin on _ApiClientBase {
+  // Aquest mètode centralitza la construcció dels query params del
+  // catàleg (paginat i mapa). Manté la traducció dels filtres a
+  // strings en un únic lloc perquè els dos endpoints comparteixin
+  // exactament la mateixa serialització.
+  Map<String, String> _peaksQueryParameters({
+    String? search,
+    int? regionId,
+    int? minAltitude,
+    int? maxAltitude,
+    int? page,
+    int? pageSize,
+  }) {
+    return <String, String>{
+      if (page != null) 'page': page.toString(),
+      if (pageSize != null) 'pageSize': pageSize.toString(),
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      if (regionId != null) 'regionId': regionId.toString(),
+      if (minAltitude != null) 'minAltitude': minAltitude.toString(),
+      if (maxAltitude != null) 'maxAltitude': maxAltitude.toString(),
+    };
+  }
+
   // Aquest mètode recupera el catàleg de cims i permet aplicar criteris
   // de cerca o filtratge per retornar només els resultats que interessen a l’usuari.
   Future<List<Peak>> getPeaks({
@@ -60,7 +82,11 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
           data?['message']?.toString() ??
           'No s\'ha pogut carregar el catàleg de cims';
 
-      throw ApiException(message, statusCode: response.statusCode);
+      throw ApiException(
+        message,
+        statusCode: response.statusCode,
+        code: data?['code']?.toString(),
+      );
     } on TimeoutException {
       throw const ApiException(
         'El servidor no respon. Torna-ho a provar',
@@ -87,15 +113,14 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
     try {
       final response = await _getJson(
         ApiEndpoints.peaks,
-        queryParameters: {
-          'page': page.toString(),
-          'pageSize': pageSize.toString(),
-          if (search != null && search.trim().isNotEmpty)
-            'search': search.trim(),
-          if (regionId != null) 'regionId': regionId.toString(),
-          if (minAltitude != null) 'minAltitude': minAltitude.toString(),
-          if (maxAltitude != null) 'maxAltitude': maxAltitude.toString(),
-        },
+        queryParameters: _peaksQueryParameters(
+          search: search,
+          regionId: regionId,
+          minAltitude: minAltitude,
+          maxAltitude: maxAltitude,
+          page: page,
+          pageSize: pageSize,
+        ),
       );
 
       if (response.statusCode == 200) {
@@ -117,7 +142,11 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
           data?['message']?.toString() ??
           'No s\'ha pogut carregar la pàgina del catàleg';
 
-      throw ApiException(message, statusCode: response.statusCode);
+      throw ApiException(
+        message,
+        statusCode: response.statusCode,
+        code: data?['code']?.toString(),
+      );
     } on TimeoutException {
       throw const ApiException(
         'El servidor no respon. Torna-ho a provar',
@@ -133,7 +162,7 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
 
     // Aquest mètode recupera els cims destinats al mapa.
   // Utilitza l’endpoint específic del backend i envia els filtres principals
-  // perquè comarca, cerca i altitud es resolguin amb dades completes.
+  // perquè comarca, cerca, altitud i clima es resolguin amb dades completes.
   Future<List<Peak>> getMapPeaks({
     String? search,
     int? regionId,
@@ -143,13 +172,12 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
     try {
       final response = await _getJson(
         ApiEndpoints.peaksMap,
-        queryParameters: {
-          if (search != null && search.trim().isNotEmpty)
-            'search': search.trim(),
-          if (regionId != null) 'regionId': regionId.toString(),
-          if (minAltitude != null) 'minAltitude': minAltitude.toString(),
-          if (maxAltitude != null) 'maxAltitude': maxAltitude.toString(),
-        },
+        queryParameters: _peaksQueryParameters(
+          search: search,
+          regionId: regionId,
+          minAltitude: minAltitude,
+          maxAltitude: maxAltitude,
+        ),
       );
 
       if (response.statusCode == 200) {
@@ -187,7 +215,11 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
           data?['message']?.toString() ??
           'No s\'han pogut carregar els cims del mapa';
 
-      throw ApiException(message, statusCode: response.statusCode);
+      throw ApiException(
+        message,
+        statusCode: response.statusCode,
+        code: data?['code']?.toString(),
+      );
     } on TimeoutException {
       throw const ApiException(
         'El servidor no respon. Torna-ho a provar',
@@ -233,7 +265,11 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
           data?['message']?.toString() ??
           'No s\'ha pogut carregar el detall del cim';
 
-      throw ApiException(message, statusCode: response.statusCode);
+      throw ApiException(
+        message,
+        statusCode: response.statusCode,
+        code: data?['code']?.toString(),
+      );
     } on TimeoutException {
       throw const ApiException(
         'El servidor no respon. Torna-ho a provar',

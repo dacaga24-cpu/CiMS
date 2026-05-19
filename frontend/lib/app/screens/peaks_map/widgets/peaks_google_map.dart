@@ -3,6 +3,7 @@ import 'package:cims/app/screens/peaks_map/widgets/peaks_map_marker_factory.dart
 import 'package:cims/app/screens/peaks_map/widgets/peaks_map_selected_peak_card.dart';
 import 'package:cims/app/screens/peaks_map/widgets/peaks_map_summary_badge.dart';
 import 'package:cims/core/entity/peak.dart';
+import 'package:cims/core/entity/peak_status.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +19,9 @@ class PeaksGoogleMap extends StatefulWidget {
     required this.onPeakTap,
     required this.onSelectedPeakDetailTap,
     required this.onMapTap,
+    this.statusForPeak,
+    this.onSelectedPeakTargetTap,
+    this.onSelectedPeakFavoriteTap,
     this.height,
     this.showSummary = true,
     this.isInteractive = true,
@@ -31,6 +35,16 @@ class PeaksGoogleMap extends StatefulWidget {
   final ValueChanged<Peak> onPeakTap;
   final VoidCallback onSelectedPeakDetailTap;
   final VoidCallback onMapTap;
+
+  // Aquesta funció permet obtenir l’estat personal del cim seleccionat.
+  // S’utilitza per mostrar completat, objectiu i preferit a la targeta ràpida del mapa.
+  final PeakStatus? Function(int peakId)? statusForPeak;
+
+  // Aquestes accions permeten modificar objectiu i preferit des del detall ràpid.
+  // El completat no es modifica manualment perquè deriva de les ascensions.
+  final VoidCallback? onSelectedPeakTargetTap;
+  final VoidCallback? onSelectedPeakFavoriteTap;
+
   final double? height;
   final bool showSummary;
   final bool isInteractive;
@@ -61,6 +75,11 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
   // intentin actuar sobre un controller que ja s'ha alliberat.
   bool _disposed = false;
 
+  // Identifica la petició de fit més recent. Quan l'usuari canvia de filtre
+  // o de cerca diverses vegades seguides més ràpid del que dura una animació
+  // de càmera, només la última petició s'ha d'aplicar.
+  int _fitRequestId = 0;
+
   // Retorna només els cims que tenen coordenades disponibles.
   // Això evita intentar crear marcadors amb dades incompletes.
   List<Peak> get _visiblePeaks =>
@@ -73,8 +92,7 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
   }
 
   // Detecta si ha canviat el cim seleccionat o la llista de cims des de fora
-  // del widget. Quan canvia el seleccionat, centra la càmera. Quan la llista
-  // de cims passa de buida a amb dades, ajusta la vista perquè els cims quedin visibles.
+  // del widget. Quan canvia el seleccionat, centra la càmera sobre el cim.
   @override
   void didUpdateWidget(covariant PeaksGoogleMap oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -88,11 +106,20 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
       return;
     }
 
-    final previousVisibleCount =
-        oldWidget.peaks.where((peak) => peak.hasMapPosition).length;
-    final currentVisibleCount = _visiblePeaks.length;
+    final currentVisible = _visiblePeaks;
+    if (currentVisible.isEmpty) {
+      return;
+    }
 
-    if (previousVisibleCount == 0 && currentVisibleCount > 0) {
+    final previousVisibleIdsHash = Object.hashAll(
+      oldWidget.peaks
+          .where((peak) => peak.hasMapPosition)
+          .map((peak) => peak.id),
+    );
+    final currentVisibleIdsHash =
+        Object.hashAll(currentVisible.map((peak) => peak.id));
+
+    if (previousVisibleIdsHash != currentVisibleIdsHash) {
       _fitVisiblePeaks();
     }
   }
@@ -132,6 +159,7 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
   // Això fa que tocar un marcador tingui una resposta visual clara.
   Future<void> _centerSelectedPeak() async {
     if (_disposed) return;
+
     final controller = _mapController;
     final peak = widget.selectedPeak;
 
@@ -154,46 +182,46 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
 
   // Ajusta la càmera perquè els cims carregats siguin visibles al mapa.
   // Si només hi ha un cim, centra directament sobre aquell punt.
-  Future<void> _fitVisiblePeaks() async {
+  void _fitVisiblePeaks() {
     if (_disposed) return;
-    final controller = _mapController;
-    final peaks = _visiblePeaks;
+    final requestId = ++_fitRequestId;
 
-    if (controller == null || peaks.isEmpty) {
-      return;
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _disposed || requestId != _fitRequestId) return;
 
-    if (peaks.length == 1) {
-      final peak = peaks.first;
+      final controller = _mapController;
+      final peaks = _visiblePeaks;
+
+      if (controller == null || peaks.isEmpty) return;
+
+      if (peaks.length == 1) {
+        final peak = peaks.first;
+
+        try {
+          await controller.animateCamera(
+            CameraUpdate.newLatLngZoom(
+              LatLng(peak.latitude!, peak.longitude!),
+              11,
+            ),
+          );
+        } catch (_) {
+          // Si el controller ja no és accessible o l'animació falla,
+          // es manté la vista actual sense propagar l'error.
+        }
+        return;
+      }
 
       try {
         await controller.animateCamera(
-          CameraUpdate.newLatLngZoom(
-            LatLng(peak.latitude!, peak.longitude!),
-            11,
+          CameraUpdate.newLatLngBounds(
+            _boundsForPeaks(peaks),
+            48,
           ),
         );
       } catch (_) {
-        // Si el controller ja no és accessible, es manté la vista actual.
+        // Mateix raonament que al cas d'un sol cim.
       }
-
-      if (_disposed) return;
-      return;
-    }
-
-    try {
-      await controller.animateCamera(
-        CameraUpdate.newLatLngBounds(
-          _boundsForPeaks(peaks),
-          48,
-        ),
-      );
-    } catch (_) {
-      // Si el mapa encara no està preparat per ajustar límits,
-      // es manté la posició inicial sense trencar la pantalla.
-    }
-
-    if (_disposed) return;
+    });
   }
 
   // Calcula els límits geogràfics dels cims visibles.
@@ -260,8 +288,6 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
 
   // Converteix els cims visibles en marcadors circulars de Google Maps.
   // El color depèn del filtre actiu i l'identificador també inclou aquest filtre.
-  // Això permet que un mateix cim pugui aparèixer amb colors diferents segons el filtre,
-  // sense que Google Maps Web intenti actualitzar un marcador eliminat.
   Set<Marker> _buildMarkers() {
     final markerIcon = _markersByFilter[widget.statusFilter] ??
         BitmapDescriptor.defaultMarkerWithHue(
@@ -298,6 +324,7 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
   @override
   Widget build(BuildContext context) {
     final visiblePeaks = _visiblePeaks;
+    final selectedPeak = widget.selectedPeak;
 
     if (!_areMarkersReady) {
       return const Center(
@@ -331,14 +358,17 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
                   }
                 : const <Factory<OneSequenceGestureRecognizer>>{},
           ),
-          if (widget.selectedPeak != null)
+          if (selectedPeak != null)
             Positioned(
               left: 18,
               right: 18,
               top: 18,
               child: PeaksMapSelectedPeakCard(
-                peak: widget.selectedPeak!,
+                peak: selectedPeak,
+                status: widget.statusForPeak?.call(selectedPeak.id),
                 onDetailTap: widget.onSelectedPeakDetailTap,
+                onTargetTap: widget.onSelectedPeakTargetTap,
+                onFavoriteTap: widget.onSelectedPeakFavoriteTap,
               ),
             ),
           if (widget.showSummary && visiblePeaks.isNotEmpty)

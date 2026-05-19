@@ -1,14 +1,18 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:cims/app/router/app_router.dart';
 import 'package:cims/app/screens/dashboard/dashboard_controller.dart';
-import 'package:cims/app/screens/dashboard/widgets/dashboard_challenge_card.dart';
 import 'package:cims/app/screens/dashboard/widgets/dashboard_monthly_challenge_card.dart';
 import 'package:cims/app/screens/dashboard/widgets/dashboard_peak_section.dart';
+import 'package:cims/app/screens/dashboard/widgets/dashboard_recent_ascents_section.dart';
+import 'package:cims/app/screens/dashboard/widgets/dashboard_recent_photos_carousel.dart';
 import 'package:cims/app/screens/main_navigation/main_bottom_navigation_tab.dart';
+import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
+import 'package:cims/app/screens/peaks_catalog/models/peaks_filter_state.dart';
+import 'package:cims/app/widgets/layout/app_responsive.dart';
+import 'package:cims/core/entity/dashboard_summary.dart';
+import 'package:cims/core/session/app_session.dart';
 import 'package:flutter/material.dart';
 
-// Aquesta pantalla mostra el resum principal de l’usuari després d’iniciar sessió.
-// Actua com a entrada visual a l’aplicació i resumeix progrés, objectius, favorits i reptes.
 @RoutePage()
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -17,13 +21,9 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-// Aquest estat connecta la pantalla amb el controller del dashboard.
-// La UI només mostra dades i delega la càrrega, errors i navegació al controller.
 class _DashboardScreenState extends State<DashboardScreen> {
   late final DashboardController _controller;
 
-  // Aquest mètode prepara el controller, activa l’escolta de navegació
-  // i inicia la càrrega de dades quan la pantalla ja està construïda.
   @override
   void initState() {
     super.initState();
@@ -35,15 +35,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  // Aquest mètode escolta les intencions de navegació generades pel controller.
-  // Manté la navegació fora del controller i la resol des de la pantalla.
   void _handleNavigation() {
     if (!mounted) return;
 
     switch (_controller.destination) {
       case DashboardDestination.none:
         return;
-
       case DashboardDestination.peakDetail:
         final peakId = _controller.selectedPeakId;
         _controller.consumeNavigation();
@@ -54,7 +51,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           PeakDetailRoute(peakId: peakId),
         );
         return;
-
       case DashboardDestination.stats:
         _controller.consumeNavigation();
 
@@ -65,8 +61,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // Aquest mètode allibera el controller i elimina l’escolta activa.
-  // Evita mantenir referències de la pantalla quan ja no s’està mostrant.
+  void _openAscentHistory(DashboardRecentAscent ascent) {
+    context.router.root.push(
+      AscentHistoryRoute(
+        peakId: ascent.peakId,
+        peakName: ascent.peakName,
+        altitude: ascent.altitude ?? 0,
+        regions: ascent.regionName == null ? const [] : [ascent.regionName!],
+      ),
+    );
+  }
+
+  void _openCatalogWithStatusFilter(PeakStatusFilter statusFilter) {
+    PeaksFilterState.shared.clear();
+    PeaksFilterState.shared.apply(statusFilter: statusFilter);
+
+    AutoTabsRouter.of(context).setActiveIndex(
+      MainBottomNavigationTab.catalog.index,
+    );
+  }
+
   @override
   void dispose() {
     _controller.removeListener(_handleNavigation);
@@ -74,8 +88,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
-  // Aquest mètode construeix la pantalla segons l’estat actual:
-  // càrrega inicial, error o contingut del dashboard.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -105,37 +117,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onRefresh: _controller.loadDashboard,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _DashboardHeader(),
-                    const SizedBox(height: 22),
-                    DashboardChallengeCard(
-                      challenge: summary.challengeProgress,
-                      onViewStats: _controller.openStats,
-                    ),
-                    const SizedBox(height: 18),
-                    DashboardMonthlyChallengeCard(
-                      challenge: summary.monthlyChallenge,
-                    ),
-                    const SizedBox(height: 18),
-                    DashboardPeakSection(
-                      title: 'Pendents de coronar',
-                      emptyMessage: 'Encara no tens cims pendents.',
-                      peaks: summary.pendingPeaks,
-                      icon: Icons.flag_rounded,
-                      onPeakTap: _controller.openPeakDetail,
-                    ),
-                    const SizedBox(height: 18),
-                    DashboardPeakSection(
-                      title: 'Els meus preferits',
-                      emptyMessage: 'Encara no tens cims preferits.',
-                      peaks: summary.favoritePeaks,
-                      icon: Icons.favorite_rounded,
-                      onPeakTap: _controller.openPeakDetail,
-                    ),
-                  ],
+                padding: AppResponsive.pagePadding(
+                  context,
+                  compactHorizontal: 20,
+                  compactTop: 18,
+                  compactBottom: 28,
+                ),
+                child: ResponsiveConstrainedBox(
+                  child: _DashboardContent(
+                    summary: summary,
+                    onPeakTap: _controller.openPeakDetail,
+                    onViewGalleryTap: () {
+                      context.router.root.push(
+                        const UserPhotoGalleryRoute(),
+                      );
+                    },
+                    onStatusFilterTap: _openCatalogWithStatusFilter,
+                    onAscentTap: _openAscentHistory,
+                  ),
                 ),
               ),
             );
@@ -146,47 +145,204 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-// Aquesta capçalera presenta el dashboard amb un missatge breu.
-// Manté la pantalla alineada amb una experiència personal i orientada al progrés.
-class _DashboardHeader extends StatelessWidget {
-  const _DashboardHeader();
+class _DashboardContent extends StatelessWidget {
+  const _DashboardContent({
+    required this.summary,
+    required this.onPeakTap,
+    required this.onViewGalleryTap,
+    required this.onStatusFilterTap,
+    required this.onAscentTap,
+  });
 
-  // Aquest mètode construeix el títol principal i el text introductori del dashboard.
-  // Ajuda l’usuari a entendre ràpidament el propòsit de la pantalla.
+  final DashboardSummary summary;
+  final ValueChanged<int> onPeakTap;
+  final VoidCallback onViewGalleryTap;
+  final ValueChanged<PeakStatusFilter> onStatusFilterTap;
+  final ValueChanged<DashboardRecentAscent> onAscentTap;
+
   @override
   Widget build(BuildContext context) {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Dashboard',
-          style: TextStyle(
-            color: Color(0xFF1F2933),
-            fontSize: 30,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        SizedBox(height: 6),
-        Text(
-          'Segueix el teu progrés i prepara els propers cims.',
-          style: TextStyle(
-            color: Color(0xFF6B7280),
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
+    final isCompact = AppResponsive.isCompact(context);
+
+    if (isCompact) {
+      return _DashboardColumn(
+        children: _allSections,
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 900) {
+          return _DashboardColumn(
+            children: _allSections,
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _DashboardHeader(),
+            const SizedBox(height: 24),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 5,
+                  child: _DashboardColumn(
+                    children: [
+                      _challengeCard,
+                      _photosCard,
+                      _recentAscentsCard,
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  flex: 4,
+                  child: _DashboardColumn(
+                    children: [
+                      _targetPeaksCard,
+                      _favoritePeaksCard,
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  List<Widget> get _allSections {
+    return [
+      const _DashboardHeader(),
+      _challengeCard,
+      _photosCard,
+      _targetPeaksCard,
+      _favoritePeaksCard,
+      _recentAscentsCard,
+    ];
+  }
+
+  Widget get _challengeCard {
+    return DashboardMonthlyChallengeCard(
+      challenge: summary.monthlyChallenge,
+    );
+  }
+
+  Widget get _photosCard {
+    return DashboardRecentPhotosCarousel(
+      photos: summary.recentPhotos,
+      onViewGalleryTap: onViewGalleryTap,
+    );
+  }
+
+  Widget get _targetPeaksCard {
+    return DashboardPeakSection(
+      title: 'Últims objectius',
+      emptyMessage: 'Encara no tens cap cim com a objectiu.',
+      peaks: summary.pendingPeaks,
+      icon: Icons.flag_rounded,
+      iconColor: const Color(0xFFF97316),
+      onPeakTap: onPeakTap,
+      onViewAllTap: () => onStatusFilterTap(PeakStatusFilter.target),
+    );
+  }
+
+  Widget get _favoritePeaksCard {
+    return DashboardPeakSection(
+      title: 'Últims preferits',
+      emptyMessage: 'Encara no tens cims preferits.',
+      peaks: summary.favoritePeaks,
+      icon: Icons.favorite_rounded,
+      iconColor: const Color(0xFFE84A4A),
+      onPeakTap: onPeakTap,
+      onViewAllTap: () => onStatusFilterTap(PeakStatusFilter.favorite),
+    );
+  }
+
+  Widget get _recentAscentsCard {
+    return DashboardRecentAscentsSection(
+      ascents: summary.recentAscents,
+      onAscentTap: onAscentTap,
+      onViewAllTap: () => onStatusFilterTap(PeakStatusFilter.completed),
     );
   }
 }
 
-// Aquest estat visual s’utilitza mentre es carreguen les dades inicials.
-// Evita mostrar una pantalla buida durant la primera petició.
+class _DashboardColumn extends StatelessWidget {
+  const _DashboardColumn({
+    required this.children,
+  });
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final spacedChildren = <Widget>[];
+
+    for (final child in children) {
+      if (child is SizedBox && child.height == 0 && child.width == 0) {
+        continue;
+      }
+
+      if (spacedChildren.isNotEmpty) {
+        spacedChildren.add(const SizedBox(height: 18));
+      }
+
+      spacedChildren.add(child);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: spacedChildren,
+    );
+  }
+}
+
+class _DashboardHeader extends StatelessWidget {
+  const _DashboardHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: AppSession.userProfileStore,
+      builder: (context, _) {
+        final user = AppSession.userProfileStore.user;
+        final firstName = user?.firstName.trim() ?? '';
+        final greetingName = firstName.isEmpty ? 'explorador' : firstName;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Bon dia, $greetingName',
+              style: const TextStyle(
+                color: Color(0xFF1F2933),
+                fontSize: 30,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Segueix el teu progrés i prepara els propers cims.',
+              style: TextStyle(
+                color: Color(0xFF6B7280),
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _DashboardLoadingState extends StatelessWidget {
   const _DashboardLoadingState();
 
-  // Aquest mètode mostra un indicador de càrrega centrat.
-  // Informa l’usuari que el dashboard encara està obtenint les dades.
   @override
   Widget build(BuildContext context) {
     return const Center(
@@ -197,21 +353,15 @@ class _DashboardLoadingState extends StatelessWidget {
   }
 }
 
-// Aquest estat visual mostra un error de càrrega i permet tornar-ho a provar.
-// Dona una resposta clara quan el dashboard no pot obtenir les dades.
 class _DashboardErrorState extends StatelessWidget {
   const _DashboardErrorState({
     required this.message,
     required this.onRetry,
   });
 
-  // Aquestes dades defineixen el missatge d’error i l’acció de recuperació.
-  // Permeten mostrar una incidència comprensible i donar una sortida a l’usuari.
   final String message;
   final VoidCallback onRetry;
 
-  // Aquest mètode construeix el missatge d’error i el botó de reintent.
-  // Manté la pantalla funcional encara que la càrrega inicial hagi fallat.
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -249,7 +399,7 @@ class _DashboardErrorState extends StatelessWidget {
                   borderRadius: BorderRadius.circular(18),
                 ),
               ),
-              child: const Text('Tornar-ho a provar'),
+              child: const Text("Tornar-ho a provar"),
             ),
           ],
         ),

@@ -3,77 +3,90 @@ const AscentModel = require('../models/ascentModel');
 const StatsModel = require('../models/statsModel');
 const { fillMissingMonths } = require('../utils/statsHelpers');
 
-// Quants mesos d'historial inclou la sèrie monthlyAscents que serveix el
-// gràfic de la pantalla d'estadístiques. Es manté com a constant perquè és
-// el contracte que espera el frontend i un canvi requeriria coordinar-se
-// amb la implementació de la vista.
+// Defineix quants mesos inclou la sèrie mensual d'ascensions.
+// Aquest valor forma part del contracte que consumeix el frontend.
 const MONTHLY_ASCENTS_WINDOW = 12;
 
-// Quantes ascensions recents s'inclouen a recentAscents. La pantalla mostra
-// una llista compacta a la capçalera, així que cinc és suficient per donar
-// context sense inflar la mida de la resposta.
+// Defineix quantes ascensions recents es retornen per compatibilitat.
+// La pantalla d'estadístiques ja no les mostra, però altres fluxos encara
+// poden aprofitar aquest camp mentre el contracte evoluciona.
 const RECENT_ASCENTS_LIMIT = 5;
 
-// Aquest servei centralitza el càlcul de les estadístiques personals de
-// l'usuari. La pantalla d'estadístiques només necessita un sol endpoint per
-// obtenir totes les xifres rellevants, així que aquí es combinen les dades
-// crues de la base de dades en un objecte de resum llest per ser consumit.
+// Defineix quants cims formen el rànquing principal de cims més coronats.
+const TOP_ASCENDED_PEAKS_LIMIT = 3;
+
+// Defineix el rang temporal per defecte de les mètriques variables.
+// L'últim any dona una lectura equilibrada entre progrés recent i històric.
+const DEFAULT_STATS_RANGE = 'year';
+
+// Aquest servei centralitza el càlcul de les estadístiques personals de l'usuari.
+// Combina estats de cims, ascensions i consultes agregades per retornar
+// un únic resum funcional preparat per al frontend.
 //
-// Les fonts de dades es consulten en paral·lel amb Promise.all perquè no
-// depenen entre si i així es minimitza la latència total de la resposta.
-// Les comarques associades als cims que apareixen a mostAscendedPeak i
-// recentAscents es resolen en una segona query batch per evitar problemes
-// de N+1 amb peak_regions.
+// Les ascensions sense data només serveixen per justificar que un cim està completat.
+// No formen part de les mètriques cronològiques, totals d'ascensions,
+// metres acumulats, gràfiques mensuals ni activitat recent.
 const StatsService = {
 
-  // Retorna el resum complet de progrés de l'usuari autenticat. Conté tres
-  // seccions lògiques: comptadors d'estat (assolits/objectius/preferits),
-  // mètriques d'ascensions (totals, cims únics, altitud acumulada, repte
-  // rolling, gràfic mensual i activitat recent) i derivades creuades (cim
-  // més pujat, altitud màxima assolida).
-  //
-  // Tots els camps tenen un valor coherent encara que l'usuari sigui nou:
-  // els comptadors són zero, els objectes derivats són null i els arrays
-  // mantenen la seva mida lògica (per exemple, monthlyAscents sempre té 12
-  // entrades). Així el frontend no ha de fer comprovacions defensives sobre
-  // l'absència de camps.
-  async getUserStats(userId) {
+  // Retorna el resum complet de progrés de l'usuari autenticat.
+  // Inclou comptadors d'estat, mètriques d'ascensions datades, rànquing de cims,
+  // gràfic mensual, repte, ratxes mensuals i dades compatibles amb versions anteriors.
+  async getUserStats(userId, range = DEFAULT_STATS_RANGE) {
+    const selectedRange = normalizeStatsRange(range);
+
     const [
       statuses,
       ascents,
       highestCompletedAltitude,
       totalAltitudeMeters,
-      mostAscendedPeak,
+      totalAltitudeMetersAllTime,
+      topAscendedPeaksRaw,
       monthlyAscentsRaw,
+      monthlyActivityRaw,
       challengeProgress,
       recentAscentsRaw,
     ] = await Promise.all([
       PeakStatusModel.findAllByUserId(userId),
       AscentModel.findAllByUserId(userId),
       StatsModel.getHighestCompletedAltitude(userId),
-      StatsModel.getTotalAltitudeMeters(userId),
-      StatsModel.getMostAscendedPeak(userId),
+      StatsModel.getTotalAltitudeMeters(userId, selectedRange),
+      StatsModel.getTotalAltitudeMeters(userId, 'total'),
+      StatsModel.getTopAscendedPeaks(userId, TOP_ASCENDED_PEAKS_LIMIT),
       StatsModel.getMonthlyAscentsRaw(userId, MONTHLY_ASCENTS_WINDOW),
+      StatsModel.getMonthlyActivityRaw(userId),
       StatsModel.getChallengeProgress(userId),
       StatsModel.getRecentAscentsRaw(userId, RECENT_ASCENTS_LIMIT),
     ]);
 
-    // Una segona query batch resol les comarques de tots els cims que
-    // apareixen a mostAscendedPeak i recentAscents, així s'enriqueixen
-    // sense fer una crida per cim i sense duplicar files al SQL principal.
+    // Aquesta consulta batch recupera les comarques dels cims destacats
+    // sense fer una petició individual per cada cim.
     const peakIdsNeedingRegions = collectPeakIdsForRegions(
-      mostAscendedPeak,
+      topAscendedPeaksRaw,
       recentAscentsRaw,
     );
-    const regionsByPeakId = await StatsModel.getRegionsForPeaks(peakIdsNeedingRegions);
+
+    const regionsByPeakId = await StatsModel.getRegionsForPeaks(
+      peakIdsNeedingRegions,
+    );
+
+    const topAscendedPeaks = topAscendedPeaksRaw.map((peak) =>
+      enrichWithRegions(peak, regionsByPeakId),
+    );
 
     return {
       ...computeProgressSummary(statuses),
       ...computeAscentMetrics(ascents),
+      selectedRange,
       highestCompletedAltitude,
       totalAltitudeMeters,
-      mostAscendedPeak: enrichWithRegions(mostAscendedPeak, regionsByPeakId),
-      monthlyAscents: fillMissingMonths(monthlyAscentsRaw, MONTHLY_ASCENTS_WINDOW),
+      totalAltitudeMetersAllTime,
+      topAscendedPeaks,
+      mostAscendedPeak: topAscendedPeaks[0] || null,
+      monthlyAscents: fillMissingMonths(
+        monthlyAscentsRaw,
+        MONTHLY_ASCENTS_WINDOW,
+      ),
+      monthlyStreak: computeMonthlyStreak(monthlyActivityRaw),
       challengeProgress,
       recentAscents: recentAscentsRaw.map((ascent) =>
         enrichWithRegions(ascent, regionsByPeakId),
@@ -83,8 +96,7 @@ const StatsService = {
 };
 
 // Calcula els tres comptadors principals a partir dels estats personals.
-// Es fa en un sol recorregut perquè cada estat ja porta tots els flags i
-// així s'evita iterar tres vegades la mateixa col·lecció.
+// El completat es basa en peak_status, que es manté sincronitzat amb les ascensions.
 function computeProgressSummary(statuses) {
   let completedPeaks = 0;
   let activeTargets = 0;
@@ -94,9 +106,11 @@ function computeProgressSummary(statuses) {
     if (status.is_completed === 1) {
       completedPeaks += 1;
     }
+
     if (status.is_target === 1) {
       activeTargets += 1;
     }
+
     if (status.is_favorite === 1) {
       favorites += 1;
     }
@@ -105,51 +119,125 @@ function computeProgressSummary(statuses) {
   return { completedPeaks, activeTargets, favorites };
 }
 
-// Calcula les mètriques bàsiques derivades de l'historial d'ascensions:
-// el total i el nombre de cims únics on l'usuari ha pujat. Un cim pujat
-// diverses vegades es compta com a una sola entrada a uniquePeaksAscended,
-// mentre que cada ascensió individual contribueix a totalAscents.
+// Calcula les mètriques bàsiques de l'historial d'ascensions.
+// Només compta ascensions amb data perquè representen activitat cronològica real.
 function computeAscentMetrics(ascents) {
-  if (ascents.length === 0) {
+  const datedAscents = ascents.filter((ascent) => ascent.ascent_date !== null);
+
+  if (datedAscents.length === 0) {
     return { totalAscents: 0, uniquePeaksAscended: 0 };
   }
 
   const uniquePeakIds = new Set();
-  for (const ascent of ascents) {
+
+  for (const ascent of datedAscents) {
     uniquePeakIds.add(ascent.peak_id);
   }
 
   return {
-    totalAscents: ascents.length,
+    totalAscents: datedAscents.length,
     uniquePeaksAscended: uniquePeakIds.size,
   };
 }
 
-// Recull els peakIds que necessiten enriquiment de comarques. Es centralitza
-// aquí perquè si en el futur s'afegeixen més camps amb cim associat, només
-// cal incloure'ls en aquesta funció i la resta del flux funcionarà igual.
-function collectPeakIdsForRegions(mostAscendedPeak, recentAscents) {
+// Recull els identificadors dels cims que necessiten comarques.
+// Centralitza aquesta preparació perquè el servei pugui enriquir diferents blocs
+// sense repetir lògica.
+function collectPeakIdsForRegions(topAscendedPeaks, recentAscents) {
   const peakIds = new Set();
-  if (mostAscendedPeak) {
-    peakIds.add(mostAscendedPeak.peakId);
+
+  for (const peak of topAscendedPeaks) {
+    peakIds.add(peak.peakId);
   }
+
   for (const ascent of recentAscents) {
     peakIds.add(ascent.peakId);
   }
+
   return Array.from(peakIds);
 }
 
-// Retorna una còpia de l'objecte amb la propietat regions afegida a partir
-// del mapa de comarques. Si l'objecte d'entrada és null (cas on no hi ha cap
-// cim a enriquir), es retorna null tal qual perquè el contracte és uniforme.
+// Afegeix les comarques a un objecte relacionat amb un cim.
+// Si no hi ha objecte, retorna null per mantenir el contracte del frontend.
 function enrichWithRegions(peakObject, regionsByPeakId) {
   if (peakObject === null) {
     return null;
   }
+
   return {
     ...peakObject,
     regions: regionsByPeakId.get(peakObject.peakId) || [],
   };
+}
+
+// Calcula la ratxa mensual actual i la millor ratxa històrica.
+// Una ratxa mensual compta mesos consecutius amb almenys una ascensió datada.
+function computeMonthlyStreak(monthlyActivityRaw) {
+  if (!Array.isArray(monthlyActivityRaw) || monthlyActivityRaw.length === 0) {
+    return {
+      current: 0,
+      best: 0,
+    };
+  }
+
+  const activeMonths = new Set(
+    monthlyActivityRaw.map((item) => monthKey(item.year, item.month)),
+  );
+
+  let best = 0;
+  let currentRun = 0;
+  let previousKey = null;
+
+  for (const item of monthlyActivityRaw) {
+    const key = monthKey(item.year, item.month);
+
+    if (previousKey === null || key === previousKey + 1) {
+      currentRun += 1;
+    } else {
+      currentRun = 1;
+    }
+
+    best = Math.max(best, currentRun);
+    previousKey = key;
+  }
+
+  const today = new Date();
+  let cursorYear = today.getFullYear();
+  let cursorMonth = today.getMonth() + 1;
+  let current = 0;
+
+  while (activeMonths.has(monthKey(cursorYear, cursorMonth))) {
+    current += 1;
+
+    cursorMonth -= 1;
+    if (cursorMonth === 0) {
+      cursorMonth = 12;
+      cursorYear -= 1;
+    }
+  }
+
+  return {
+    current,
+    best,
+  };
+}
+
+// Converteix any i mes en una clau numèrica correlativa.
+// Això permet detectar mesos consecutius sense dependre de dates completes.
+function monthKey(year, month) {
+  return year * 12 + month;
+}
+
+// Normalitza el rang temporal rebut pel servei.
+// Si arriba un valor desconegut, s'aplica el rang per defecte.
+function normalizeStatsRange(range) {
+  const allowedRanges = ['month', 'quarter', 'six_months', 'year', 'total'];
+
+  if (allowedRanges.includes(range)) {
+    return range;
+  }
+
+  return DEFAULT_STATS_RANGE;
 }
 
 module.exports = StatsService;

@@ -7,6 +7,7 @@ export 'api/profile_api_client.dart';
 export 'api/regions_api_client.dart';
 export 'api/stats_api_client.dart';
 export 'api/monthly_challenge_api_client.dart';
+export 'api/weather_api_client.dart';
 
 import 'package:cims/core/client/api/ascents_api_client.dart';
 import 'package:cims/core/client/api/auth_api_client.dart';
@@ -16,6 +17,7 @@ import 'package:cims/core/client/api/profile_api_client.dart';
 import 'package:cims/core/client/api/regions_api_client.dart';
 import 'package:cims/core/client/api/stats_api_client.dart';
 import 'package:cims/core/client/api/monthly_challenge_api_client.dart';
+import 'package:cims/core/client/api/weather_api_client.dart';
 
 // Aquest contracte agrupa tots els mòduls funcionals de l’API.
 // Així la resta del projecte pot continuar depenent d’un únic punt d’entrada,
@@ -29,4 +31,5 @@ abstract class ApiClient
         PeaksApiClient,
         RegionsApiClient,
         StatsApiClient,
-        MonthlyChallengeApiClient {}
+        MonthlyChallengeApiClient,
+        WeatherApiClient {}

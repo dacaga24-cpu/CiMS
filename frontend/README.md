@@ -80,7 +80,7 @@ firebase login
 Per generar la versió web preparada per producció:
 
 ```bash
-flutter build web
+flutter build web --release --no-tree-shake-icons
 ```
 
 Aquesta comanda genera els fitxers estàtics dins de:
@@ -123,7 +123,7 @@ Cada vegada que es faci un canvi al frontend i es vulgui publicar online, el pro
 Comandes habituals:
 
 ```bash
-flutter build web
+flutter build web --release --no-tree-shake-icons
 firebase deploy
 ```
 
@@ -131,4 +131,4 @@ firebase deploy
 
 Flux habitual de publicació del frontend web:
 
-Modificar frontend -> flutter build web -> firebase deploy
+Modificar frontend -> flutter build web --release --no-tree-shake-icons -> firebase deploy

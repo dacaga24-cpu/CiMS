@@ -1,8 +1,10 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:cims/app/router/guards/auth_guard.dart';
 import 'package:cims/app/screens/app_start/app_start_screen.dart';
+import 'package:cims/app/screens/ascent_edit/ascent_edit_screen.dart';
 import 'package:cims/app/screens/ascent_history/ascent_history_screen.dart';
 import 'package:cims/app/screens/ascent_register/ascent_register_screen.dart';
+import 'package:cims/app/screens/ascent_verification/ascent_verification_screen.dart';
 import 'package:cims/app/screens/dashboard/dashboard_screen.dart';
 import 'package:cims/app/screens/login/login_screen.dart';
 import 'package:cims/app/screens/main_navigation/main_navigation_screen.dart';
@@ -12,7 +14,9 @@ import 'package:cims/app/screens/peaks_map/peaks_map_screen.dart';
 import 'package:cims/app/screens/profile_settings/profile_settings_screen.dart';
 import 'package:cims/app/screens/register/register_screen.dart';
 import 'package:cims/app/screens/reset_password/reset_password_screen.dart';
+import 'package:cims/app/screens/user_photo_gallery/user_photo_gallery_screen.dart';
 import 'package:cims/app/screens/user_stats/user_stats_screen.dart';
+import 'package:cims/core/entity/ascent.dart';
 import 'package:cims/core/entity/peak.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/widgets.dart';
@@ -54,8 +58,23 @@ class AppRouter extends RootStackRouter {
           guards: [authGuard],
         ),
         AutoRoute(
+          page: AscentVerificationRoute.page,
+          path: '/ascents/verify',
+          guards: [authGuard],
+        ),
+        AutoRoute(
           page: AscentHistoryRoute.page,
           path: '/ascents/history',
+          guards: [authGuard],
+        ),
+        AutoRoute(
+          page: AscentEditRoute.page,
+          path: '/ascents/edit',
+          guards: [authGuard],
+        ),
+        AutoRoute(
+          page: UserPhotoGalleryRoute.page,
+          path: '/photo-gallery',
           guards: [authGuard],
         ),
         AutoRoute(

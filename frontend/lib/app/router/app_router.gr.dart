@@ -27,6 +27,89 @@ class AppStartRoute extends PageRouteInfo<void> {
 }
 
 /// generated route for
+/// [AscentEditScreen]
+class AscentEditRoute extends PageRouteInfo<AscentEditRouteArgs> {
+  AscentEditRoute({
+    Key? key,
+    required Ascent ascent,
+    required String peakName,
+    required int altitude,
+    required List<String> regions,
+    List<PageRouteInfo>? children,
+  }) : super(
+          AscentEditRoute.name,
+          args: AscentEditRouteArgs(
+            key: key,
+            ascent: ascent,
+            peakName: peakName,
+            altitude: altitude,
+            regions: regions,
+          ),
+          initialChildren: children,
+        );
+
+  static const String name = 'AscentEditRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      final args = data.argsAs<AscentEditRouteArgs>();
+      return AscentEditScreen(
+        key: args.key,
+        ascent: args.ascent,
+        peakName: args.peakName,
+        altitude: args.altitude,
+        regions: args.regions,
+      );
+    },
+  );
+}
+
+class AscentEditRouteArgs {
+  const AscentEditRouteArgs({
+    this.key,
+    required this.ascent,
+    required this.peakName,
+    required this.altitude,
+    required this.regions,
+  });
+
+  final Key? key;
+
+  final Ascent ascent;
+
+  final String peakName;
+
+  final int altitude;
+
+  final List<String> regions;
+
+  @override
+  String toString() {
+    return 'AscentEditRouteArgs{key: $key, ascent: $ascent, peakName: $peakName, altitude: $altitude, regions: $regions}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! AscentEditRouteArgs) return false;
+    return key == other.key &&
+        ascent == other.ascent &&
+        peakName == other.peakName &&
+        altitude == other.altitude &&
+        const ListEquality<String>().equals(regions, other.regions);
+  }
+
+  @override
+  int get hashCode =>
+      key.hashCode ^
+      ascent.hashCode ^
+      peakName.hashCode ^
+      altitude.hashCode ^
+      const ListEquality<String>().hash(regions);
+}
+
+/// generated route for
 /// [AscentHistoryScreen]
 class AscentHistoryRoute extends PageRouteInfo<AscentHistoryRouteArgs> {
   AscentHistoryRoute({
@@ -154,6 +237,56 @@ class AscentRegisterRouteArgs {
 
   @override
   int get hashCode => key.hashCode ^ peak.hashCode;
+}
+
+/// generated route for
+/// [AscentVerificationScreen]
+class AscentVerificationRoute
+    extends PageRouteInfo<AscentVerificationRouteArgs> {
+  AscentVerificationRoute({
+    Key? key,
+    bool autoStart = false,
+    List<PageRouteInfo>? children,
+  }) : super(
+          AscentVerificationRoute.name,
+          args: AscentVerificationRouteArgs(key: key, autoStart: autoStart),
+          initialChildren: children,
+        );
+
+  static const String name = 'AscentVerificationRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      final args = data.argsAs<AscentVerificationRouteArgs>(
+        orElse: () => const AscentVerificationRouteArgs(),
+      );
+      return AscentVerificationScreen(key: args.key, autoStart: args.autoStart);
+    },
+  );
+}
+
+class AscentVerificationRouteArgs {
+  const AscentVerificationRouteArgs({this.key, this.autoStart = false});
+
+  final Key? key;
+
+  final bool autoStart;
+
+  @override
+  String toString() {
+    return 'AscentVerificationRouteArgs{key: $key, autoStart: $autoStart}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! AscentVerificationRouteArgs) return false;
+    return key == other.key && autoStart == other.autoStart;
+  }
+
+  @override
+  int get hashCode => key.hashCode ^ autoStart.hashCode;
 }
 
 /// generated route for
@@ -390,6 +523,22 @@ class ResetPasswordRoute extends PageRouteInfo<void> {
     name,
     builder: (data) {
       return const ResetPasswordScreen();
+    },
+  );
+}
+
+/// generated route for
+/// [UserPhotoGalleryScreen]
+class UserPhotoGalleryRoute extends PageRouteInfo<void> {
+  const UserPhotoGalleryRoute({List<PageRouteInfo>? children})
+      : super(UserPhotoGalleryRoute.name, initialChildren: children);
+
+  static const String name = 'UserPhotoGalleryRoute';
+
+  static PageInfo page = PageInfo(
+    name,
+    builder: (data) {
+      return const UserPhotoGalleryScreen();
     },
   );
 }

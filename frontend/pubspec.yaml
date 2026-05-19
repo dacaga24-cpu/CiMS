@@ -22,7 +22,10 @@ dependencies:
   google_maps_flutter: ^2.14.2
   collection: ^1.19.1
   image_picker: ^1.2.2
+  image_picker_for_web: ^3.1.1
   flutter_image_compress: ^2.4.0
+  material_symbols_icons: ^4.2928.1
+  geolocator: ^14.0.2
 
 dev_dependencies:
   flutter_test:
@@ -35,3 +38,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/cims_logo.svg
+    - assets/images/montana_0001.png

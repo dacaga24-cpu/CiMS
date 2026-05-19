@@ -6,11 +6,9 @@ import 'package:cims/app/screens/peaks_catalog/widgets/peaks_active_filters_summ
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_catalog_content.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_filters_sheet.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_search_bar.dart';
+import 'package:cims/app/widgets/layout/app_responsive.dart';
 import 'package:flutter/material.dart';
 
-// Aquesta pantalla mostra el catàleg de cims de l’aplicació.
-// La seva funció és construir la vista general del llistat i connectar-la
-// amb el controller, que és qui gestiona l’estat i les dades.
 @RoutePage()
 class PeaksCatalogScreen extends StatefulWidget {
   const PeaksCatalogScreen({super.key});
@@ -19,21 +17,10 @@ class PeaksCatalogScreen extends StatefulWidget {
   State<PeaksCatalogScreen> createState() => _PeaksCatalogScreenState();
 }
 
-// Aquesta classe gestiona el comportament intern de la pantalla del catàleg.
-// S’encarrega de preparar el controller, escoltar-ne els canvis
-// i construir la interfície segons l’estat actual de les dades.
 class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
-  // Aquest controlador concentra les dades i l’estat del catàleg,
-  // incloent la càrrega inicial, la cerca, els filtres,
-  // els estats personals dels cims i la navegació cap al detall.
   late final PeaksCatalogController controller;
-
-  // Aquest controlador permet detectar quan l’usuari arriba al final del llistat.
-  // Així es poden carregar més cims sense afegir dependències externes.
   final ScrollController _scrollController = ScrollController();
 
-  // Aquest mètode prepara el controller quan la pantalla es crea
-  // i inicia la càrrega inicial de les dades que es mostraran al catàleg.
   @override
   void initState() {
     super.initState();
@@ -44,8 +31,6 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
     _scrollController.addListener(_handleScroll);
   }
 
-  // Aquest mètode detecta quan el llistat s’apropa al final.
-  // En aquell moment demana al controller que carregui la pàgina següent.
   void _handleScroll() {
     if (!_scrollController.hasClients) {
       return;
@@ -59,8 +44,6 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
     }
   }
 
-  // Aquest mètode escolta els canvis del controller i resol la navegació real
-  // des de la vista, mantenint el controller desacoblat de la UI.
   void _handleControllerChanges() {
     if (!mounted) return;
 
@@ -74,18 +57,12 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
     }
   }
 
-  // Aquest mètode obre el detall del cim. Quan l'usuari hi modifica algun
-  // estat, el canvi es propaga automàticament al catàleg a través del
-  // PeakStatusStore compartit, de manera que no cal cap recàrrega manual en
-  // tornar.
   Future<void> _openPeakDetail(int peakId) async {
     await context.router.root.push(
       PeakDetailRoute(peakId: peakId),
     );
   }
 
-  // Aquest mètode obre el panell flotant de filtres.
-  // Es mostra sobre la pantalla actual per mantenir visible el llistat del darrere.
   Future<void> _openFiltersSheet() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -118,8 +95,6 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
     );
   }
 
-  // Aquest mètode allibera els recursos associats al controller i al llistat
-  // quan la pantalla deixa d’existir.
   @override
   void dispose() {
     _scrollController.removeListener(_handleScroll);
@@ -129,8 +104,6 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
     super.dispose();
   }
 
-  // Aquest mètode construeix la interfície de la pantalla i la reactualitza
-  // quan canvia l’estat del controller.
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -138,52 +111,53 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
       builder: (context, _) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Column(
-              children: [
-                const SizedBox(height: 20),
-
-                // Aquest bloc mostra la barra de cerca del catàleg
-                // i el botó que obre el panell de filtres.
-                PeaksSearchBar(
-                  controller: controller.searchController,
-                  onChanged: controller.onSearchChanged,
-                  onFilterTap: _openFiltersSheet,
-                  hasActiveFilters: controller.hasActiveFilters,
-                ),
-
-                // Aquest bloc només apareix quan hi ha filtres aplicats.
-                // Mostra un resum breu i permet netejar-los sense obrir el panell.
-                if (controller.hasActiveFilters) ...[
-                  const SizedBox(height: 12),
-                  PeaksActiveFiltersSummary(
-                    summary: controller.activeFiltersSummary,
-                    onClear: controller.clearFilters,
+            padding: AppResponsive.pagePadding(
+              context,
+              compactHorizontal: 16,
+              compactTop: 12,
+              compactBottom: 0,
+              mediumBottom: 0,
+              expandedBottom: 0,
+            ),
+            child: ResponsiveConstrainedBox(
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: AppResponsive.isCompact(context) ? 20 : 8,
+                  ),
+                  PeaksSearchBar(
+                    controller: controller.searchController,
+                    onChanged: controller.onSearchChanged,
+                    onFilterTap: _openFiltersSheet,
+                    hasActiveFilters: controller.hasActiveFilters,
+                  ),
+                  if (controller.hasActiveFilters) ...[
+                    const SizedBox(height: 12),
+                    PeaksActiveFiltersSummary(
+                      summary: controller.activeFiltersSummary,
+                      onClear: controller.clearFilters,
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  Expanded(
+                    child: PeaksCatalogContent(
+                      scrollController: _scrollController,
+                      isLoading: controller.isLoading,
+                      isLoadingMore: controller.isLoadingMore,
+                      errorMessage: controller.errorMessage,
+                      loadMoreErrorMessage: controller.loadMoreErrorMessage,
+                      peaks: controller.peaks,
+                      currentSearch: controller.currentSearch,
+                      hasActiveFilters: controller.hasActiveFilters,
+                      statusForPeak: controller.statusForPeak,
+                      onRefresh: controller.onRetryTap,
+                      onRetryTap: controller.onRetryTap,
+                      onLoadMoreRetryTap: controller.loadMorePeaks,
+                      onPeakTap: controller.onPeakTap,
+                    ),
                   ),
                 ],
-
-                const SizedBox(height: 18),
-
-                // Aquest widget concentra el contingut variable del catàleg:
-                // càrrega, error, estat buit o llistat de cims.
-                Expanded(
-                  child: PeaksCatalogContent(
-                    scrollController: _scrollController,
-                    isLoading: controller.isLoading,
-                    isLoadingMore: controller.isLoadingMore,
-                    errorMessage: controller.errorMessage,
-                    loadMoreErrorMessage: controller.loadMoreErrorMessage,
-                    peaks: controller.peaks,
-                    currentSearch: controller.currentSearch,
-                    hasActiveFilters: controller.hasActiveFilters,
-                    statusForPeak: controller.statusForPeak,
-                    onRefresh: controller.onRetryTap,
-                    onRetryTap: controller.onRetryTap,
-                    onLoadMoreRetryTap: controller.loadMorePeaks,
-                    onPeakTap: controller.onPeakTap,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         );

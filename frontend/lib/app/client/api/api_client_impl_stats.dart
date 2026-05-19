@@ -7,10 +7,15 @@ mixin _StatsApiClientImplMixin on _ApiClientBase implements StatsApiClient {
   // Aquest mètode recupera les estadístiques de l’usuari autenticat.
   // És una petició protegida perquè les dades depenen del token de sessió.
   @override
-  Future<UserStats> getUserStats() async {
+  Future<UserStats> getUserStats({
+    String? range,
+  }) async {
     try {
       final response = await _getJson(
         ApiEndpoints.stats,
+        queryParameters: {
+          if (range != null && range.trim().isNotEmpty) 'range': range.trim(),
+        },
         requiresAuth: true,
       );
 
@@ -47,8 +52,8 @@ mixin _StatsApiClientImplMixin on _ApiClientBase implements StatsApiClient {
     }
   }
 
-  // Aquest mètode recupera el resum necessari per construir el dashboard.
-  // Fa servir el mateix endpoint de stats perquè el dashboard és una vista resumida del progrés.
+  // Aquest mètode recupera el resum necessari per construir el dashboard. 
+  // Fa servir l’endpoint específic de dashboard perquè aquesta pantalla té un contracte propi.
   @override
   Future<DashboardSummary> getDashboardSummary() async {
     try {

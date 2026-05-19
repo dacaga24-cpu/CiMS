@@ -1,13 +1,14 @@
--- Aquest script crea la base de dades principal de CiMS i defineix tota l’estructura inicial.
--- És rellevant perquè estableix on es guardaran les dades bàsiques de l’aplicació:
--- usuaris, cims, comarques, ascensions, estats personals i recuperació de contrasenya.
+-- Aquest script defineix l’estructura principal de la base de dades de CiMS.
+-- Inclou les taules necessàries per gestionar usuaris, cims, ascensions,
+-- estats personals, reptes mensuals, fotos i verificacions.
 CREATE DATABASE IF NOT EXISTS cims_db
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
 USE cims_db;
 
--- 1. Taula de regions (comarques)
+-- Aquesta taula guarda les comarques utilitzades per classificar els cims.
+-- Permet filtrar el catàleg per territori i evitar noms de comarca duplicats.
 CREATE TABLE IF NOT EXISTS regions (
   id         INT          NOT NULL AUTO_INCREMENT,
   name       VARCHAR(100) NOT NULL,
@@ -17,12 +18,8 @@ CREATE TABLE IF NOT EXISTS regions (
   UNIQUE KEY uq_regions_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 2. Taula d'usuaris
--- profile_photo_path guarda la ruta relativa al bucket GCS de la foto de
--- perfil (format `profile-photos/{userId}/{uuid}.{ext}`), o NULL si l'usuari
--- no n'ha pujat cap. No es desa cap URL completa perquè el bucket o el
--- domini poden canviar entre entorns sense necessitat de migrar dades; les
--- URLs signades de visualització es generen al backend quan cal servir-les.
+-- Aquesta taula guarda els comptes dels usuaris registrats.
+-- També permet associar una foto de perfil mitjançant una ruta interna del bucket.
 CREATE TABLE IF NOT EXISTS users (
   id                 INT          NOT NULL AUTO_INCREMENT,
   first_name         VARCHAR(100) NOT NULL,
@@ -37,21 +34,23 @@ CREATE TABLE IF NOT EXISTS users (
   UNIQUE KEY uq_users_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 3. Taula de cims
+-- Aquesta taula guarda el catàleg principal de cims.
+-- Les coordenades permeten mostrar-los al mapa i donar suport a futures verificacions.
 CREATE TABLE IF NOT EXISTS peaks (
-  id         INT          NOT NULL AUTO_INCREMENT,
-  name       VARCHAR(150) NOT NULL,
-  altitude   INT          NOT NULL,
-  latitude   DECIMAL(9,6) NOT NULL,
-  longitude  DECIMAL(9,6) NOT NULL,
-  description TEXT        NULL,
-  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  id          INT          NOT NULL AUTO_INCREMENT,
+  name        VARCHAR(150) NOT NULL,
+  altitude    INT          NOT NULL,
+  latitude    DECIMAL(9,6) NOT NULL,
+  longitude   DECIMAL(9,6) NOT NULL,
+  description TEXT         NULL,
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   INDEX idx_peaks_altitude (altitude)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 4. Taula que relaciona cims amb comarques
+-- Aquesta taula relaciona els cims amb les seves comarques.
+-- Permet que un cim pugui estar associat a més d’un territori.
 CREATE TABLE IF NOT EXISTS peak_regions (
   id         INT        NOT NULL AUTO_INCREMENT,
   peak_id    INT        NOT NULL,
@@ -71,15 +70,17 @@ CREATE TABLE IF NOT EXISTS peak_regions (
 CREATE INDEX idx_peak_regions_peak_id   ON peak_regions(peak_id);
 CREATE INDEX idx_peak_regions_region_id ON peak_regions(region_id);
 
--- 5. Taula d'ascencions dels usuaris als cims
+-- Aquesta taula registra les ascensions dels usuaris.
+-- El camp is_date_locked permet bloquejar la data quan l’ascensió prové d’una verificació.
 CREATE TABLE IF NOT EXISTS ascents (
-  id          INT      NOT NULL AUTO_INCREMENT,
-  user_id     INT      NOT NULL,
-  peak_id     INT      NOT NULL,
-  ascent_date DATE     NOT NULL,
-  notes       TEXT,
-  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  id             INT      NOT NULL AUTO_INCREMENT,
+  user_id        INT      NOT NULL,
+  peak_id        INT      NOT NULL,
+  ascent_date    DATE     NULL,
+  notes          TEXT,
+  is_date_locked TINYINT  NOT NULL DEFAULT 0,
+  created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   INDEX idx_ascents_user_id (user_id),
   INDEX idx_ascents_peak_id (peak_id),
@@ -92,7 +93,8 @@ CREATE TABLE IF NOT EXISTS ascents (
     ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 6. Taula per gestionar l'estat dels cims de cada usuari (completat, objectiu, preferit)
+-- Aquesta taula guarda l’estat personal de cada cim per a cada usuari.
+-- Permet marcar cims com a assolits, objectius o preferits.
 CREATE TABLE IF NOT EXISTS peak_status (
   id           INT        NOT NULL AUTO_INCREMENT,
   user_id      INT        NOT NULL,
@@ -114,7 +116,8 @@ CREATE TABLE IF NOT EXISTS peak_status (
     ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 7. Taula per gestionar tokens de recuperació de contrasenya
+-- Aquesta taula guarda els tokens temporals de recuperació de contrasenya.
+-- Permet controlar la caducitat i evitar reutilitzacions del mateix token.
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
   id          INT          NOT NULL AUTO_INCREMENT,
   user_id     INT          NOT NULL,
@@ -131,40 +134,27 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 8. Plantilla del repte mensual del sistema. Hi ha una sola fila per (any, mes)
--- perquè el repte és global: tots els usuaris veuen el mateix repte el mateix mes.
--- El tipus s'escull aleatòriament la primera vegada que es genera la plantilla
--- (creació "lazy" des del servei) i defineix com es comptarà el progrés.
--- Els tres targets són els llindars dels nivells 1, 2 i 3, sempre creixents.
--- Les marques starts_at/ends_at s'expressen en hora local de Madrid i es passen
--- al driver com a string 'YYYY-MM-DD HH:MM:SS' per evitar conversions implícites
--- de timezone, ja que la finestra del repte és sempre el mes natural (dia 1
--- 00:00:00 fins l'últim dia 23:59:59) i ha de ser estable amb independència
--- de la zona on corri el servidor.
+-- Aquesta taula defineix el repte mensual actiu del sistema.
+-- Cada mes té una única plantilla global amb objectius progressius.
 CREATE TABLE IF NOT EXISTS monthly_challenges (
   id         INT          NOT NULL AUTO_INCREMENT,
-  `year`     SMALLINT     NOT NULL,
-  `month`    TINYINT      NOT NULL,
-  type       ENUM('peaks_completed', 'distinct_regions') NOT NULL,
-  target_1   INT          NOT NULL,
-  target_2   INT          NOT NULL,
-  target_3   INT          NOT NULL,
-  starts_at  DATETIME     NOT NULL,
-  ends_at    DATETIME     NOT NULL,
-  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `year`    SMALLINT     NOT NULL,
+  `month`   TINYINT      NOT NULL,
+  type      ENUM('peaks_completed', 'distinct_regions') NOT NULL,
+  target_1  INT          NOT NULL,
+  target_2  INT          NOT NULL,
+  target_3  INT          NOT NULL,
+  starts_at DATETIME     NOT NULL,
+  ends_at   DATETIME     NOT NULL,
+  created_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_monthly_challenges_period (`year`, `month`),
   INDEX idx_monthly_challenges_period (`year`, `month`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 9. Progrés de cada usuari sobre cada repte mensual. El progrés es manté com
--- a cache derivat de la taula ascents per no haver de recalcular-lo a cada
--- lectura, però sempre es pot reconstruir amb un recompute des del servei.
--- Els camps level_X_completed_at sellen l'instant exacte (hora Madrid) en què
--- l'usuari va superar cada nivell. Per decisió de producte, si l'usuari elimina
--- ascensions i el progrés baixa per sota d'un llindar ja superat, el segell
--- corresponent es torna a NULL i el nivell es desbloqueja.
+-- Aquesta taula guarda el progrés de cada usuari dins d’un repte mensual.
+-- Funciona com a resum calculat per consultar el progrés sense recalcular-lo constantment.
 CREATE TABLE IF NOT EXISTS monthly_challenge_progress (
   id                    INT      NOT NULL AUTO_INCREMENT,
   user_id               INT      NOT NULL,
@@ -188,33 +178,46 @@ CREATE TABLE IF NOT EXISTS monthly_challenge_progress (
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 10. Fotos associades a una ascensió. La relació és 1-N: una mateixa
--- ascensió pot tenir una foto principal i diverses fotos addicionals que
--- l'usuari afegeix com a record de la sortida.
---
--- storage_path guarda únicament la ruta relativa dins del bucket de Google
--- Cloud Storage (ex: 'ascents/123/abc123.jpg'). No es desa cap URL completa
--- perquè el bucket o el domini poden canviar entre entorns sense necessitat
--- de migrar dades; les URLs públiques o signades es generen al backend
--- quan cal servir-les al frontend.
---
--- is_primary distingeix la foto principal de l'ascensió (1) de les fotos
--- de memòria addicionals (0). En el flux verificat futur, la foto principal
--- serà la que aporta les metadades EXIF (GPS + timestamp) que validen
--- l'ascens i passarà a ser immutable.
--- L'ON DELETE CASCADE garanteix que en eliminar una ascensió també
--- desapareguin les seves fotos a la BD; els blobs corresponents al bucket
--- s'esborren des del servei abans de la fila d'ascents per evitar orfes.
+-- Aquesta taula guarda les fotos associades a una ascensió.
+-- També permet marcar quina imatge actua com a evidència principal de verificació.
 CREATE TABLE IF NOT EXISTS ascent_photos (
-  id           INT          NOT NULL AUTO_INCREMENT,
-  ascent_id    INT          NOT NULL,
-  storage_path VARCHAR(500) NOT NULL,
-  is_primary   TINYINT      NOT NULL DEFAULT 0,
-  created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  id                       INT          NOT NULL AUTO_INCREMENT,
+  ascent_id                INT          NOT NULL,
+  storage_path             VARCHAR(500) NOT NULL,
+  is_primary               TINYINT      NOT NULL DEFAULT 0,
+  is_verification_evidence TINYINT      NOT NULL DEFAULT 0,
+  created_at               DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   INDEX idx_ascent_photos_ascent_id (ascent_id),
   INDEX idx_ascent_photos_created_at (created_at),
+  INDEX idx_ascent_photos_verification_evidence (is_verification_evidence),
   CONSTRAINT fk_ascent_photos_ascent
+    FOREIGN KEY (ascent_id) REFERENCES ascents(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Aquesta taula guarda la informació de verificació d’una ascensió.
+-- Separa l’activitat registrada de la prova utilitzada per validar-la.
+CREATE TABLE IF NOT EXISTS ascent_verifications (
+  id                       INT          NOT NULL AUTO_INCREMENT,
+  ascent_id                INT          NOT NULL,
+  method                   ENUM('photo_exif', 'device_location', 'manual') NOT NULL,
+  status                   ENUM('unverified', 'pending', 'verified', 'rejected') NOT NULL DEFAULT 'pending',
+  captured_latitude        DECIMAL(9,6) NULL,
+  captured_longitude       DECIMAL(9,6) NULL,
+  captured_accuracy_meters DECIMAL(8,2) NULL,
+  captured_at              DATETIME     NULL,
+  distance_to_peak_meters  DECIMAL(10,2) NULL,
+  checked_at               DATETIME     NULL,
+  reason                   VARCHAR(255) NULL,
+  created_at               DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at               DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_ascent_verifications_ascent_id (ascent_id),
+  INDEX idx_ascent_verifications_status (status),
+  INDEX idx_ascent_verifications_method (method),
+  INDEX idx_ascent_verifications_checked_at (checked_at),
+  CONSTRAINT fk_ascent_verifications_ascent
     FOREIGN KEY (ascent_id) REFERENCES ascents(id)
     ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

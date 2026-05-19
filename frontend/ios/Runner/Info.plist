@@ -22,6 +22,12 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+
+	<key>NSCameraUsageDescription</key>
+	<string>CiMS necessita accedir a la càmera per fer fotos de verificació d’ascensions.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>CiMS necessita accedir a la ubicació per verificar l’ascensió amb coordenades del dispositiu.</string>
+
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

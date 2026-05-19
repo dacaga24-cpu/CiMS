@@ -12,8 +12,12 @@ class GetUserStatsUseCase {
   final ApiClient _apiClient;
 
   // Aquest mètode executa la consulta de les estadístiques de l’usuari.
-  // Retorna una entitat UserStats ja preparada per ser utilitzada pel controller.
-  Future<UserStats> execute() {
-    return _apiClient.getUserStats();
+  // El rang temporal s’envia al backend quan la pantalla vol ajustar mètriques variables.
+  Future<UserStats> execute({
+    String? range,
+  }) {
+    return _apiClient.getUserStats(
+      range: range,
+    );
   }
 }

@@ -12,13 +12,13 @@ const authMiddleware = require('../middleware/authMiddleware');
 // endpoints nous a aquest mateix recurs.
 router.use(authMiddleware);
 
-// La ruta més específica (/peak/:peakId) ha d'anar abans que les que
-// reben paràmetres genèrics, per garantir que Express l'identifica
-// correctament en lloc d'intentar interpretar "peak" com un ascentId.
-// La ruta /:ascentId/photos s'agrupa amb les altres rutes de lectura
-// per claredat de l'estructura del fitxer.
+// Aquestes rutes específiques han d'anar abans de les rutes amb paràmetres.
+// Això evita que Express interpreti valors com "verified" o "peak" com si fossin ascentId.
 router.get('/peak/:peakId', AscentController.getByUserAndPeak);
 router.get('/:ascentId/photos', AscentController.getPhotosForAscent);
+router.post('/verified', AscentController.createVerified);
+
+// Aquestes rutes gestionen les operacions generals sobre ascensions.
 router.get('/', AscentController.getByUser);
 router.post('/', AscentController.create);
 router.put('/:ascentId', AscentController.update);

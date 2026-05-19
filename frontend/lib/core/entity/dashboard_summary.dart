@@ -14,6 +14,7 @@ class DashboardSummary {
     required this.favoritePeaks,
     required this.monthlyChallenge,
     required this.recentAscents,
+    this.recentPhotos = const [],
     this.lastAscent,
     this.highestCompletedAltitude,
     this.mostAscendedPeak,
@@ -33,6 +34,7 @@ class DashboardSummary {
   final List<DashboardPeakItem> favoritePeaks;
   final MonthlyChallenge monthlyChallenge;
   final List<DashboardRecentAscent> recentAscents;
+  final List<DashboardRecentPhoto> recentPhotos;
   final DashboardRecentAscent? lastAscent;
   final DashboardPeakItem? highestCompletedAltitude;
   final DashboardPeakItem? mostAscendedPeak;
@@ -66,13 +68,17 @@ class DashboardSummary {
       recentAscents: _asList(json['recentAscents'])
           .map((item) => DashboardRecentAscent.fromJson(item))
           .toList(),
+      recentPhotos: _asList(json['recentPhotos'])
+          .map((item) => DashboardRecentPhoto.fromJson(item))
+          .toList(),
       lastAscent: json['lastAscent'] == null
           ? null
           : DashboardRecentAscent.fromJson(_asMap(json['lastAscent'])),
       highestCompletedAltitude: json['highestCompletedAltitude'] == null
           ? null
           : DashboardPeakItem.fromJson(
-              _asMap(json['highestCompletedAltitude'])),
+              _asMap(json['highestCompletedAltitude']),
+            ),
       mostAscendedPeak: json['mostAscendedPeak'] == null
           ? null
           : DashboardPeakItem.fromJson(_asMap(json['mostAscendedPeak'])),
@@ -96,6 +102,7 @@ class DashboardSummary {
     List<DashboardPeakItem>? favoritePeaks,
     MonthlyChallenge? monthlyChallenge,
     List<DashboardRecentAscent>? recentAscents,
+    List<DashboardRecentPhoto>? recentPhotos,
     DashboardRecentAscent? lastAscent,
     DashboardPeakItem? highestCompletedAltitude,
     DashboardPeakItem? mostAscendedPeak,
@@ -113,6 +120,7 @@ class DashboardSummary {
       favoritePeaks: favoritePeaks ?? this.favoritePeaks,
       monthlyChallenge: monthlyChallenge ?? this.monthlyChallenge,
       recentAscents: recentAscents ?? this.recentAscents,
+      recentPhotos: recentPhotos ?? this.recentPhotos,
       lastAscent: lastAscent ?? this.lastAscent,
       highestCompletedAltitude:
           highestCompletedAltitude ?? this.highestCompletedAltitude,
@@ -336,6 +344,52 @@ class DashboardRecentAscent {
       regionName: _asRegionsText(json['regions']) ??
           _asNullableString(json['regionName'] ?? json['region']),
       notes: _asNullableString(json['notes']),
+    );
+  }
+}
+
+// Aquest model representa una foto recent mostrada al dashboard.
+// Cada element correspon a una imatge representativa d'una ascensió de l'usuari.
+class DashboardRecentPhoto {
+  const DashboardRecentPhoto({
+    required this.id,
+    required this.ascentId,
+    required this.peakId,
+    required this.peakName,
+    required this.ascentDate,
+    this.storagePath,
+    this.downloadUrl,
+    this.isPrimary = false,
+    this.createdAt,
+  });
+
+  // Aquestes dades permeten mostrar la foto i relacionar-la amb el cim i l'ascensió.
+  // El downloadUrl és opcional perquè pot no generar-se si hi ha un problema temporal.
+  final int id;
+  final int ascentId;
+  final int peakId;
+  final String peakName;
+  final String ascentDate;
+  final String? storagePath;
+  final String? downloadUrl;
+  final bool isPrimary;
+  final String? createdAt;
+
+  // Aquest constructor transforma la resposta del backend en una foto usable pel dashboard.
+  // Accepta noms de camp en camelCase i snake_case per mantenir compatibilitat.
+  factory DashboardRecentPhoto.fromJson(Map<String, dynamic> json) {
+    return DashboardRecentPhoto(
+      id: _asInt(json['id']),
+      ascentId: _asInt(json['ascentId'] ?? json['ascent_id']),
+      peakId: _asInt(json['peakId'] ?? json['peak_id']),
+      peakName: _asString(json['peakName'] ?? json['peak_name']),
+      ascentDate: _asString(json['ascentDate'] ?? json['ascent_date']),
+      storagePath:
+          _asNullableString(json['storagePath'] ?? json['storage_path']),
+      downloadUrl:
+          _asNullableString(json['downloadUrl'] ?? json['download_url']),
+      isPrimary: _asBool(json['isPrimary'] ?? json['is_primary']),
+      createdAt: _asNullableString(json['createdAt'] ?? json['created_at']),
     );
   }
 }

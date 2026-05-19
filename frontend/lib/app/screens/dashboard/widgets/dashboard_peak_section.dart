@@ -3,7 +3,7 @@ import 'package:cims/core/entity/dashboard_summary.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta secció agrupa una llista curta de cims dins del dashboard.
-// S’utilitza tant per als cims pendents com per als cims favorits.
+// S’utilitza per mostrar objectius o preferits de manera resumida.
 class DashboardPeakSection extends StatelessWidget {
   const DashboardPeakSection({
     super.key,
@@ -12,6 +12,8 @@ class DashboardPeakSection extends StatelessWidget {
     required this.peaks,
     required this.icon,
     required this.onPeakTap,
+    this.iconColor = const Color(0xFF0E63F4),
+    this.onViewAllTap,
   });
 
   // Aquest bloc defineix el contingut i el comportament de la secció.
@@ -20,9 +22,11 @@ class DashboardPeakSection extends StatelessWidget {
   final String emptyMessage;
   final List<DashboardPeakItem> peaks;
   final IconData icon;
+  final Color iconColor;
   final ValueChanged<int> onPeakTap;
+  final VoidCallback? onViewAllTap;
 
-  // Aquest mètode construeix la secció visual amb títol, icona i contingut.
+  // Aquest mètode construeix la secció visual amb títol, icona, acció de veure tots i contingut.
   // Si no hi ha cims, mostra un missatge informatiu; si n’hi ha, crea una targeta per cada cim.
   @override
   Widget build(BuildContext context) {
@@ -45,16 +49,42 @@ class DashboardPeakSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, color: const Color(0xFF0B57D0), size: 22),
+              Icon(
+                icon,
+                color: iconColor,
+                size: 22,
+              ),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Color(0xFF1F2933),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Color(0xFF1F2933),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
+              if (onViewAllTap != null)
+                TextButton(
+                  onPressed: onViewAllTap,
+                  style: TextButton.styleFrom(
+                    foregroundColor: iconColor,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text(
+                    'Veure tots',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 14),

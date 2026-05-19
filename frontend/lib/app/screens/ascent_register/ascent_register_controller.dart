@@ -19,9 +19,13 @@ const int _maxNotesLength = 2000;
 
 // Aquesta configuració redueix el pes de les fotos abans de pujar-les.
 // Es manté una mida suficient per veure la imatge amb qualitat dins de l’aplicació.
-const int _maxPhotoWidth = 1920;
-const int _maxPhotoHeight = 1920;
+// FlutterImageCompress interpreta minWidth/minHeight com a dimensions mínimes
+// del costat resultant, no màximes. Aquests valors limiten les fotos a una
+// caixa de 1920 px mantenint l’evidència visible amb un pes molt inferior.
+const int _minPhotoWidth = 1920;
+const int _minPhotoHeight = 1920;
 const int _photoJpegQuality = 82;
+const int _maxAscentPhotos = 8;
 const String _photoMimeType = 'image/jpeg';
 
 // Aquest enum indica les accions de navegació que la vista ha de resoldre
@@ -39,8 +43,8 @@ enum AscentRegisterFeedback {
 }
 
 // Aquest controller gestiona l’estat local del formulari de registre d’ascensió.
-// Controla la data, les notes, les validacions, el desat amb backend i la
-// sincronització de l’estat del cim quan l’ascensió s’ha registrat correctament.
+// Controla la data opcional, les notes, les fotos, les validacions, el desat amb
+// backend i la sincronització de l’estat del cim quan el registre es completa.
 class AscentRegisterController extends ChangeNotifier {
   AscentRegisterController({
     required this.peakId,
@@ -50,7 +54,8 @@ class AscentRegisterController extends ChangeNotifier {
     UserStatsRefreshStore? userStatsRefreshStore,
     UploadAscentPhotoUseCase? uploadAscentPhotoUseCase,
     ImagePicker? imagePicker,
-  })  : _selectedAscentDate = DateUtils.dateOnly(initialDate ?? DateTime.now()),
+  })  : _selectedAscentDate =
+            initialDate == null ? null : DateUtils.dateOnly(initialDate),
         _registerAscentUseCase = registerAscentUseCase ??
             RegisterAscentUseCase(
               ApiClientImpl(),
@@ -84,30 +89,55 @@ class AscentRegisterController extends ChangeNotifier {
   final TextEditingController notesController = TextEditingController();
 
   // Aquest bloc manté l’estat intern del formulari:
-  // data seleccionada, càrrega, errors, navegació i avisos puntuals.
-  DateTime _selectedAscentDate;
+  // data opcional, càrrega, errors, navegació i avisos puntuals.
+  DateTime? _selectedAscentDate;
   bool _disposed = false;
 
   bool isLoading = false;
   bool showValidation = false;
   String? errorMessage;
 
-  // Aquest bloc manté l’estat de la foto seleccionada.
-  // La previsualització permet ensenyar la imatge al formulari i la ruta pujada s’envia al backend.
-  Uint8List? selectedPhotoPreviewBytes;
-  AscentUploadPhoto? _uploadedPhoto;
+  // Aquest bloc manté l’estat de les fotos seleccionades.
+  // Les previsualitzacions permeten ensenyar miniatures i les rutes pujades s’envien al backend.
+  final List<Uint8List> selectedPhotoPreviewBytes = [];
+  final List<AscentUploadPhoto> _uploadedPhotos = [];
   bool isUploadingPhoto = false;
   String? photoErrorMessage;
+
+  // Aquest valor indica quantes fotos hi ha seleccionades al formulari.
+  int get selectedPhotosCount => selectedPhotoPreviewBytes.length;
+
+  // Aquest valor indica si encara es poden afegir més fotos a l’ascensió.
+  bool get canAddMorePhotos => selectedPhotosCount < _maxAscentPhotos;
+
+  // Aquest valor exposa el límit màxim de fotos permès per ascensió.
+  int get maxAscentPhotos => _maxAscentPhotos;
 
   AscentRegisterNavigationDestination _destination =
       AscentRegisterNavigationDestination.none;
   AscentRegisterFeedback _feedback = AscentRegisterFeedback.none;
 
-  DateTime get selectedAscentDate => _selectedAscentDate;
+  DateTime? get selectedAscentDate => _selectedAscentDate;
 
-  // Aquest valor preparat permet mostrar la data del formulari
-  // en un format clar i directe per a l’usuari.
-  String get formattedAscentDate => _formatDate(_selectedAscentDate);
+  // Aquest valor indica si el formulari té una data seleccionada.
+  // Permet a la pantalla mostrar l’opció de netejar-la només quan cal.
+  bool get hasSelectedAscentDate => _selectedAscentDate != null;
+
+  // Aquest valor preparat mostra la data seleccionada o un text d’ajuda
+  // quan l’usuari encara no ha triat cap data.
+  String get formattedAscentDate {
+    final selectedDate = _selectedAscentDate;
+
+    if (selectedDate == null) {
+      return 'Seleccionar data';
+    }
+
+    return _formatDate(selectedDate);
+  }
+
+  // Aquest valor indica si el registre s’està intentant guardar sense data.
+  // La pantalla l’utilitza per demanar confirmació abans d’enviar el formulari.
+  bool get needsMissingDateConfirmation => _selectedAscentDate == null;
 
   AscentRegisterNavigationDestination get destination => _destination;
 
@@ -126,15 +156,17 @@ class AscentRegisterController extends ChangeNotifier {
   }
 
   // Aquest getter prepara la llista de fotos que s’enviarà al backend.
-  // En aquesta iteració només es permet una foto opcional per ascensió.
+  // Es marca com a principal la primera foto visible del formulari.
   List<AscentUploadPhoto> get _photosForSubmit {
-    final uploadedPhoto = _uploadedPhoto;
+    return _uploadedPhotos.asMap().entries.map((entry) {
+      final index = entry.key;
+      final photo = entry.value;
 
-    if (uploadedPhoto == null) {
-      return const [];
-    }
-
-    return [uploadedPhoto];
+      return AscentUploadPhoto(
+        storagePath: photo.storagePath,
+        isPrimary: index == 0,
+      );
+    }).toList();
   }
 
   // Aquest mètode actualitza la data seleccionada del registre.
@@ -149,6 +181,19 @@ class AscentRegisterController extends ChangeNotifier {
     _safeNotifyListeners();
   }
 
+  // Aquest mètode deixa el registre sense data.
+  // Serveix per als casos en què l’usuari sap que ha completat el cim,
+  // però no recorda el dia exacte de l’ascensió.
+  void onClearAscentDateTap() {
+    if (isLoading || isUploadingPhoto) {
+      return;
+    }
+
+    _selectedAscentDate = null;
+    errorMessage = null;
+    _safeNotifyListeners();
+  }
+
   // Aquest mètode neteja els errors quan l’usuari modifica les notes.
   // Ajuda a evitar que es mantinguin avisos antics després de corregir el formulari.
   void onNotesChanged(String value) {
@@ -156,62 +201,77 @@ class AscentRegisterController extends ChangeNotifier {
     _safeNotifyListeners();
   }
 
-  // Aquest mètode obre el selector d’imatges, prepara la foto en format JPEG
-  // i la puja a l’emmagatzematge abans de guardar l’ascensió.
+  // Aquest mètode obre el selector d’imatges, prepara les fotos en format JPEG
+  // i les puja a l’emmagatzematge abans de guardar l’ascensió.
   Future<void> onPhotoTap() async {
     if (isLoading || isUploadingPhoto) {
       return;
     }
 
+    if (!canAddMorePhotos) {
+      photoErrorMessage =
+          'Només es poden afegir $_maxAscentPhotos fotos per ascensió';
+      _safeNotifyListeners();
+      return;
+    }
+
     photoErrorMessage = null;
     errorMessage = null;
-    isUploadingPhoto = true;
     _safeNotifyListeners();
 
     try {
-      final pickedImage = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
+      final remainingSlots =
+          _maxAscentPhotos - selectedPhotoPreviewBytes.length;
+
+      final pickedImages = await _imagePicker.pickMultiImage(
         requestFullMetadata: false,
       );
 
-      if (pickedImage == null) {
+      if (pickedImages.isEmpty) {
         return;
       }
 
-      final originalBytes = await pickedImage.readAsBytes();
+      final imagesToUpload = pickedImages.take(remainingSlots).toList();
 
-      final compressedBytes = await FlutterImageCompress.compressWithList(
-        originalBytes,
-        minWidth: _maxPhotoWidth,
-        minHeight: _maxPhotoHeight,
-        quality: _photoJpegQuality,
-        format: CompressFormat.jpeg,
-      );
+      isUploadingPhoto = true;
+      _safeNotifyListeners();
 
-      final uploadedPhoto = await _uploadAscentPhotoUseCase(
-        bytes: compressedBytes,
-        mimeType: _photoMimeType,
-        isPrimary: true,
-      );
+      for (final pickedImage in imagesToUpload) {
+        final originalBytes = await pickedImage.readAsBytes();
 
-      if (_disposed) {
-        return;
+        final compressedBytes = await FlutterImageCompress.compressWithList(
+          originalBytes,
+          minWidth: _minPhotoWidth,
+          minHeight: _minPhotoHeight,
+          quality: _photoJpegQuality,
+          format: CompressFormat.jpeg,
+        );
+
+        final uploadedPhoto = await _uploadAscentPhotoUseCase(
+          bytes: compressedBytes,
+          mimeType: _photoMimeType,
+          isPrimary: _uploadedPhotos.isEmpty,
+        );
+
+        if (_disposed) {
+          return;
+        }
+
+        selectedPhotoPreviewBytes.add(compressedBytes);
+        _uploadedPhotos.add(uploadedPhoto);
       }
 
-      selectedPhotoPreviewBytes = compressedBytes;
-      _uploadedPhoto = uploadedPhoto;
+      if (pickedImages.length > remainingSlots) {
+        photoErrorMessage =
+            'S\'han afegit només $remainingSlots fotos perquè el límit és $_maxAscentPhotos';
+      }
     } on ApiException catch (error) {
-      if (_disposed) {
-        return;
-      }
-
+      if (_disposed) return;
       photoErrorMessage = error.message;
-    } catch (_) {
-      if (_disposed) {
-        return;
-      }
-
-      photoErrorMessage = 'No s\'ha pogut preparar la foto';
+    } catch (error) {
+      if (_disposed) return;
+      debugPrint('[AscentRegisterController] Photo error: $error');
+      photoErrorMessage = 'No s\'han pogut preparar les fotos';
     } finally {
       if (!_disposed) {
         isUploadingPhoto = false;
@@ -220,22 +280,26 @@ class AscentRegisterController extends ChangeNotifier {
     }
   }
 
-  // Aquest mètode elimina la foto del formulari abans d’enviar l’ascensió.
+  // Aquest mètode elimina una foto concreta del formulari abans d’enviar l’ascensió.
   // Només neteja l’estat local perquè la imatge encara no està associada a cap registre definitiu.
-  void onRemovePhotoTap() {
+  void onRemovePhotoTap(int index) {
     if (isLoading || isUploadingPhoto) {
       return;
     }
 
-    selectedPhotoPreviewBytes = null;
-    _uploadedPhoto = null;
+    if (index < 0 || index >= selectedPhotoPreviewBytes.length) {
+      return;
+    }
+
+    selectedPhotoPreviewBytes.removeAt(index);
+    _uploadedPhotos.removeAt(index);
     photoErrorMessage = null;
     _safeNotifyListeners();
   }
 
   // Aquest mètode confirma el formulari i envia l’ascensió al backend.
-  // Si el registre funciona, també marca el cim com a completat i avisa
-  // que les estadístiques s’han de tornar a carregar.
+  // Si el registre funciona, el cim queda completat i les estadístiques
+  // es marquen per tornar-se a carregar.
   Future<void> onConfirmTap() async {
     if (isLoading || isUploadingPhoto) {
       return;
@@ -310,11 +374,12 @@ class AscentRegisterController extends ChangeNotifier {
   }
 
   // Aquest mètode valida les dades abans d’enviar-les al backend.
-  // Ara mateix només cal controlar que la data no sigui futura i que les notes no superin el límit.
+  // La data és opcional, però si existeix no pot ser futura.
   bool _isValidForm() {
+    final selectedDate = _selectedAscentDate;
     final today = DateUtils.dateOnly(DateTime.now());
 
-    if (_selectedAscentDate.isAfter(today)) {
+    if (selectedDate != null && selectedDate.isAfter(today)) {
       errorMessage = 'La data de l\'ascensió no pot ser futura';
       return false;
     }

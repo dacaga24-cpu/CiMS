@@ -1,11 +1,8 @@
 const AscentService = require('../services/ascentService');
 
-// Aquest controlador gestiona les peticions HTTP relacionades amb les
-// ascensions registrades pels usuaris. La seva funció és llegir els
-// paràmetres de la petició, delegar la lògica al servei i enviar la resposta
-// amb el codi HTTP adequat. L'identificador de l'usuari s'obté sempre de
-// req.userId (poblat pel authMiddleware a partir del JWT) i mai del cos o
-// la URL, per evitar que un client pugui actuar en nom d'un altre.
+// Aquest controlador gestiona les peticions HTTP relacionades amb les ascensions.
+// L’usuari sempre s’obté del token validat pel middleware, evitant que el client
+// pugui actuar sobre dades d’un altre compte.
 const AscentController = {
 
   // Retorna totes les ascensions de l'usuari autenticat.
@@ -34,8 +31,7 @@ const AscentController = {
   },
 
   // Retorna totes les fotos d'un ascens concret amb signed download URLs.
-  // El servei ja valida ownership i respon 404 si l'ascens no és de
-  // l'usuari autenticat.
+  // El servei valida que l'ascensió pertanyi a l'usuari autenticat.
   async getPhotosForAscent(req, res, next) {
     try {
       const photos = await AscentService.getPhotosForAscent(
@@ -48,9 +44,8 @@ const AscentController = {
     }
   },
 
-  // Crea una nova ascensió. Respon 201 amb el registre creat o un 4xx si la
-  // validació falla. Els errors de FK (peak inexistent) també es propaguen
-  // com a 404 des del model.
+  // Crea una ascensió manual per a l'usuari autenticat.
+  // Pot incloure data, notes i fotos ja pujades al bucket.
   async create(req, res, next) {
     try {
       const { peakId, ascentDate, notes, photos } = req.body || {};
@@ -68,8 +63,41 @@ const AscentController = {
     }
   },
 
-  // Actualitza una ascensió existent. Respon 200 amb el registre resultant.
-  // Si l'ascensió no existeix o no pertany a l'usuari autenticat, respon 404.
+  // Crea una ascensió verificada amb la ubicació capturada pel dispositiu.
+  // La data queda vinculada al moment real de captura i no es podrà editar.
+  async createVerified(req, res, next) {
+    try {
+      const {
+        peakId,
+        notes,
+        photos,
+        capturedLatitude,
+        capturedLongitude,
+        capturedAccuracyMeters,
+        capturedAt,
+      } = req.body || {};
+
+      const ascent = await AscentService.createVerifiedFromDeviceLocation(
+        req.userId,
+        {
+          peakId,
+          notes,
+          photos,
+          capturedLatitude,
+          capturedLongitude,
+          capturedAccuracyMeters,
+          capturedAt,
+        }
+      );
+
+      res.status(201).json(ascent);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // Actualitza una ascensió existent de l'usuari autenticat.
+  // Si no existeix o no pertany a l'usuari, el servei respon amb 404.
   async update(req, res, next) {
     try {
       const { peakId, ascentDate, notes } = req.body || {};
@@ -86,8 +114,8 @@ const AscentController = {
     }
   },
 
-  // Elimina una ascensió. Respon 204 sense cos si tot va bé,
-  // o 404 si l'ascensió no existeix o és d'un altre usuari.
+  // Elimina una ascensió de l'usuari autenticat.
+  // Si tot va bé, retorna 204 sense cos.
   async remove(req, res, next) {
     try {
       await AscentService.remove(req.userId, req.params.ascentId);

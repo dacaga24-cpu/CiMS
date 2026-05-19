@@ -1,7 +1,5 @@
 // Aquesta entitat representa l’estat personal que un usuari té sobre un cim.
-// Permet saber si el cim està completat, marcat com a objectiu o com a preferit.
-// L’estat pendent no es desa com a camp propi, sinó que es calcula a partir de si
-// el cim encara no està completat.
+// Permet saber si el cim està completat, és objectiu, és preferit o té una ascensió verificada.
 class PeakStatus {
   const PeakStatus({
     this.id,
@@ -10,6 +8,7 @@ class PeakStatus {
     required this.isCompleted,
     required this.isTarget,
     required this.isFavorite,
+    this.hasVerifiedAscent = false,
   });
 
   final int? id;
@@ -18,24 +17,22 @@ class PeakStatus {
   final bool isCompleted;
   final bool isTarget;
   final bool isFavorite;
+  final bool hasVerifiedAscent;
 
-  // Aquest constructor crea un estat buit per a un cim que encara no té cap registre
-  // personal associat al backend. És útil per mostrar el detall del cim sense error
-  // encara que l’usuari no l’hagi marcat mai.
+  // Aquest constructor crea un estat buit per a un cim sense registre personal.
+  // Permet que la UI treballi amb valors inicials encara que el backend no tingui cap fila.
   factory PeakStatus.emptyForPeak(int peakId) {
     return PeakStatus(
       peakId: peakId,
       isCompleted: false,
       isTarget: false,
       isFavorite: false,
+      hasVerifiedAscent: false,
     );
   }
 
   // Aquest constructor transforma la resposta del backend en un objecte PeakStatus.
-  // El backend respon sempre amb snake_case perquè els noms surten directament
-  // de les columnes de la base de dades. Mantenir un únic format esperat fa que
-  // si en el futur el contracte canvia, el frontend ho detecti immediatament en
-  // lloc de continuar funcionant per casualitat amb un fallback amagat.
+  // També interpreta si el cim té alguna ascensió verificada associada.
   factory PeakStatus.fromJson(Map<String, dynamic> json) {
     final parsedPeakId = _parseInt(json['peak_id']);
 
@@ -50,6 +47,9 @@ class PeakStatus {
       isCompleted: _parseBool(json['is_completed']),
       isTarget: _parseBool(json['is_target']),
       isFavorite: _parseBool(json['is_favorite']),
+      hasVerifiedAscent: _parseBool(
+        json['has_verified_ascent'] ?? json['hasVerifiedAscent'],
+      ),
     );
   }
 
@@ -57,12 +57,13 @@ class PeakStatus {
   // No és un estat independent, sinó el contrari funcional de completat.
   bool get isPending => !isCompleted;
 
-  // Aquest getter ajuda la interfície a saber si cal mostrar algun indicador visual
-  // dins del catàleg o altres pantalles.
-  bool get hasAnyStatus => isCompleted || isTarget || isFavorite;
+  // Aquest getter ajuda la interfície a saber si cal mostrar algun indicador visual.
+  // Inclou la verificació perquè el catàleg i el mapa puguin destacar aquest estat.
+  bool get hasAnyStatus =>
+      isCompleted || isTarget || isFavorite || hasVerifiedAscent;
 
   // Aquest mètode permet crear una còpia de l’estat canviant només els camps necessaris.
-  // Serà útil quan els botons del detall activin o desactivin un estat concret.
+  // És útil quan una pantalla actualitza un estat sense perdre la resta d’informació.
   PeakStatus copyWith({
     int? id,
     int? userId,
@@ -70,6 +71,7 @@ class PeakStatus {
     bool? isCompleted,
     bool? isTarget,
     bool? isFavorite,
+    bool? hasVerifiedAscent,
   }) {
     return PeakStatus(
       id: id ?? this.id,
@@ -78,6 +80,7 @@ class PeakStatus {
       isCompleted: isCompleted ?? this.isCompleted,
       isTarget: isTarget ?? this.isTarget,
       isFavorite: isFavorite ?? this.isFavorite,
+      hasVerifiedAscent: hasVerifiedAscent ?? this.hasVerifiedAscent,
     );
   }
 
