@@ -1,0 +1,31 @@
+order,name,altitude,latitude,longitude,regions,description,suggested_photo_file
+1,Pica d'Estats,3143,42.666946,1.397888,Pallars Sobirà,El cim més alt de Catalunya i un dels grans objectius de l’alta muntanya pirinenca.,images/01_pica_destats.jpg
+2,Pedraforca,2506,42.2386,1.7069,Berguedà,"Muntanya icònica del Berguedà, molt reconeixible per la seva silueta de dos pollegons i l’enforcadura central.",images/02_pedraforca.jpg
+3,Puigmal,2910,42.383302,2.116839,Ripollès; Cerdanya,"Cim clàssic del Pirineu oriental, molt vinculat a la vall de Núria i a les rutes d’alta muntanya accessibles.",images/03_puigmal.jpg
+4,Bastiments,2881,42.4266,2.2337,Ripollès,"Un dels cims més coneguts del sector d’Ulldeter, amb grans vistes sobre el Pirineu oriental.",images/04_bastiments.jpg
+5,Tossa Plana de Lles,2905,42.4777,1.6569,Cerdanya,"Cim destacat de la Cerdanya, ampli i panoràmic, habitual en sortides d’alta muntanya sense grans dificultats tècniques.",images/05_tossa_plana_de_lles.jpg
+6,Puigpedrós,2915,42.487593,1.761896,Cerdanya,"Gran cim de la Cerdanya, conegut per la seva amplitud i per les vistes cap al Pirineu central i oriental.",images/06_puigpedros.jpg
+7,Pic de Comaloforno,3029,42.591382,0.827834,Alta Ribagorça,Cim principal del massís dels Besiberri i una de les ascensions d’alta muntanya més representatives de l’Alta Ribagorça.,images/07_comaloforno.jpg
+8,Besiberri Sud,3023,42.593797,0.825995,Alta Ribagorça,"Tresmil emblemàtic del sector dels Besiberri, molt proper al Comaloforno i associat a itineraris exigents.",images/08_besiberri_sud.jpg
+9,Punta Alta de Comalesbienes,3014,42.585692,0.880299,Alta Ribagorça,"Cim d’alta muntanya situat a l’entorn d’Aigüestortes, apreciat pel seu ambient alpí i les vistes sobre estanys i crestes.",images/09_punta_alta_de_comalesbienes.jpg
+10,Tuc de Molières,3010,42.62947,0.698561,Val d'Aran; Alta Ribagorça,"Tresmil situat entre l’Aran i l’Alta Ribagorça, conegut com un dels grans cims occidentals de Catalunya.",images/10_tuc_de_molieres.jpg
+11,Montardo,2833,42.633337,0.875341,Val d'Aran; Alta Ribagorça,"Cim molt popular de l’entorn d’Aigüestortes, amb una silueta destacada i grans panoràmiques sobre la vall d’Aran.",images/11_montardo.jpg
+12,Els Encantats,2748,42.5849,1.0034,Pallars Sobirà,"Conjunt muntanyós icònic del Parc Nacional d’Aigüestortes i Estany de Sant Maurici, molt reconeixible des de l’estany.",images/12_els_encantats.jpg
+13,Pic de Sotllo,3073,42.6679,1.3901,Pallars Sobirà,"Cim veí de la Pica d’Estats, habitual en itineraris d’alta muntanya pel sostre de Catalunya.",images/13_pic_de_sotllo.jpg
+14,Montsent de Pallars,2883,42.515,1.045,Pallars Jussà; Pallars Sobirà,"Cim panoràmic del Pallars, visible des de molts punts i molt valorat per les vistes sobre la vall Fosca i el Pirineu.",images/14_montsent_de_pallars.jpg
+15,Pic de Certascan,2853,42.71201,1.277656,Pallars Sobirà,"Cim destacat del Pirineu occidental català, proper a l’estany de Certascan i a un entorn d’alta muntanya molt característic.",images/15_pic_de_certascan.jpg
+16,Pic de Salòria,2788,42.514458,1.38515,Alt Urgell; Pallars Sobirà,"Cim rellevant entre l’Alt Urgell i el Pallars Sobirà, amb una situació privilegiada per observar grans sectors del Pirineu.",images/16_pic_de_saloria.jpg
+17,Comabona,2548,42.283688,1.726298,Berguedà; Cerdanya,"Cim clàssic de la serra del Cadí, molt conegut per les seves panoràmiques sobre el Berguedà i la Cerdanya.",images/17_comabona.jpg
+18,Penyes Altes de Moixeró,2276,42.306291,1.842475,Berguedà; Cerdanya,"Punt culminant del Moixeró, molt representatiu del Parc Natural del Cadí-Moixeró i de les rutes entre el Berguedà i la Cerdanya.",images/18_penyes_altes_de_moixero.jpg
+19,Puigllançada,2409,42.300483,1.935511,Berguedà,"Cim conegut del sector de la Molina i Castellar de n’Hug, amb accés relativament popular i bones vistes de l’alta muntanya propera.",images/19_puigllancada.jpg
+20,Costabona,2464,42.416924,2.343871,Ripollès,"Cim fronterer del Pirineu oriental, habitual en rutes des de la zona de Setcases i amb panoràmiques àmplies cap al Canigó.",images/20_costabona.jpg
+21,el Taga,2039,42.280763,2.2099,Ripollès,"Cim molt popular del Ripollès, accessible i panoràmic, sovint utilitzat com a objectiu d’iniciació a l’alta muntanya.",images/21_taga.jpg
+22,Puigsacalm,1515,42.1242,2.3932,Garrotxa; Osona,"Cim emblemàtic entre la Garrotxa i Osona, molt conegut per les vistes sobre la vall d’en Bas i el paisatge prepirinenc.",images/22_puigsacalm.jpg
+23,Matagalls,1697,41.808791,2.382702,Osona; Vallès Oriental,"Un dels cims més populars del Montseny, amb molta tradició excursionista i un perfil clarament identificable.",images/23_matagalls.jpg
+24,Turó de l'Home,1706,41.7769,2.4341,Vallès Oriental; Selva,"Punt culminant del massís del Montseny, molt conegut per la seva accessibilitat i per les vistes sobre bona part de Catalunya.",images/24_turo_de_lhome.jpg
+25,Les Agudes (Massís del Montseny),1706,41.789325,2.443955,Selva; Vallès Oriental,"Cim destacat del Montseny, proper al Turó de l’Home i molt habitual en travesses clàssiques del massís.",images/25_les_agudes.jpg
+26,Sant Jeroni (el Bruc),1236,41.605365,1.811457,Anoia; Bages,"Punt més alt de Montserrat, molt conegut per les seves vistes i per la seva importància dins l’excursionisme català.",images/26_sant_jeroni.jpg
+27,La Mola (Sant Llorenç del Munt),1104,41.6417,2.0181,Vallès Occidental,"Cim principal de Sant Llorenç del Munt, molt freqüentat i conegut pel monestir situat al capdamunt.",images/27_la_mola.jpg
+28,Montcau (Sant Llorenç del Munt),1056,41.6759,2.0206,Bages; Vallès Occidental,"Cim arrodonit i molt popular del parc natural de Sant Llorenç del Munt i l’Obac, sovint combinat amb La Mola.",images/28_montcau.jpg
+29,Mont Caro,1442,40.8036,0.3434,Baix Ebre,"Cim més alt del massís dels Ports, referent muntanyenc del sud de Catalunya i gran mirador sobre l’Ebre.",images/29_mont_caro.jpg
+30,Puig de Bassegoda,1373,42.312791,2.630777,Garrotxa; Alt Empordà,"Cim característic de l’Alta Garrotxa, amb una silueta molt reconeixible i una forta presència en l’excursionisme local.",images/30_bassegoda.jpg
