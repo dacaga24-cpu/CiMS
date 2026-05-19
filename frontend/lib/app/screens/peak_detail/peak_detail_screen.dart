@@ -15,11 +15,13 @@ import 'package:flutter/material.dart';
 class PeakDetailScreen extends StatefulWidget {
   const PeakDetailScreen({
     super.key,
-    required this.peakId,
+    @PathParam('peakId') required this.peakId,
   });
 
   // Aquesta propietat identifica quin cim s’ha de carregar
-  // quan la pantalla s’obre.
+  // quan la pantalla s’obre. L'anotació `@PathParam` fa que auto_route
+  // serialitzi aquest valor a la URL com a `/peaks/<id>`, així permet
+  // deep linking i compartir l'enllaç del detall del cim.
   final int peakId;
 
   @override
@@ -58,6 +60,16 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
   // Si falla la inicialització, la pantalla no peta i deixa visible
   // un missatge d’error per poder detectar millor el problema real.
   void _initializeController() {
+    // Validem el path-param abans de tocar el controller. Si l'usuari obre
+    // /peaks/0 o un id manipulat (per ex. compartint un enllaç caducat),
+    // val més mostrar un error explícit que no pas fer una petició inútil
+    // al backend que retorna 404.
+    if (widget.peakId <= 0) {
+      _initializationError =
+          'L\'enllaç al cim no és vàlid. Torna al llistat i obre el cim des d\'allà.';
+      return;
+    }
+
     try {
       final controller = PeakDetailController(
         peakId: widget.peakId,

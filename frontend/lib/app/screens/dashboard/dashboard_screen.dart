@@ -117,11 +117,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onRefresh: _controller.loadDashboard,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
+                // En mòbil el FAB de càmera flota sobre el bottom navigation
+                // bar, així que afegim espai extra a sota per evitar que
+                // l'última ascensió quedi tapada per la flotant.
                 padding: AppResponsive.pagePadding(
                   context,
                   compactHorizontal: 20,
                   compactTop: 18,
-                  compactBottom: 28,
+                  compactBottom: 96,
                 ),
                 child: ResponsiveConstrainedBox(
                   child: _DashboardContent(

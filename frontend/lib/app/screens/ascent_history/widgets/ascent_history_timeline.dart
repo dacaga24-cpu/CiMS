@@ -1,4 +1,5 @@
 import 'package:cims/app/widgets/ascent_verified_badge.dart';
+import 'package:cims/app/widgets/layout/app_responsive.dart';
 import 'package:cims/core/entity/ascent.dart';
 import 'package:flutter/material.dart';
 
@@ -16,9 +17,8 @@ class AscentHistoryTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final datedAscents = ascents
-        .where((ascent) => ascent.ascentDate != null)
-        .toList();
+    final datedAscents =
+        ascents.where((ascent) => ascent.ascentDate != null).toList();
 
     return Column(
       children: [
@@ -235,7 +235,14 @@ class _AscentPhotoPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
+    // A mòbil deixem que la imatge ocupi tota l'amplada disponible perquè
+    // el contingut ja és prou estret. A tablet/desktop, en canvi, una foto
+    // que ocupa tot el card crida massa l'atenció, així que la limitem
+    // perquè quedi proporcionada respecte al text.
+    final isCompact = AppResponsive.isCompact(context);
+    final maxWidth = isCompact ? double.infinity : 360.0;
+
+    final preview = ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: AspectRatio(
         aspectRatio: 16 / 9,
@@ -299,6 +306,19 @@ class _AscentPhotoPreview extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+
+    // A mòbil la imatge ja ocupa tota l'amplada del card pare; evitem
+    // afegir capes extra de `Align` + `ConstrainedBox` que no aportarien
+    // res visualment.
+    if (isCompact) return preview;
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: preview,
       ),
     );
   }

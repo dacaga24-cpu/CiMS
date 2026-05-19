@@ -247,8 +247,7 @@ class _StatsMonthBar extends StatelessWidget {
     final barColor =
         hasActivity ? const Color(0xFF0F5ADB) : const Color(0xFFDDE5F2);
 
-    final textColor =
-        hasActivity ? Colors.white : const Color(0xFF344054);
+    final textColor = hasActivity ? Colors.white : const Color(0xFF344054);
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,

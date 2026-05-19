@@ -114,6 +114,16 @@ class PeakDetailContent extends StatelessWidget {
             statusErrorMessage: statusErrorMessage,
             ascentsErrorMessage: ascentsErrorMessage,
           ),
+          // La descripció es mostra abans de la previsió meteorològica
+          // perquè doni context del cim immediatament després de les
+          // accions principals. La previsió queda més avall com a
+          // informació complementària per planificar la sortida.
+          if (currentPeak.hasDescription) ...[
+            const SizedBox(height: 18),
+            PeakDetailDescriptionCard(
+              peak: currentPeak,
+            ),
+          ],
           const SizedBox(height: 18),
           PeakDetailWeatherCard(
             forecast: weatherForecast,
@@ -127,12 +137,6 @@ class PeakDetailContent extends StatelessWidget {
             onDayTap: onWeatherDayTap,
             onHourlyRetryTap: onWeatherHourlyRetryTap,
           ),
-          if (currentPeak.hasDescription) ...[
-            const SizedBox(height: 18),
-            PeakDetailDescriptionCard(
-              peak: currentPeak,
-            ),
-          ],
           const SizedBox(height: 18),
           PeakDetailMapCard(
             peak: currentPeak,

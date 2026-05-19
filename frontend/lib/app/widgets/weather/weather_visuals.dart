@@ -100,8 +100,7 @@ class _PartlyCloudyIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final celestialIcon = isDaytime ? Symbols.sunny : Symbols.bedtime;
-    final celestialColor =
-        isDaytime ? _weatherSunColor : _weatherMoonColor;
+    final celestialColor = isDaytime ? _weatherSunColor : _weatherMoonColor;
     return SizedBox(
       width: size,
       height: size,

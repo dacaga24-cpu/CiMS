@@ -116,9 +116,7 @@ class _DateSelectorField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Material(
-          color: isLocked
-              ? const Color(0xFFEDEFF3)
-              : const Color(0xFFF5F5F5),
+          color: isLocked ? const Color(0xFFEDEFF3) : const Color(0xFFF5F5F5),
           borderRadius: BorderRadius.circular(28),
           child: InkWell(
             borderRadius: BorderRadius.circular(28),

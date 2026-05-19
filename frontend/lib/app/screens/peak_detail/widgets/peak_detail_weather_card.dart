@@ -153,7 +153,8 @@ class PeakDetailWeatherCard extends StatelessWidget {
   Widget _buildBody() {
     final currentForecast = forecast;
 
-    if (errorMessage != null && (currentForecast == null || currentForecast.isEmpty)) {
+    if (errorMessage != null &&
+        (currentForecast == null || currentForecast.isEmpty)) {
       return _WeatherErrorState(
         message: errorMessage!,
         onRetryTap: onRetryTap,
@@ -482,7 +483,8 @@ class _HourlyPanel extends StatelessWidget {
   Widget _buildBody() {
     final currentHourly = hourly;
 
-    if (errorMessage != null && (currentHourly == null || currentHourly.isEmpty)) {
+    if (errorMessage != null &&
+        (currentHourly == null || currentHourly.isEmpty)) {
       return _HourlyErrorState(
         message: errorMessage!,
         onRetryTap: onRetryTap,

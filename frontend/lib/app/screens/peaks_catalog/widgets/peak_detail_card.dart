@@ -2,6 +2,7 @@ import 'package:cims/app/screens/peaks_catalog/widgets/peaks_status_tags.dart';
 import 'package:cims/app/widgets/peaks/peak_circular_thumbnail.dart';
 import 'package:cims/core/entity/peak.dart';
 import 'package:cims/core/entity/peak_status.dart';
+import 'package:cims/core/util/format.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget representa la targeta reutilitzable de cada cim del catàleg.
@@ -69,7 +70,7 @@ class PeakDetailCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          '${peak.altitude} m',
+                          formatAltitude(peak.altitude),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(

@@ -84,7 +84,8 @@ class Peak {
   }
 
   // Aquest getter prepara el text de regions en un únic format llegible.
-  String get formattedRegions => regions.map((region) => region.name).join(', ');
+  String get formattedRegions =>
+      regions.map((region) => region.name).join(', ');
 
   // Aquest getter ajuda la vista a decidir si cal mostrar la descripció.
   bool get hasDescription =>

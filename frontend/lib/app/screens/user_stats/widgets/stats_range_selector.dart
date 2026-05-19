@@ -55,15 +55,12 @@ class _StatsRangeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final backgroundColor =
-        isSelected ? const Color(0xFF0B57D0) : Colors.white;
+    final backgroundColor = isSelected ? const Color(0xFF0B57D0) : Colors.white;
 
-    final foregroundColor =
-        isSelected ? Colors.white : const Color(0xFF475467);
+    final foregroundColor = isSelected ? Colors.white : const Color(0xFF475467);
 
-    final borderColor = isSelected
-        ? const Color(0xFF0B57D0)
-        : const Color(0xFFE4E7EC);
+    final borderColor =
+        isSelected ? const Color(0xFF0B57D0) : const Color(0xFFE4E7EC);
 
     return Material(
       color: backgroundColor,
