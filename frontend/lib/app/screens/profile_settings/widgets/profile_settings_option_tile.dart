@@ -18,9 +18,8 @@ class ProfileSettingsOptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color foregroundColor = isDestructive
-        ? const Color(0xFFD84C4C)
-        : const Color(0xFF1D1D1F);
+    final Color foregroundColor =
+        isDestructive ? const Color(0xFFD84C4C) : const Color(0xFF1D1D1F);
 
     return Material(
       color: Colors.transparent,

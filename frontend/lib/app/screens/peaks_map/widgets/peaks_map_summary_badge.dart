@@ -24,7 +24,8 @@ class PeaksMapSummaryBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
       ),
       child: Text(
-        '$totalPeaks cims',
+        // Plural català: "1 cim" en singular, "X cims" en plural.
+        totalPeaks == 1 ? '1 cim' : '$totalPeaks cims',
         style: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w700,

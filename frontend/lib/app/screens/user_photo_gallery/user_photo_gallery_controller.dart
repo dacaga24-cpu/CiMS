@@ -14,8 +14,8 @@ class UserPhotoGalleryController extends ChangeNotifier {
     DeleteAscentPhotoUseCase? deleteAscentPhotoUseCase,
   })  : _getUserPhotoGalleryUseCase =
             getUserPhotoGalleryUseCase ?? GetUserPhotoGalleryUseCase(),
-        _deleteAscentPhotoUseCase =
-            deleteAscentPhotoUseCase ?? DeleteAscentPhotoUseCase(ApiClientImpl());
+        _deleteAscentPhotoUseCase = deleteAscentPhotoUseCase ??
+            DeleteAscentPhotoUseCase(ApiClientImpl());
 
   final GetUserPhotoGalleryUseCase _getUserPhotoGalleryUseCase;
 

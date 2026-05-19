@@ -1,3 +1,4 @@
+import 'package:cims/core/util/format.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta capçalera mostra la informació principal del cim seleccionat.
@@ -81,7 +82,7 @@ class AscentHistoryHeader extends StatelessWidget {
               ),
               const SizedBox(height: 5),
               Text(
-                '${_formatNumber(altitude)} M',
+                formatAltitude(altitude),
                 style: const TextStyle(
                   fontSize: 15,
                   height: 1.05,
@@ -130,23 +131,5 @@ class AscentHistoryHeader extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  // Aquest mètode formata l’altitud amb separador de milers si cal.
-  String _formatNumber(int value) {
-    final text = value.toString();
-    final buffer = StringBuffer();
-
-    for (var i = 0; i < text.length; i++) {
-      final positionFromEnd = text.length - i;
-
-      buffer.write(text[i]);
-
-      if (positionFromEnd > 1 && positionFromEnd % 3 == 1) {
-        buffer.write('.');
-      }
-    }
-
-    return buffer.toString();
   }
 }

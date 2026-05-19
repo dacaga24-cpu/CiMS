@@ -1,5 +1,6 @@
 import 'package:cims/app/widgets/peaks/peak_circular_thumbnail.dart';
 import 'package:cims/core/entity/user_stats.dart';
+import 'package:cims/core/util/format.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta targeta mostra els tres cims que l’usuari ha coronat més vegades.
@@ -77,7 +78,7 @@ class _TopAscendedPeakRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final subtitleParts = <String>[
       if (peak.formattedRegions.isNotEmpty) peak.formattedRegions,
-      if (peak.peakAltitude != null) '${_formatNumber(peak.peakAltitude!)} m',
+      if (peak.peakAltitude != null) formatAltitude(peak.peakAltitude),
     ];
 
     return Row(
@@ -123,23 +124,6 @@ class _TopAscendedPeakRow extends StatelessWidget {
         _AscentsCounter(totalAscents: peak.totalAscents),
       ],
     );
-  }
-
-  String _formatNumber(int value) {
-    final text = value.toString();
-    final buffer = StringBuffer();
-
-    for (var i = 0; i < text.length; i++) {
-      final positionFromEnd = text.length - i;
-
-      buffer.write(text[i]);
-
-      if (positionFromEnd > 1 && positionFromEnd % 3 == 1) {
-        buffer.write('.');
-      }
-    }
-
-    return buffer.toString();
   }
 }
 

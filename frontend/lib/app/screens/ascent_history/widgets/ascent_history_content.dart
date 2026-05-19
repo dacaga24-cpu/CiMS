@@ -40,13 +40,11 @@ class AscentHistoryContent extends StatelessWidget {
       );
     }
 
-    final datedAscents = ascents
-        .where((ascent) => ascent.ascentDate != null)
-        .toList();
+    final datedAscents =
+        ascents.where((ascent) => ascent.ascentDate != null).toList();
 
-    final undatedAscents = ascents
-        .where((ascent) => ascent.ascentDate == null)
-        .toList();
+    final undatedAscents =
+        ascents.where((ascent) => ascent.ascentDate == null).toList();
 
     final hasAnyAscents = datedAscents.isNotEmpty || undatedAscents.isNotEmpty;
 

@@ -1,5 +1,6 @@
 import 'package:cims/app/widgets/buttons/primary_gradient_button.dart';
 import 'package:cims/app/widgets/buttons/secondary_pill_button.dart';
+import 'package:cims/app/widgets/forms/password_text_field.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget mostra el formulari de canvi de contrasenya.
@@ -50,44 +51,35 @@ class ProfilePasswordForm extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          TextField(
+          PasswordTextField(
             controller: currentPasswordController,
+            labelText: 'Contrasenya actual',
             enabled: !isLoading,
-            obscureText: true,
             onChanged: (_) => onChanged(),
-            decoration: InputDecoration(
-              labelText: 'Contrasenya actual',
-              errorText: showValidation &&
-                      currentPasswordController.text.trim().isEmpty
-                  ? 'La contrasenya actual és obligatòria'
-                  : null,
-            ),
+            errorText:
+                showValidation && currentPasswordController.text.trim().isEmpty
+                    ? 'La contrasenya actual és obligatòria'
+                    : null,
           ),
           const SizedBox(height: 14),
-          TextField(
+          PasswordTextField(
             controller: newPasswordController,
+            labelText: 'Nova contrasenya',
             enabled: !isLoading,
-            obscureText: true,
             onChanged: (_) => onChanged(),
-            decoration: InputDecoration(
-              labelText: 'Nova contrasenya',
-              errorText: showValidation && newPassword.length < 8
-                  ? 'La nova contrasenya ha de tenir mínim 8 caràcters'
-                  : null,
-            ),
+            errorText: showValidation && newPassword.length < 8
+                ? 'La nova contrasenya ha de tenir mínim 8 caràcters'
+                : null,
           ),
           const SizedBox(height: 14),
-          TextField(
+          PasswordTextField(
             controller: confirmPasswordController,
+            labelText: 'Confirmar nova contrasenya',
             enabled: !isLoading,
-            obscureText: true,
             onChanged: (_) => onChanged(),
-            decoration: InputDecoration(
-              labelText: 'Confirmar nova contrasenya',
-              errorText: showValidation && newPassword != confirmPassword
-                  ? 'Les contrasenyes no coincideixen'
-                  : null,
-            ),
+            errorText: showValidation && newPassword != confirmPassword
+                ? 'Les contrasenyes no coincideixen'
+                : null,
           ),
           const SizedBox(height: 24),
           PrimaryGradientButton(

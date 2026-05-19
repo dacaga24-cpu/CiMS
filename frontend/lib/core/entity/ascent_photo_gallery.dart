@@ -27,7 +27,8 @@ class AscentPhotoGalleryPage {
       limit: _asInt(json['limit']),
       offset: _asInt(json['offset']),
       hasMore: _asBool(json['hasMore']),
-      nextOffset: json['nextOffset'] == null ? null : _asInt(json['nextOffset']),
+      nextOffset:
+          json['nextOffset'] == null ? null : _asInt(json['nextOffset']),
     );
   }
 }

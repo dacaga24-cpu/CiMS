@@ -30,8 +30,7 @@ class PeakStatusStore extends ChangeNotifier {
   // S’utilitza quan una ascensió verificada s’ha creat correctament al backend,
   // perquè el catàleg, el mapa i el detall mostrin el canvi sense recarregar tota l’aplicació.
   void markCompletedAndVerified(int peakId) {
-    final currentStatus =
-        getStatus(peakId) ?? PeakStatus.emptyForPeak(peakId);
+    final currentStatus = getStatus(peakId) ?? PeakStatus.emptyForPeak(peakId);
 
     setStatus(
       currentStatus.copyWith(

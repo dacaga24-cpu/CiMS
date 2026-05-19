@@ -45,8 +45,13 @@ class LoginFormCard extends StatelessWidget {
             enabled: !controller.isLoading,
             onChanged: controller.onEmailChanged,
           ),
-          // Aquest missatge es mostra quan el correu no té un format correcte.
-          if (controller.hasInvalidEmail) ...[
+          // Aquests missatges cobreixen tant el cas de correu buit (només
+          // rellevant en el flux "Has oblidat la contrasenya?") com el de
+          // format incorrecte.
+          if (controller.hasEmptyEmail) ...[
+            const SizedBox(height: 8),
+            const FormErrorText('Has d\'introduir un correu vàlid'),
+          ] else if (controller.hasInvalidEmail) ...[
             const SizedBox(height: 8),
             const FormErrorText('Introdueix un correu electrònic vàlid'),
           ],

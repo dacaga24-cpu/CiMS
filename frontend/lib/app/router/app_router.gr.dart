@@ -347,6 +347,7 @@ class PeakDetailRoute extends PageRouteInfo<PeakDetailRouteArgs> {
   }) : super(
           PeakDetailRoute.name,
           args: PeakDetailRouteArgs(key: key, peakId: peakId),
+          rawPathParams: {'peakId': peakId},
           initialChildren: children,
         );
 
@@ -355,7 +356,10 @@ class PeakDetailRoute extends PageRouteInfo<PeakDetailRouteArgs> {
   static PageInfo page = PageInfo(
     name,
     builder: (data) {
-      final args = data.argsAs<PeakDetailRouteArgs>();
+      final pathParams = data.inheritedPathParams;
+      final args = data.argsAs<PeakDetailRouteArgs>(
+        orElse: () => PeakDetailRouteArgs(peakId: pathParams.getInt('peakId')),
+      );
       return PeakDetailScreen(key: args.key, peakId: args.peakId);
     },
   );

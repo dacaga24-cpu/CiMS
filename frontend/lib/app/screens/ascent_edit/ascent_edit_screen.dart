@@ -1,10 +1,12 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:cims/app/screens/ascent_edit/ascent_edit_controller.dart';
 import 'package:cims/app/screens/ascent_edit/widgets/ascent_edit_form_card.dart';
+import 'package:cims/app/theme/app_theme.dart';
 import 'package:cims/app/widgets/buttons/primary_gradient_button.dart';
 import 'package:cims/app/widgets/buttons/secondary_pill_button.dart';
 import 'package:cims/core/entity/ascent.dart';
 import 'package:cims/core/entity/ascent_photo.dart';
+import 'package:cims/core/util/format.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta pantalla permet consultar i editar una ascensió ja registrada.
@@ -169,6 +171,9 @@ class _AscentEditScreenState extends State<AscentEditScreen> {
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.dangerColor,
+              ),
               child: const Text('Eliminar'),
             ),
           ],
@@ -207,6 +212,9 @@ class _AscentEditScreenState extends State<AscentEditScreen> {
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.dangerColor,
+              ),
               child: const Text('Eliminar'),
             ),
           ],
@@ -288,21 +296,19 @@ class _AscentEditScreenState extends State<AscentEditScreen> {
                 PrimaryGradientButton(
                   label: 'Guardar canvis',
                   isLoading: controller.isLoading,
-                  onPressed: controller.isDeletingAscent
-                      ? null
-                      : controller.onSaveTap,
+                  onPressed:
+                      controller.isDeletingAscent ? null : controller.onSaveTap,
                 ),
                 const SizedBox(height: 12),
                 SecondaryPillButton(
                   label: 'Cancel·lar',
-                  enabled: !controller.isLoading &&
-                      !controller.isDeletingAscent,
+                  enabled:
+                      !controller.isLoading && !controller.isDeletingAscent,
                   onPressed: controller.onCancelTap,
                 ),
                 const SizedBox(height: 12),
                 TextButton.icon(
-                  onPressed: controller.isLoading ||
-                          controller.isDeletingAscent
+                  onPressed: controller.isLoading || controller.isDeletingAscent
                       ? null
                       : _confirmDeleteAscent,
                   icon: controller.isDeletingAscent
@@ -368,7 +374,7 @@ class _AscentEditPeakSummary extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              '$altitude m',
+              formatAltitude(altitude),
               style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,

@@ -3,14 +3,14 @@ import 'package:cims/app/router/guards/auth_guard.dart';
 import 'package:cims/app/theme/app_theme.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 // La importació condicional selecciona l'stub a builds natius i la versió
 // real a web. Cal mantenir-la perquè dart2js no eliminava el registre del
 // plugin web del geolocator i la captura d'ubicació petava amb
 // MissingPluginException (vegeu el comentari del fitxer web).
 import 'package:cims/core/platform/web_plugins_register.dart'
-    if (dart.library.js_interop)
-        'package:cims/core/platform/web_plugins_register_web.dart';
+    if (dart.library.js_interop) 'package:cims/core/platform/web_plugins_register_web.dart';
 
 // Aquest mètode prepara la sessió compartida, crea el router principal
 // i configura la redirecció global quan una sessió caduqui.
@@ -75,6 +75,16 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       routerConfig: appRouter.config(),
       theme: AppTheme.light,
+      // Localització catalana per als widgets de Material (date picker,
+      // tooltips...). Sense això, el DatePicker s'obre en anglès tot i que
+      // la resta de la UI és en català.
+      locale: const Locale('ca'),
+      supportedLocales: const [Locale('ca')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
     );
   }
 }

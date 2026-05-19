@@ -4,7 +4,6 @@ import 'package:cims/app/widgets/layout/app_responsive.dart';
 import 'package:flutter/material.dart';
 import 'register_controller.dart';
 import 'widgets/register_form_card.dart';
-import 'widgets/register_terms_text.dart';
 
 @RoutePage()
 class RegisterScreen extends StatefulWidget {
@@ -35,28 +34,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         context.router.replace(const LoginRoute());
       }
       return;
-    }
-
-    if (controller.destination == RegisterNavigationDestination.terms) {
-      controller.consumeNavigation();
-
-      showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: const Text('Termes de Servei'),
-            content: const Text(
-              'Aquesta secció encara no està disponible.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text("D'acord"),
-              ),
-            ],
-          );
-        },
-      );
     }
   }
 
@@ -100,17 +77,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     child: ResponsiveConstrainedBox(
                       maxWidth: AppResponsive.formMaxWidth(context),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          RegisterFormCard(controller: controller),
-                          const SizedBox(height: 18),
-                          RegisterTermsText(
-                            isLoading: controller.isLoading,
-                            onTapTerms: controller.onTermsTap,
-                          ),
-                        ],
-                      ),
+                      child: RegisterFormCard(controller: controller),
                     ),
                   ),
                 ),

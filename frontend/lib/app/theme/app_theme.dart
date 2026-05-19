@@ -4,6 +4,11 @@ import 'package:flutter/material.dart';
 // Permet mantenir una aparença coherent sense repetir estils
 // en cada pantalla o widget del projecte.
 class AppTheme {
+  // Color reservat per a accions destructives o irreversibles (eliminar
+  // ascensions, fotos o el compte). El mantenim com a constant per evitar
+  // que cada pantalla l'inventi en un to lleugerament diferent.
+  static const Color dangerColor = Color(0xFFE84A4A);
+
   // Aquest tema defineix l’estil visual principal de la versió clara de l’aplicació.
   // Agrupa colors i configuracions comunes perquè els formularis i components
   // comparteixin la mateixa línia visual a tot el projecte.

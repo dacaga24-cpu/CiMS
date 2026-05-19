@@ -65,8 +65,8 @@ class DashboardRecentPhotosCarousel extends StatelessWidget {
             height: 92,
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final itemWidth = ((constraints.maxWidth - 36) / 4)
-                    .clamp(72.0, 96.0);
+                final itemWidth =
+                    ((constraints.maxWidth - 36) / 4).clamp(72.0, 96.0);
 
                 return ListView.separated(
                   scrollDirection: Axis.horizontal,

@@ -3,6 +3,7 @@ import 'package:cims/app/widgets/buttons/primary_gradient_button.dart';
 import 'package:cims/app/widgets/peaks/peak_circular_thumbnail.dart';
 import 'package:cims/core/entity/peak.dart';
 import 'package:cims/core/entity/peak_status.dart';
+import 'package:cims/core/util/format.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta targeta mostra el cim seleccionat dins del mapa.
@@ -31,110 +32,118 @@ class PeaksMapSelectedPeakCard extends StatelessWidget {
 
     final currentStatus = status ?? PeakStatus.emptyForPeak(peak.id);
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.96),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x22000000),
-            blurRadius: 14,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const PeakCircularThumbnail(
-                size: 56,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      peak.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF17212B),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${peak.altitude} m · $regionsText',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        height: 1.25,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF5B6573),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        _CompletedMiniSeal(
-                          isCompleted: currentStatus.isCompleted,
+    // GestureDetector opaque per absorbir els taps que no van als botons
+    // interiors. Sense això, els clics sobre les zones "buides" de la
+    // targeta (al voltant del nom o entre botons) es propaguen al
+    // GoogleMap de sota, que té un `onTap` que tanca la selecció.
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {},
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.96),
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x22000000),
+              blurRadius: 14,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const PeakCircularThumbnail(
+                  size: 56,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        peak.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF17212B),
                         ),
-                        if (currentStatus.hasVerifiedAscent)
-                          const AscentVerifiedBadge(
-                            compact: true,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${formatAltitude(peak.altitude)} · $regionsText',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          height: 1.25,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF5B6573),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          _CompletedMiniSeal(
+                            isCompleted: currentStatus.isCompleted,
                           ),
-                      ],
-                    ),
-                  ],
+                          if (currentStatus.hasVerifiedAscent)
+                            const AscentVerifiedBadge(
+                              compact: true,
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _MapStatusButton(
-                  label: 'Objectiu',
-                  icon: Icons.flag_rounded,
-                  isActive: currentStatus.isTarget,
-                  color: const Color(0xFFF97316),
-                  onTap: onTargetTap,
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _MapStatusButton(
+                    label: 'Objectiu',
+                    icon: Icons.flag_rounded,
+                    isActive: currentStatus.isTarget,
+                    color: const Color(0xFFF97316),
+                    onTap: onTargetTap,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _MapStatusButton(
-                  label: 'Preferit',
-                  icon: Icons.favorite_rounded,
-                  isActive: currentStatus.isFavorite,
-                  color: const Color(0xFFE84A4A),
-                  onTap: onFavoriteTap,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _MapStatusButton(
+                    label: 'Preferit',
+                    icon: Icons.favorite_rounded,
+                    isActive: currentStatus.isFavorite,
+                    color: const Color(0xFFE84A4A),
+                    onTap: onFavoriteTap,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 104,
-                child: PrimaryGradientButton(
-                  label: 'Detall',
-                  height: 38,
-                  fontSize: 14,
-                  iconSize: 15,
-                  onPressed: onDetailTap,
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 104,
+                  child: PrimaryGradientButton(
+                    label: 'Detall',
+                    height: 38,
+                    fontSize: 14,
+                    iconSize: 15,
+                    onPressed: onDetailTap,
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -151,9 +160,8 @@ class _CompletedMiniSeal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isCompleted
-        ? const Color(0xFF18B56A)
-        : const Color(0xFF98A2B3);
+    final color =
+        isCompleted ? const Color(0xFF18B56A) : const Color(0xFF98A2B3);
 
     return Container(
       padding: const EdgeInsets.symmetric(

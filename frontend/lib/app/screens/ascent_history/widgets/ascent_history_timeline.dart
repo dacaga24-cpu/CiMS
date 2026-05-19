@@ -16,9 +16,8 @@ class AscentHistoryTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final datedAscents = ascents
-        .where((ascent) => ascent.ascentDate != null)
-        .toList();
+    final datedAscents =
+        ascents.where((ascent) => ascent.ascentDate != null).toList();
 
     return Column(
       children: [

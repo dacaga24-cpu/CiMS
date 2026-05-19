@@ -63,13 +63,22 @@ class LoginController extends ChangeNotifier {
   LoginNavigationDestination _destination = LoginNavigationDestination.none;
   LoginNavigationDestination get destination => _destination;
 
+  // Indicador per validar només el correu quan l'usuari prem "Has oblidat
+  // la contrasenya?". El flux de recuperació no necessita contrasenya, així
+  // que aïllem la seva validació del flux normal de login per no mostrar
+  // un error "La contrasenya és obligatòria" al costat del missatge d'èxit.
+  bool showEmailOnlyValidation = false;
+
   // Aquests getters resumeixen les validacions principals del formulari.
   // Són útils perquè la vista pugui saber si cal mostrar errors
   // i si ja es pot intentar l’inici de sessió.
   bool get hasInvalidEmail =>
-      showValidation &&
+      (showValidation || showEmailOnlyValidation) &&
       emailController.text.trim().isNotEmpty &&
       !_isValidEmail(emailController.text.trim());
+
+  bool get hasEmptyEmail =>
+      showEmailOnlyValidation && emailController.text.trim().isEmpty;
 
   bool get hasEmptyPassword =>
       showValidation && passwordController.text.isEmpty;
@@ -84,11 +93,16 @@ class LoginController extends ChangeNotifier {
   void onEmailChanged(String value) {
     errorMessage = null;
     infoMessage = null;
+    showEmailOnlyValidation = false;
     notifyListeners();
   }
 
   void onPasswordChanged(String value) {
     errorMessage = null;
+    // Si l'usuari estava llegint el missatge de recuperació i decideix
+    // tornar a intentar el login escrivint la contrasenya, el missatge ja
+    // no aporta context.
+    infoMessage = null;
     notifyListeners();
   }
 
@@ -107,6 +121,7 @@ class LoginController extends ChangeNotifier {
     if (isLoading) return;
 
     showValidation = true;
+    showEmailOnlyValidation = false;
     errorMessage = null;
     infoMessage = null;
     notifyListeners();
@@ -154,10 +169,16 @@ class LoginController extends ChangeNotifier {
 
   // Aquest mètode aprofita el correu ja escrit al formulari per iniciar
   // el procés de recuperació de contrasenya sense sortir de la pantalla de login.
+  // Important: només validem el correu (no la contrasenya) perquè l'usuari
+  // que ha oblidat la contrasenya no la pot omplir, i abans apareixia un
+  // error "La contrasenya és obligatòria" al costat del missatge d'èxit.
+  // També desactivem `showValidation` per amagar qualsevol error de
+  // contrasenya que un intent de login previ pogués haver deixat visible.
   Future<void> onForgotPasswordTap() async {
     if (isLoading) return;
 
-    showValidation = true;
+    showValidation = false;
+    showEmailOnlyValidation = true;
     errorMessage = null;
     infoMessage = null;
     notifyListeners();
