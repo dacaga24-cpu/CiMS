@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:cims/app/router/app_router.dart';
 import 'package:cims/app/widgets/branding/cims_logo.dart';
+import 'package:cims/app/widgets/layout/app_responsive.dart';
 import 'package:flutter/material.dart';
 import 'login_controller.dart';
 import 'widgets/login_form_card.dart';
@@ -68,6 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
     // per mantenir-lo visible i accessible quan el teclat està obert.
     final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
     final formBottomOffset = keyboardInset > 0 ? keyboardInset : 72.0;
+    final isCompact = AppResponsive.isCompact(context);
 
     return AnimatedBuilder(
       animation: controller,
@@ -80,45 +82,78 @@ class _LoginScreenState extends State<LoginScreen> {
               // Aquesta acció permet tancar el teclat quan l’usuari toca fora dels camps,
               // millorant la comoditat d’ús de la pantalla.
               onTap: () => FocusScope.of(context).unfocus(),
-              child: Stack(
-                children: [
-                  // Aquest bloc mostra el logotip a la part superior de la pantalla.
-                  // Serveix per reforçar la identitat visual de l’aplicació en el punt d’accés.
-                  const Align(
-                    alignment: Alignment(0, -0.72),
-                    child: CimsLogo(
-                      width: 120,
-                      height: 120,
-                    ),
-                  ),
-                  // Aquest bloc conté tot el formulari d’inici de sessió
-                  // i el desplaça suaument quan apareix el teclat.
-                  AnimatedPadding(
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeOut,
-                    padding: EdgeInsets.only(bottom: formBottomOffset),
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const SizedBox(height: 12),
-                            LoginFormCard(controller: controller),
-                            const SizedBox(height: 20),
-                            // Aquest bloc ofereix l’accés al registre
-                            // per als usuaris que encara no tenen un compte creat.
-                            LoginRegisterPrompt(
-                              onTap: controller.onRegisterTap,
+              child: isCompact
+                  ? Stack(
+                      children: [
+                        // Aquest bloc mostra el logotip a la part superior de la pantalla.
+                        // Serveix per reforçar la identitat visual de l’aplicació en el punt d’accés.
+                        const Align(
+                          alignment: Alignment(0, -0.72),
+                          child: CimsLogo(
+                            width: 120,
+                            height: 120,
+                          ),
+                        ),
+                        // Aquest bloc conté tot el formulari d’inici de sessió
+                        // i el desplaça suaument quan apareix el teclat.
+                        AnimatedPadding(
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOut,
+                          padding: EdgeInsets.only(bottom: formBottomOffset),
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: SingleChildScrollView(
+                              padding:
+                                  const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const SizedBox(height: 12),
+                                  LoginFormCard(controller: controller),
+                                  const SizedBox(height: 20),
+                                  // Aquest bloc ofereix l’accés al registre
+                                  // per als usuaris que encara no tenen un compte creat.
+                                  LoginRegisterPrompt(
+                                    onTap: controller.onRegisterTap,
+                                  ),
+                                ],
+                              ),
                             ),
-                          ],
+                          ),
+                        ),
+                      ],
+                    )
+                  : AnimatedPadding(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOut,
+                      padding: EdgeInsets.only(bottom: keyboardInset),
+                      child: Center(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 40,
+                          ),
+                          child: ResponsiveConstrainedBox(
+                            maxWidth: AppResponsive.formMaxWidth(context),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const CimsLogo(
+                                  width: 112,
+                                  height: 112,
+                                ),
+                                const SizedBox(height: 28),
+                                LoginFormCard(controller: controller),
+                                const SizedBox(height: 20),
+                                LoginRegisterPrompt(
+                                  onTap: controller.onRegisterTap,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
             ),
           ),
         );
