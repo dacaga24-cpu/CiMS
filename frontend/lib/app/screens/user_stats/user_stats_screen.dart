@@ -1,4 +1,5 @@
 import 'package:auto_route/auto_route.dart';
+import 'package:cims/app/router/app_router.dart';
 import 'package:cims/app/screens/user_stats/user_stats_controller.dart';
 import 'package:cims/app/screens/user_stats/widgets/stats_challenge_card.dart';
 import 'package:cims/app/screens/user_stats/widgets/stats_error_state.dart';
@@ -69,6 +70,7 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
                 child: _UserStatsContent(
                   stats: stats,
                   controller: controller,
+                  onPeakTap: _openPeakDetail,
                 ),
               ),
             ],
@@ -77,16 +79,25 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
       },
     );
   }
+
+  // Obre el detall del cim demanat. Aquesta navegació es comparteix
+  // entre les diferents fileres de cims clickables (per exemple, el
+  // top 3 de cims més coronats).
+  void _openPeakDetail(int peakId) {
+    context.router.root.push(PeakDetailRoute(peakId: peakId));
+  }
 }
 
 class _UserStatsContent extends StatelessWidget {
   const _UserStatsContent({
     required this.stats,
     required this.controller,
+    required this.onPeakTap,
   });
 
   final UserStats stats;
   final UserStatsController controller;
+  final ValueChanged<int> onPeakTap;
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +109,10 @@ class _UserStatsContent extends StatelessWidget {
         children: _withVerticalGaps(
           [
             const _StatsHeader(),
-            StatsMostAscendedCard(topAscendedPeaks: stats.topAscendedPeaks),
+            StatsMostAscendedCard(
+              topAscendedPeaks: stats.topAscendedPeaks,
+              onPeakTap: onPeakTap,
+            ),
             StatsChallengeCard(
               current: controller.challengeCurrent,
               target: controller.challengeTarget,
@@ -139,7 +153,10 @@ class _UserStatsContent extends StatelessWidget {
             children: _withVerticalGaps(
               [
                 const _StatsHeader(),
-                StatsMostAscendedCard(topAscendedPeaks: stats.topAscendedPeaks),
+                StatsMostAscendedCard(
+                  topAscendedPeaks: stats.topAscendedPeaks,
+                  onPeakTap: onPeakTap,
+                ),
                 StatsChallengeCard(
                   current: controller.challengeCurrent,
                   target: controller.challengeTarget,
@@ -193,6 +210,7 @@ class _UserStatsContent extends StatelessWidget {
                   width: cardWidth,
                   child: StatsMostAscendedCard(
                     topAscendedPeaks: stats.topAscendedPeaks,
+                    onPeakTap: onPeakTap,
                   ),
                 ),
                 const SizedBox(width: spacing),

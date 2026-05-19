@@ -9,11 +9,16 @@ class StatsMostAscendedCard extends StatelessWidget {
   const StatsMostAscendedCard({
     super.key,
     required this.topAscendedPeaks,
+    this.onPeakTap,
   });
 
   // Aquesta llista conté els cims amb més ascensions registrades.
   // El backend ja els retorna ordenats de més a menys repeticions.
   final List<MostAscendedPeakStats> topAscendedPeaks;
+
+  // Callback opcional perquè la pantalla pugui obrir el detall del cim
+  // quan l'usuari prem sobre un dels elements del rànquing.
+  final ValueChanged<int>? onPeakTap;
 
   // Aquest mètode construeix la targeta del top 3 de cims més coronats.
   // Mostra el rànquing quan hi ha dades i un missatge orientatiu quan encara no n’hi ha.
@@ -53,6 +58,7 @@ class StatsMostAscendedCard extends StatelessWidget {
               _TopAscendedPeakRow(
                 position: index + 1,
                 peak: topAscendedPeaks[index],
+                onTap: onPeakTap,
               ),
               if (index != topAscendedPeaks.length - 1)
                 const SizedBox(height: 12),
@@ -69,10 +75,12 @@ class _TopAscendedPeakRow extends StatelessWidget {
   const _TopAscendedPeakRow({
     required this.position,
     required this.peak,
+    this.onTap,
   });
 
   final int position;
   final MostAscendedPeakStats peak;
+  final ValueChanged<int>? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +89,7 @@ class _TopAscendedPeakRow extends StatelessWidget {
       if (peak.peakAltitude != null) formatAltitude(peak.peakAltitude),
     ];
 
-    return Row(
+    final row = Row(
       children: [
         _RankingBadge(position: position),
         const SizedBox(width: 10),
@@ -123,6 +131,29 @@ class _TopAscendedPeakRow extends StatelessWidget {
         const SizedBox(width: 10),
         _AscentsCounter(totalAscents: peak.totalAscents),
       ],
+    );
+
+    // Si la pantalla pare ens passa `onTap`, fem que tota la fila sigui
+    // tappable per obrir el detall del cim. Si no, conservem el
+    // comportament purament informatiu d'abans.
+    final callback = onTap;
+    if (callback == null) {
+      return row;
+    }
+
+    // Si el backend retorna un peakId invàlid (0 o negatiu, normalment
+    // per un error de parsing), deshabilitem el ripple per no portar
+    // l'usuari a una pantalla d'error de detall del cim.
+    final tapHandler = peak.peakId > 0 ? () => callback(peak.peakId) : null;
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: tapHandler,
+        child: row,
+      ),
     );
   }
 }
