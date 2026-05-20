@@ -118,6 +118,7 @@ class AscentHistoryRoute extends PageRouteInfo<AscentHistoryRouteArgs> {
     required String peakName,
     required int altitude,
     required List<String> regions,
+    String? imageUrl,
     List<PageRouteInfo>? children,
   }) : super(
           AscentHistoryRoute.name,
@@ -127,6 +128,7 @@ class AscentHistoryRoute extends PageRouteInfo<AscentHistoryRouteArgs> {
             peakName: peakName,
             altitude: altitude,
             regions: regions,
+            imageUrl: imageUrl,
           ),
           initialChildren: children,
         );
@@ -143,6 +145,7 @@ class AscentHistoryRoute extends PageRouteInfo<AscentHistoryRouteArgs> {
         peakName: args.peakName,
         altitude: args.altitude,
         regions: args.regions,
+        imageUrl: args.imageUrl,
       );
     },
   );
@@ -155,6 +158,7 @@ class AscentHistoryRouteArgs {
     required this.peakName,
     required this.altitude,
     required this.regions,
+    this.imageUrl,
   });
 
   final Key? key;
@@ -167,9 +171,11 @@ class AscentHistoryRouteArgs {
 
   final List<String> regions;
 
+  final String? imageUrl;
+
   @override
   String toString() {
-    return 'AscentHistoryRouteArgs{key: $key, peakId: $peakId, peakName: $peakName, altitude: $altitude, regions: $regions}';
+    return 'AscentHistoryRouteArgs{key: $key, peakId: $peakId, peakName: $peakName, altitude: $altitude, regions: $regions, imageUrl: $imageUrl}';
   }
 
   @override
@@ -180,7 +186,8 @@ class AscentHistoryRouteArgs {
         peakId == other.peakId &&
         peakName == other.peakName &&
         altitude == other.altitude &&
-        const ListEquality<String>().equals(regions, other.regions);
+        const ListEquality<String>().equals(regions, other.regions) &&
+        imageUrl == other.imageUrl;
   }
 
   @override
@@ -189,7 +196,8 @@ class AscentHistoryRouteArgs {
       peakId.hashCode ^
       peakName.hashCode ^
       altitude.hashCode ^
-      const ListEquality<String>().hash(regions);
+      const ListEquality<String>().hash(regions) ^
+      imageUrl.hashCode;
 }
 
 /// generated route for

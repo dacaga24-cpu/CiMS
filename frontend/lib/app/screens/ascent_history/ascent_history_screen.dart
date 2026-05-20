@@ -15,6 +15,7 @@ class AscentHistoryScreen extends StatefulWidget {
     required this.peakName,
     required this.altitude,
     required this.regions,
+    this.imageUrl,
   });
 
   // Aquestes dades construeixen la capçalera del cim sense necessitar
@@ -23,6 +24,7 @@ class AscentHistoryScreen extends StatefulWidget {
   final String peakName;
   final int altitude;
   final List<String> regions;
+  final String? imageUrl;
 
   @override
   State<AscentHistoryScreen> createState() => _AscentHistoryScreenState();
@@ -91,6 +93,7 @@ class _AscentHistoryScreenState extends State<AscentHistoryScreen> {
             altitude: widget.altitude,
             regions: widget.regions,
             ascents: controller.ascents,
+            imageUrl: widget.imageUrl,
             isLoading: controller.isInitialLoading,
             errorMessage: controller.errorMessage,
             onRefresh: controller.onRefresh,

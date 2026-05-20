@@ -171,6 +171,7 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
         peakName: peak.name,
         altitude: peak.altitude,
         regions: peak.regions.map((region) => region.name).toList(),
+        imageUrl: peak.imageUrl,
       ),
     );
   }

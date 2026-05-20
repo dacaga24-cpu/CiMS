@@ -69,6 +69,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         peakName: ascent.peakName,
         altitude: ascent.altitude ?? 0,
         regions: ascent.regionName == null ? const [] : [ascent.regionName!],
+        imageUrl: ascent.imageUrl,
       ),
     );
   }
