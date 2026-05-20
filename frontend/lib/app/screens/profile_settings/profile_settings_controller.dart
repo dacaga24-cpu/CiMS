@@ -9,6 +9,7 @@ import 'package:cims/core/usecase/profile/get_user_profile_usecase.dart';
 import 'package:cims/core/usecase/profile/update_user_profile_usecase.dart';
 import 'package:cims/core/usecase/profile/upload_profile_photo_usecase.dart';
 import 'package:cims/core/usecase/session/clear_session_usecase.dart';
+import 'package:cims/core/util/string_case.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
@@ -140,13 +141,18 @@ class ProfileSettingsController extends ChangeNotifier {
 
   // Aquest getter construeix el nom que es mostrarà a la pantalla.
   // Si encara no s’ha pogut carregar el perfil, retorna un text genèric.
+  // Normalitzem cada paraula a "Title Case" perquè el nom es vegi sempre
+  // amb la primera lletra en majúscula i la resta en minúscula, sense
+  // dependre de com l'hagi escrit l'usuari al registre.
   String get displayName {
     final currentUser = _user;
     if (currentUser == null) {
       return 'Usuari';
     }
 
-    return '${currentUser.firstName} ${currentUser.lastName}'.trim();
+    final firstName = capitalizeWords(currentUser.firstName);
+    final lastName = capitalizeWords(currentUser.lastName);
+    return '$firstName $lastName'.trim();
   }
 
   // Aquest getter retorna el correu del perfil carregat.
@@ -446,12 +452,24 @@ class ProfileSettingsController extends ChangeNotifier {
       _successMessage = 'Contrasenya actualitzada correctament';
       return true;
     } on ApiUnauthorizedException {
+      // Aquí només arribem si el middleware d'autenticació rebutja el token
+      // (sessió caducada/inexistent), no quan la contrasenya actual és
+      // incorrecta — el backend retorna 400 per a aquest cas perquè el
+      // tractem com a validació del payload.
       await _clearSessionUseCase.execute();
       AppSession.userProfileStore.clear();
       _destination = ProfileSettingsDestination.login;
       return false;
     } on ApiException catch (error) {
-      _errorMessage = error.message;
+      // El backend retorna 400 amb "Current password is incorrect" quan la
+      // contrasenya actual no coincideix. Ho traduïm a català perquè la
+      // resposta del backend no és localitzada.
+      if (error.statusCode == 400 &&
+          error.message.toLowerCase().contains('current password')) {
+        _errorMessage = 'La contrasenya actual no és correcta';
+      } else {
+        _errorMessage = error.message;
+      }
       return false;
     } catch (_) {
       _errorMessage = 'No s\'ha pogut canviar la contrasenya';
@@ -497,12 +515,22 @@ class ProfileSettingsController extends ChangeNotifier {
       _destination = ProfileSettingsDestination.login;
       return true;
     } on ApiUnauthorizedException {
+      // Igual que a `changePassword`: aquí només arribem per sessió
+      // caducada del middleware, no per contrasenya incorrecta (que el
+      // backend retorna com a 400).
       await _clearSessionUseCase.execute();
       AppSession.userProfileStore.clear();
       _destination = ProfileSettingsDestination.login;
       return false;
     } on ApiException catch (error) {
-      _errorMessage = error.message;
+      // El backend retorna 400 amb "Password is incorrect" quan la
+      // contrasenya no coincideix. Ho traduïm a català.
+      if (error.statusCode == 400 &&
+          error.message.toLowerCase().contains('password is incorrect')) {
+        _errorMessage = 'La contrasenya no és correcta';
+      } else {
+        _errorMessage = error.message;
+      }
       return false;
     } catch (_) {
       _errorMessage = 'No s\'ha pogut desactivar el compte';

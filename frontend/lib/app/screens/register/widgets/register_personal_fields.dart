@@ -2,6 +2,7 @@ import 'package:cims/app/screens/register/register_controller.dart';
 import 'package:cims/app/screens/register/widgets/register_field_label.dart';
 import 'package:cims/app/widgets/forms/app_input_field.dart';
 import 'package:cims/app/widgets/forms/form_error_text.dart';
+import 'package:cims/core/util/validation.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget agrupa els camps de dades personals del registre.
@@ -33,6 +34,7 @@ class RegisterPersonalFields extends StatelessWidget {
           obscureText: false,
           onChanged: controller.onFirstNameChanged,
           enabled: !controller.isLoading,
+          maxLength: kMaxUserNameLength,
         ),
         // Aquest missatge indica que el camp del nom encara no s’ha omplert.
         if (controller.hasEmptyFirstName) ...[
@@ -52,6 +54,7 @@ class RegisterPersonalFields extends StatelessWidget {
           obscureText: false,
           onChanged: controller.onLastNameChanged,
           enabled: !controller.isLoading,
+          maxLength: kMaxUserNameLength,
         ),
         // Aquest missatge indica que el camp del cognom encara no s’ha omplert.
         if (controller.hasEmptyLastName) ...[

@@ -13,6 +13,7 @@ class AppInputField extends StatelessWidget {
     this.onSubmitted,
     this.suffixIcon,
     this.enabled = true,
+    this.maxLength,
   });
 
   // Aquest bloc defineix la informació necessària per configurar el camp:
@@ -26,6 +27,11 @@ class AppInputField extends StatelessWidget {
   final ValueChanged<String>? onSubmitted;
   final Widget? suffixIcon;
   final bool enabled;
+
+  // Límit dur de caràcters que pot escriure l'usuari. Per defecte és null
+  // (sense límit). Quan s'indica, ocultem el comptador integrat de
+  // Material per no contaminar visualment el camp arrodonit.
+  final int? maxLength;
 
   // Aquest mètode construeix visualment el camp de text amb l’estil comú del formulari.
   @override
@@ -43,6 +49,7 @@ class AppInputField extends StatelessWidget {
         onChanged: onChanged,
         onSubmitted: onSubmitted,
         enabled: enabled,
+        maxLength: maxLength,
         decoration: InputDecoration(
           border: InputBorder.none,
           hintText: hintText,
@@ -51,6 +58,10 @@ class AppInputField extends StatelessWidget {
             fontSize: 18,
           ),
           suffixIcon: suffixIcon,
+          // Amaguem el comptador automàtic perquè el camp de píndola no té
+          // espai per al text inferior i el límit ja es respecta a nivell
+          // d'input.
+          counterText: '',
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 20,
             vertical: 16,

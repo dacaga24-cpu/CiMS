@@ -22,8 +22,8 @@ CREATE TABLE IF NOT EXISTS regions (
 -- També permet associar una foto de perfil mitjançant una ruta interna del bucket.
 CREATE TABLE IF NOT EXISTS users (
   id                 INT          NOT NULL AUTO_INCREMENT,
-  first_name         VARCHAR(100) NOT NULL,
-  last_name          VARCHAR(150) NOT NULL,
+  first_name         VARCHAR(30)  NOT NULL,
+  last_name          VARCHAR(30)  NOT NULL,
   email              VARCHAR(255) NOT NULL,
   password           VARCHAR(255) NOT NULL,
   is_active          TINYINT      NOT NULL DEFAULT 1,
