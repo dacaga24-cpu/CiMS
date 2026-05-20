@@ -58,8 +58,9 @@ class PeaksMapSelectedPeakCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const PeakCircularThumbnail(
-                  size: 56,
+                PeakCircularThumbnail(
+                  size: 48,
+                  imageUrl: peak.imageUrl,
                 ),
                 const SizedBox(width: 12),
                 Expanded(

@@ -222,7 +222,7 @@ class DashboardPeakItem {
             ),
       regionName: _asRegionsText(json['regions']) ??
           _asNullableString(json['regionName'] ?? json['region']),
-      imageUrl: _asNullableString(json['imageUrl']),
+      imageUrl: _asNullableString(json['imageUrl'] ?? json['image_url']),
       ascentCount: json['ascentCount'] == null &&
               json['count'] == null &&
               json['totalAscents'] == null
@@ -313,6 +313,7 @@ class DashboardRecentAscent {
     this.altitude,
     this.regionName,
     this.notes,
+    this.imageUrl,
   });
 
   // Aquestes dades descriuen una ascensió concreta dins del resum d’activitat.
@@ -324,6 +325,7 @@ class DashboardRecentAscent {
   final int? altitude;
   final String? regionName;
   final String? notes;
+  final String? imageUrl;
 
   // Aquest constructor adapta el JSON d’una ascensió recent al format que espera el frontend.
   // També contempla noms de camp alternatius per mantenir compatibilitat amb el backend.
@@ -344,6 +346,7 @@ class DashboardRecentAscent {
       regionName: _asRegionsText(json['regions']) ??
           _asNullableString(json['regionName'] ?? json['region']),
       notes: _asNullableString(json['notes']),
+      imageUrl: _asNullableString(json['imageUrl'] ?? json['image_url']),
     );
   }
 }
@@ -440,7 +443,7 @@ String _asString(dynamic value, {String defaultValue = ''}) {
 // Retorna null quan no hi ha contingut real, evitant mostrar textos buits a la interfície.
 String? _asNullableString(dynamic value) {
   if (value == null) return null;
-  final text = value.toString();
+  final text = value.toString().trim();
   return text.isEmpty ? null : text;
 }
 

@@ -47,8 +47,9 @@ class PeakDetailCard extends StatelessWidget {
                 children: [
                   // Aquesta miniatura dona una referència visual ràpida del cim.
                   // De moment utilitza una imatge comuna per a totes les muntanyes.
-                  const PeakCircularThumbnail(
-                    size: 62,
+                  PeakCircularThumbnail(
+                    size: 48,
+                    imageUrl: peak.imageUrl,
                   ),
                   const SizedBox(width: 16),
                   Expanded(
