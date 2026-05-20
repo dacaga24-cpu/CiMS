@@ -1,20 +1,38 @@
+import 'dart:typed_data';
+
 import 'package:cims/app/client/api/api_client_impl.dart';
 import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/ascent.dart';
 import 'package:cims/core/entity/ascent_photo.dart';
+import 'package:cims/core/entity/ascent_upload_photo.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:cims/core/store/peak_status_store.dart';
 import 'package:cims/core/store/user_stats_refresh_store.dart';
+import 'package:cims/core/usecase/ascents/add_ascent_photos_usecase.dart';
 import 'package:cims/core/usecase/ascents/delete_ascent_photo_usecase.dart';
 import 'package:cims/core/usecase/ascents/delete_ascent_usecase.dart';
 import 'package:cims/core/usecase/ascents/get_ascent_photos_usecase.dart';
 import 'package:cims/core/usecase/ascents/update_ascent_usecase.dart';
+import 'package:cims/core/usecase/ascents/upload_ascent_photo_usecase.dart';
 import 'package:cims/core/usecase/peaks/get_peak_status_usecase.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image_picker/image_picker.dart';
 
 // Aquest límit coincideix amb la validació del backend.
 // Evita guardar notes massa llargues i permet mostrar un error abans d’enviar canvis.
 const int _maxNotesLength = 2000;
+
+// Aquest límit coincideix amb la validació del backend.
+// Evita que una ascensió pugui acumular més fotos de les permeses.
+const int _maxAscentPhotos = 8;
+
+// Aquests valors defineixen com es preparen les imatges abans de pujar-les.
+// Es fa servir JPEG per reduir pes i mantenir una qualitat suficient per a galeria.
+const int _minPhotoWidth = 1920;
+const int _minPhotoHeight = 1920;
+const int _photoJpegQuality = 82;
+const String _photoMimeType = 'image/jpeg';
 
 // Aquest enum indica les accions de navegació que la vista ha de resoldre
 // des de fora del controller.
@@ -41,9 +59,12 @@ class AscentEditController extends ChangeNotifier {
     GetAscentPhotosUseCase? getAscentPhotosUseCase,
     DeleteAscentPhotoUseCase? deleteAscentPhotoUseCase,
     DeleteAscentUseCase? deleteAscentUseCase,
+    AddAscentPhotosUseCase? addAscentPhotosUseCase,
+    UploadAscentPhotoUseCase? uploadAscentPhotoUseCase,
     GetPeakStatusUseCase? getPeakStatusUseCase,
     PeakStatusStore? peakStatusStore,
     UserStatsRefreshStore? userStatsRefreshStore,
+    ImagePicker? imagePicker,
   })  : _selectedAscentDate = ascent.ascentDate == null
             ? null
             : DateUtils.dateOnly(ascent.ascentDate!),
@@ -56,11 +77,16 @@ class AscentEditController extends ChangeNotifier {
             DeleteAscentPhotoUseCase(ApiClientImpl()),
         _deleteAscentUseCase =
             deleteAscentUseCase ?? DeleteAscentUseCase(ApiClientImpl()),
+        _addAscentPhotosUseCase =
+            addAscentPhotosUseCase ?? AddAscentPhotosUseCase(ApiClientImpl()),
+        _uploadAscentPhotoUseCase = uploadAscentPhotoUseCase ??
+            UploadAscentPhotoUseCase(ApiClientImpl()),
         _getPeakStatusUseCase =
             getPeakStatusUseCase ?? GetPeakStatusUseCase(ApiClientImpl()),
         _peakStatusStore = peakStatusStore ?? AppSession.peakStatusStore,
         _userStatsRefreshStore =
-            userStatsRefreshStore ?? AppSession.userStatsRefreshStore;
+            userStatsRefreshStore ?? AppSession.userStatsRefreshStore,
+        _imagePicker = imagePicker ?? ImagePicker();
 
   // Aquesta ascensió és el registre original que l’usuari vol consultar o editar.
   final Ascent ascent;
@@ -80,6 +106,17 @@ class AscentEditController extends ChangeNotifier {
 
   // Aquest cas d’ús permet eliminar l’ascensió completa.
   final DeleteAscentUseCase _deleteAscentUseCase;
+
+  // Aquest cas d’ús associa fotos noves a una ascensió ja existent.
+  final AddAscentPhotosUseCase _addAscentPhotosUseCase;
+
+  // Aquest cas d’ús puja una imatge al bucket i retorna la ruta que després
+  // es vincula amb l’ascensió.
+  final UploadAscentPhotoUseCase _uploadAscentPhotoUseCase;
+
+  // Aquest selector permet reutilitzar el mateix flux visual que el registre
+  // d’ascensió per triar una o diverses imatges.
+  final ImagePicker _imagePicker;
 
   // Aquestes dependències mantenen sincronitzat l’estat global després dels canvis.
   // Permeten que catàleg, mapa, dashboard i estadístiques reflecteixin l’edició.
@@ -106,10 +143,24 @@ class AscentEditController extends ChangeNotifier {
   // Aquest bloc guarda l’estat de les fotos existents de l’ascensió.
   List<AscentPhoto> photos = const [];
   bool isLoadingPhotos = false;
+  bool isUploadingPhotos = false;
   String? photosErrorMessage;
   int? deletingPhotoId;
 
   bool get hasSelectedAscentDate => _selectedAscentDate != null;
+
+  int get maxAscentPhotos => _maxAscentPhotos;
+
+  int get photosCount => photos.length;
+
+  bool get canAddMorePhotos => photos.length < _maxAscentPhotos;
+
+  bool get isBusy =>
+      isLoading ||
+      isDeletingAscent ||
+      isLoadingPhotos ||
+      isUploadingPhotos ||
+      deletingPhotoId != null;
 
   // Aquest getter indica si la data està protegida per una verificació.
   // Quan és així, la pantalla pot mostrar-la com a no editable.
@@ -186,10 +237,112 @@ class AscentEditController extends ChangeNotifier {
     return _loadPhotos();
   }
 
+  // Aquest mètode permet afegir fotos noves a una ascensió ja creada.
+  // Reutilitza el patró del registre: seleccionar, comprimir, pujar al bucket
+  // i després associar els storagePath resultants amb l’ascensió existent.
+  Future<void> onAddPhotosTap() async {
+    if (isBusy) {
+      return;
+    }
+
+    if (!canAddMorePhotos) {
+      photosErrorMessage =
+          'Només es poden afegir $_maxAscentPhotos fotos per ascensió';
+      _safeNotifyListeners();
+      return;
+    }
+
+    photosErrorMessage = null;
+    _safeNotifyListeners();
+
+    try {
+      final remainingSlots = _maxAscentPhotos - photos.length;
+
+      final pickedImages = await _imagePicker.pickMultiImage(
+        requestFullMetadata: false,
+      );
+
+      if (_disposed || pickedImages.isEmpty) {
+        return;
+      }
+
+      final imagesToUpload = pickedImages.take(remainingSlots).toList();
+
+      isUploadingPhotos = true;
+      _safeNotifyListeners();
+
+      final uploadedPhotos = <AscentUploadPhoto>[];
+
+      for (final pickedImage in imagesToUpload) {
+        final originalBytes = await pickedImage.readAsBytes();
+
+        final compressedBytes = await FlutterImageCompress.compressWithList(
+          originalBytes,
+          minWidth: _minPhotoWidth,
+          minHeight: _minPhotoHeight,
+          quality: _photoJpegQuality,
+          format: CompressFormat.jpeg,
+        );
+
+        final uploadedPhoto = await _uploadAscentPhotoUseCase(
+          bytes: Uint8List.fromList(compressedBytes),
+          mimeType: _photoMimeType,
+          isPrimary: photos.isEmpty && uploadedPhotos.isEmpty,
+        );
+
+        if (_disposed) {
+          return;
+        }
+
+        uploadedPhotos.add(uploadedPhoto);
+      }
+
+      if (uploadedPhotos.isEmpty) {
+        return;
+      }
+
+      await _addAscentPhotosUseCase(
+        ascentId: ascent.id,
+        photos: uploadedPhotos,
+      );
+
+      if (_disposed) {
+        return;
+      }
+
+      if (pickedImages.length > remainingSlots) {
+        photosErrorMessage =
+            'S\'han afegit només $remainingSlots fotos perquè el límit és $_maxAscentPhotos';
+      }
+
+      await _loadPhotos();
+
+      if (_disposed) {
+        return;
+      }
+
+      _userStatsRefreshStore.notifyStatsChanged();
+    } on ApiException catch (error) {
+      if (_disposed) return;
+
+      photosErrorMessage = error.message;
+    } catch (error) {
+      if (_disposed) return;
+
+      debugPrint('[AscentEditController] Add photos error: $error');
+      photosErrorMessage = 'No s\'han pogut afegir les fotos';
+    } finally {
+      if (!_disposed) {
+        isUploadingPhotos = false;
+        _safeNotifyListeners();
+      }
+    }
+  }
+
   // Aquest mètode elimina una foto individual si no forma part de la verificació.
   // La foto d’evidència queda protegida perquè és la prova que valida l’ascensió.
   Future<void> onDeletePhotoTap(int photoId) async {
-    if (isLoading || isDeletingAscent || deletingPhotoId != null) {
+    if (isBusy) {
       return;
     }
 
@@ -218,6 +371,7 @@ class AscentEditController extends ChangeNotifier {
       if (_disposed) return;
 
       photos = photos.where((photo) => photo.id != photoId).toList();
+      _userStatsRefreshStore.notifyStatsChanged();
     } on ApiException catch (error) {
       if (_disposed) return;
 
@@ -240,7 +394,7 @@ class AscentEditController extends ChangeNotifier {
   }
 
   void onAscentDateChanged(DateTime value) {
-    if (isLoading || isDeletingAscent || isDateLocked) {
+    if (isBusy || isDateLocked) {
       return;
     }
 
@@ -250,7 +404,7 @@ class AscentEditController extends ChangeNotifier {
   }
 
   void onClearAscentDateTap() {
-    if (isLoading || isDeletingAscent || isDateLocked) {
+    if (isBusy || isDateLocked) {
       return;
     }
 
@@ -265,7 +419,7 @@ class AscentEditController extends ChangeNotifier {
   }
 
   Future<void> onSaveTap() async {
-    if (isLoading || isDeletingAscent) {
+    if (isBusy) {
       return;
     }
 
@@ -315,7 +469,7 @@ class AscentEditController extends ChangeNotifier {
   // Aquest mètode elimina l’ascensió completa.
   // Si era l’última ascensió del cim, el backend deixa el cim com a no completat.
   Future<void> onDeleteAscentTap() async {
-    if (isLoading || isDeletingAscent || deletingPhotoId != null) {
+    if (isBusy) {
       return;
     }
 
@@ -351,7 +505,7 @@ class AscentEditController extends ChangeNotifier {
   }
 
   void onCancelTap() {
-    if (isLoading || isDeletingAscent) {
+    if (isBusy) {
       return;
     }
 

@@ -16,6 +16,7 @@ router.use(authMiddleware);
 // Això evita que Express interpreti valors com "verified" o "peak" com si fossin ascentId.
 router.get('/peak/:peakId', AscentController.getByUserAndPeak);
 router.get('/:ascentId/photos', AscentController.getPhotosForAscent);
+router.post('/:ascentId/photos', AscentController.addPhotosToAscent);
 router.post('/verified', AscentController.createVerified);
 
 // Aquestes rutes gestionen les operacions generals sobre ascensions.

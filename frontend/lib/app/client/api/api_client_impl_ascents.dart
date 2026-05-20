@@ -230,6 +230,59 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
     }
   }
 
+  // Associa fotos noves a una ascensió existent.
+  // Les imatges ja han d'estar pujades al bucket i aquí només es persisteixen a la BD.
+  @override
+  Future<List<AscentPhoto>> addAscentPhotos({
+    required int ascentId,
+    required List<AscentUploadPhoto> photos,
+  }) async {
+    try {
+      final response = await _postJson(
+        ApiEndpoints.ascentPhotosByAscentId(ascentId),
+        body: {
+          'photos': photos.map((photo) => photo.toJson()).toList(),
+        },
+        requiresAuth: true,
+      );
+
+      if (response.statusCode == 201) {
+        final decodedBody = jsonDecode(response.body);
+
+        if (decodedBody is! List) {
+          throw const ApiException(
+            'La resposta de les fotos afegides no és vàlida',
+            statusCode: 201,
+          );
+        }
+
+        return decodedBody
+            .whereType<Map>()
+            .map(
+                (item) => AscentPhoto.fromJson(Map<String, dynamic>.from(item)))
+            .toList();
+      }
+
+      final data = _tryParseJson(response.body);
+
+      final message = data?['error']?.toString() ??
+          data?['message']?.toString() ??
+          'No s\'han pogut afegir les fotos a l\'ascensió';
+
+      throw ApiException(message, statusCode: response.statusCode);
+    } on TimeoutException {
+      throw const ApiException(
+        'El servidor no respon. Torna-ho a provar',
+      );
+    } catch (error) {
+      if (error is ApiException) rethrow;
+
+      throw const ApiException(
+        'No s\'ha pogut connectar amb el servidor',
+      );
+    }
+  }
+
   // Demana al backend una URL temporal per pujar una foto.
   // La foto encara no queda associada a cap ascensió fins que es desa el registre final.
   @override

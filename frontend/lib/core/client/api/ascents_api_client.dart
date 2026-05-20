@@ -49,6 +49,13 @@ abstract class AscentsApiClient {
   // Aquest mètode recupera totes les fotos associades a una ascensió concreta.
   Future<List<AscentPhoto>> getAscentPhotos(int ascentId);
 
+  // Aquest mètode associa fotos noves a una ascensió ja existent.
+  // Les imatges ja han d’estar pujades al bucket; aquí només es desa la relació.
+  Future<List<AscentPhoto>> addAscentPhotos({
+    required int ascentId,
+    required List<AscentUploadPhoto> photos,
+  });
+
   // Aquest mètode puja el contingut binari de la imatge a la URL temporal
   // retornada pel backend. Els headers els decideix el backend en signar la
   // URL i s'han d'enviar tal qual al PUT, perquè formen part de la signatura.

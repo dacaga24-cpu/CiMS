@@ -131,6 +131,36 @@ function ensureVerificationPhotosPayload(userId, photos) {
   }));
 }
 
+// Aquesta funció prepara fotos afegides des de l'edició d'una ascensió.
+// Les fotos noves són imatges normals: no poden convertir-se en evidència
+// de verificació. Si l'ascensió encara no tenia cap foto, la primera nova
+// queda marcada com a principal perquè el resum de l'ascensió tingui miniatura.
+function normalizeAdditionalPhotosPayload(existingPhotos, photos) {
+  if (photos.length === 0) {
+    throw badRequest('Invalid photos: at least one photo is required');
+  }
+
+  const hasExistingPrimary = existingPhotos.some(
+    (photo) => photo.is_primary === 1
+  );
+
+  const hasExistingPhotos = existingPhotos.length > 0;
+
+  return photos.map((photo, index) => {
+    if (photo.isVerificationEvidence) {
+      throw badRequest('Invalid photos: verification evidence cannot be added from ascent editing');
+    }
+
+    return {
+      ...photo,
+      isPrimary: hasExistingPhotos || hasExistingPrimary
+        ? false
+        : index === 0,
+      isVerificationEvidence: false,
+    };
+  });
+}
+
 // Aquesta funció comprova que les fotos declarades existeixen realment al bucket.
 // Això evita guardar a la base de dades rutes d'imatges que no s'han arribat a pujar.
 async function ensurePhotosExistInBucket(photos) {
@@ -322,6 +352,68 @@ const AscentService = {
 
     return Promise.all(
       photos.map(async (photo) => {
+        let downloadUrl = null;
+
+        try {
+          downloadUrl = await StorageService.generateSignedDownloadUrl(photo.storage_path);
+        } catch (err) {
+          console.error(
+            `[ascentPhotos] sign download URL failed (ascentId=${photo.ascent_id} path=${photo.storage_path}):`,
+            err
+          );
+        }
+
+        return {
+          id: photo.id,
+          ascentId: photo.ascent_id,
+          storagePath: photo.storage_path,
+          isPrimary: photo.is_primary === 1,
+          isVerificationEvidence: photo.is_verification_evidence === 1,
+          downloadUrl,
+          createdAt: photo.created_at,
+        };
+      })
+    );
+  },
+
+  // Afegeix fotos normals a una ascensió existent.
+  // Reutilitza les mateixes validacions del registre: propietat, límit de fotos,
+  // espai de l'usuari al bucket i existència real de cada fitxer pujat.
+  async addPhotosToAscent(userId, ascentId, photos) {
+    const parsedAscentId = requireInteger(ascentId, 'ascentId');
+
+    const existing = await AscentModel.findByIdAndUserId(userId, parsedAscentId);
+    if (!existing) {
+      const error = new Error('Ascent not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const existingPhotos = await AscentPhotoModel.findAllByAscentIdAndUserId(
+      parsedAscentId,
+      userId
+    );
+
+    const validatedPhotos = ensureValidPhotosPayload(userId, photos);
+
+    if (existingPhotos.length + validatedPhotos.length > MAX_PHOTOS_PER_ASCENT) {
+      throw badRequest(`Invalid photos: at most ${MAX_PHOTOS_PER_ASCENT} per ascent`);
+    }
+
+    const normalizedPhotos = normalizeAdditionalPhotosPayload(
+      existingPhotos,
+      validatedPhotos
+    );
+
+    await ensurePhotosExistInBucket(normalizedPhotos);
+
+    const createdPhotos = await AscentPhotoModel.createMany(
+      parsedAscentId,
+      normalizedPhotos
+    );
+
+    return Promise.all(
+      createdPhotos.map(async (photo) => {
         let downloadUrl = null;
 
         try {
