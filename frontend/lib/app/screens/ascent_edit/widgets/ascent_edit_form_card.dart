@@ -56,9 +56,13 @@ class AscentEditFormCard extends StatelessWidget {
           _AscentEditPhotosSection(
             photos: controller.photos,
             isLoading: controller.isLoadingPhotos,
+            isUploading: controller.isUploadingPhotos,
+            canAddMorePhotos: controller.canAddMorePhotos,
+            maxPhotos: controller.maxAscentPhotos,
             errorMessage: controller.photosErrorMessage,
             deletingPhotoId: controller.deletingPhotoId,
             onRetryTap: controller.onRetryPhotosTap,
+            onAddPhotosTap: controller.onAddPhotosTap,
             onPhotoTap: onPhotoTap,
             onDeletePhotoTap: onDeletePhotoTap,
           ),
@@ -228,25 +232,33 @@ class _NotesField extends StatelessWidget {
   }
 }
 
-// Aquest bloc mostra les fotos ja associades a l’ascensió.
-// Les imatges es mostren com a miniatures per mantenir el formulari compacte.
-// En tocar una foto, la pantalla pot obrir-la en gran.
+// Aquest bloc mostra i gestiona les fotos associades a l’ascensió.
+// Manté el mateix comportament funcional que el registre: estat buit clicable,
+// miniatures existents i tile d’afegir mentre no s’ha arribat al límit.
 class _AscentEditPhotosSection extends StatelessWidget {
   const _AscentEditPhotosSection({
     required this.photos,
     required this.isLoading,
+    required this.isUploading,
+    required this.canAddMorePhotos,
+    required this.maxPhotos,
     required this.errorMessage,
     required this.deletingPhotoId,
     required this.onRetryTap,
+    required this.onAddPhotosTap,
     required this.onPhotoTap,
     required this.onDeletePhotoTap,
   });
 
   final List<AscentPhoto> photos;
   final bool isLoading;
+  final bool isUploading;
+  final bool canAddMorePhotos;
+  final int maxPhotos;
   final String? errorMessage;
   final int? deletingPhotoId;
   final Future<void> Function() onRetryTap;
+  final Future<void> Function() onAddPhotosTap;
   final ValueChanged<AscentPhoto> onPhotoTap;
   final ValueChanged<AscentPhoto> onDeletePhotoTap;
 
@@ -267,74 +279,265 @@ class _AscentEditPhotosSection extends StatelessWidget {
     }
 
     if (errorMessage != null) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFF1F1),
-          borderRadius: BorderRadius.circular(26),
-        ),
-        child: Column(
-          children: [
-            Text(
-              errorMessage!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                height: 1.35,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFFE84A4A),
-              ),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF1F1),
+              borderRadius: BorderRadius.circular(26),
             ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: onRetryTap,
-              child: const Text('Torna-ho a provar'),
+            child: Column(
+              children: [
+                Text(
+                  errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFE84A4A),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: onRetryTap,
+                  child: const Text('Torna-ho a provar'),
+                ),
+              ],
+            ),
+          ),
+          if (photos.isNotEmpty || canAddMorePhotos) ...[
+            const SizedBox(height: 12),
+            _PhotosWrap(
+              photos: photos,
+              isUploading: isUploading,
+              canAddMorePhotos: canAddMorePhotos,
+              deletingPhotoId: deletingPhotoId,
+              onAddPhotosTap: onAddPhotosTap,
+              onPhotoTap: onPhotoTap,
+              onDeletePhotoTap: onDeletePhotoTap,
             ),
           ],
-        ),
+        ],
       );
     }
 
     if (photos.isEmpty) {
-      return Container(
-        width: double.infinity,
-        constraints: const BoxConstraints(minHeight: 112),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF5F5F5),
-          borderRadius: BorderRadius.circular(26),
-        ),
-        child: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(20),
-            child: Text(
-              'Aquesta ascensió no té fotos associades.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.35,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF667085),
-              ),
-            ),
-          ),
-        ),
+      return _EmptyPhotosPicker(
+        isUploading: isUploading,
+        canAddMorePhotos: canAddMorePhotos,
+        maxPhotos: maxPhotos,
+        onTap: onAddPhotosTap,
       );
     }
 
+    return _PhotosWrap(
+      photos: photos,
+      isUploading: isUploading,
+      canAddMorePhotos: canAddMorePhotos,
+      deletingPhotoId: deletingPhotoId,
+      onAddPhotosTap: onAddPhotosTap,
+      onPhotoTap: onPhotoTap,
+      onDeletePhotoTap: onDeletePhotoTap,
+    );
+  }
+}
+
+// Aquest estat buit permet afegir fotos directament quan l’ascensió encara no en té.
+// Evita mostrar només un missatge informatiu i manté el mateix flux que el registre.
+class _EmptyPhotosPicker extends StatelessWidget {
+  const _EmptyPhotosPicker({
+    required this.isUploading,
+    required this.canAddMorePhotos,
+    required this.maxPhotos,
+    required this.onTap,
+  });
+
+  final bool isUploading;
+  final bool canAddMorePhotos;
+  final int maxPhotos;
+  final Future<void> Function() onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isEnabled = canAddMorePhotos && !isUploading;
+
+    return Material(
+      color: const Color(0xFFF5F5F5),
+      borderRadius: BorderRadius.circular(26),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(26),
+        onTap: isEnabled ? onTap : null,
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(minHeight: 124),
+          padding: const EdgeInsets.all(20),
+          child: Center(
+            child: isUploading
+                ? const _UploadingIndicator()
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFE8F0FE),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.add_photo_alternate_outlined,
+                          color: Color(0xFF0B57D0),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Selecciona imatges',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.35,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF344054),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Pots afegir fins a $maxPhotos fotos per ascensió.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          height: 1.35,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF667085),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Aquest contenidor mostra les miniatures existents i, si encara es pot,
+// una tile final per afegir més fotos.
+class _PhotosWrap extends StatelessWidget {
+  const _PhotosWrap({
+    required this.photos,
+    required this.isUploading,
+    required this.canAddMorePhotos,
+    required this.deletingPhotoId,
+    required this.onAddPhotosTap,
+    required this.onPhotoTap,
+    required this.onDeletePhotoTap,
+  });
+
+  final List<AscentPhoto> photos;
+  final bool isUploading;
+  final bool canAddMorePhotos;
+  final int? deletingPhotoId;
+  final Future<void> Function() onAddPhotosTap;
+  final ValueChanged<AscentPhoto> onPhotoTap;
+  final ValueChanged<AscentPhoto> onDeletePhotoTap;
+
+  @override
+  Widget build(BuildContext context) {
     return Wrap(
       spacing: 10,
       runSpacing: 10,
-      children: photos.map((photo) {
-        return _AscentEditPhotoCard(
-          photo: photo,
-          isDeleting: deletingPhotoId == photo.id,
-          onTap: () => onPhotoTap(photo),
-          onDeleteTap: photo.isVerificationEvidence
-              ? null
-              : () => onDeletePhotoTap(photo),
-        );
-      }).toList(),
+      children: [
+        for (final photo in photos)
+          _AscentEditPhotoCard(
+            photo: photo,
+            isDeleting: deletingPhotoId == photo.id,
+            onTap: () => onPhotoTap(photo),
+            onDeleteTap: photo.isVerificationEvidence
+                ? null
+                : () => onDeletePhotoTap(photo),
+          ),
+        if (canAddMorePhotos)
+          _AddPhotoTile(
+            isUploading: isUploading,
+            onTap: onAddPhotosTap,
+          ),
+      ],
+    );
+  }
+}
+
+// Aquesta tile afegeix més imatges sense crear un botó separat.
+// Reprodueix el comportament de la selecció múltiple del registre d’ascensió.
+class _AddPhotoTile extends StatelessWidget {
+  const _AddPhotoTile({
+    required this.isUploading,
+    required this.onTap,
+  });
+
+  final bool isUploading;
+  final Future<void> Function() onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 92,
+      height: 92,
+      child: Material(
+        color: const Color(0xFFF5F5F5),
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: isUploading ? null : onTap,
+          child: Center(
+            child: isUploading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.4),
+                  )
+                : const Icon(
+                    Icons.add_rounded,
+                    size: 34,
+                    color: Color(0xFF0B57D0),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Aquest indicador informa que les imatges s’estan pujant i associant.
+// Es mostra tant en estat buit com dins la tile d’afegir.
+class _UploadingIndicator extends StatelessWidget {
+  const _UploadingIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(strokeWidth: 2.6),
+        ),
+        SizedBox(height: 10),
+        Text(
+          'Pujant fotos...',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 13,
+            height: 1.35,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF667085),
+          ),
+        ),
+      ],
     );
   }
 }

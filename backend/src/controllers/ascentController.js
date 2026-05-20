@@ -44,6 +44,24 @@ const AscentController = {
     }
   },
 
+  // Afegeix fotos noves a una ascensió existent de l'usuari autenticat.
+  // Les imatges ja han d'estar pujades al bucket i el servei valida rutes, propietat i límits.
+  async addPhotosToAscent(req, res, next) {
+    try {
+      const { photos } = req.body || {};
+
+      const createdPhotos = await AscentService.addPhotosToAscent(
+        req.userId,
+        req.params.ascentId,
+        photos,
+      );
+
+      res.status(201).json(createdPhotos);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   // Crea una ascensió manual per a l'usuari autenticat.
   // Pot incloure data, notes i fotos ja pujades al bucket.
   async create(req, res, next) {
