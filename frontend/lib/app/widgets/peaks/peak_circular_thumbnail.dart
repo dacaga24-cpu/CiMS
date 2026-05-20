@@ -1,21 +1,27 @@
 import 'package:flutter/material.dart';
 
 // Aquest widget mostra una imatge circular representativa d’un cim.
-// De moment utilitza una imatge local comuna per a tots els cims,
-// però deixa preparada la interfície per substituir-la més endavant
-// per imatges específiques de cada muntanya.
+// Si el backend envia una imatge pública del catàleg, es mostra des del bucket.
+// Si no hi ha imatge o falla la càrrega, es manté la imatge local de reserva.
 class PeakCircularThumbnail extends StatelessWidget {
   const PeakCircularThumbnail({
     super.key,
     this.size = 58,
+    this.imageUrl,
   });
 
   // Aquesta mida permet reutilitzar la miniatura en diferents pantalles,
   // com el catàleg o la targeta ràpida del mapa.
   final double size;
 
+  // Aquesta URL permet mostrar la foto real del cim quan està disponible.
+  // Normalment prové del camp imageUrl retornat pel backend.
+  final String? imageUrl;
+
   @override
   Widget build(BuildContext context) {
+    final url = imageUrl?.trim();
+
     return Container(
       width: size,
       height: size,
@@ -34,10 +40,19 @@ class PeakCircularThumbnail extends StatelessWidget {
         ],
       ),
       child: ClipOval(
-        child: Image.asset(
-          'assets/images/montana_0001.png',
-          fit: BoxFit.cover,
-        ),
+        child: url == null || url.isEmpty
+            ? Image.asset(
+                'assets/images/montana_0001.png',
+                fit: BoxFit.cover,
+              )
+            : Image.network(
+                url,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Image.asset(
+                  'assets/images/montana_0001.png',
+                  fit: BoxFit.cover,
+                ),
+              ),
       ),
     );
   }

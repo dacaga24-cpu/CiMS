@@ -4,6 +4,57 @@ const pool = require('../config/db');
 // La seva funció és recuperar cims, aplicar filtres del catàleg
 // i unir-los amb les comarques a les quals pertanyen.
 
+// Aquesta constant defineix el bucket utilitzat per a les fotos públiques del catàleg.
+// Si existeix PEAK_PHOTOS_BUCKET_NAME, s'utilitza aquest bucket específic.
+// Si no existeix, es fa servir GCS_BUCKET_NAME com a compatibilitat amb la configuració actual.
+const peakPhotosBucketName = process.env.PEAK_PHOTOS_BUCKET_NAME || process.env.GCS_BUCKET_NAME;
+
+// Aquesta constant defineix com es recupera la imatge pública d'un cim.
+// Es fa amb una subconsulta per obtenir una única foto per cim i evitar
+// duplicats si en el futur s'afegeixen diverses imatges a peak_photos.
+const PEAK_PHOTO_JOIN = `
+    LEFT JOIN (
+        SELECT pp.peak_id, pp.storage_path
+        FROM peak_photos pp
+        INNER JOIN (
+            SELECT peak_id, MIN(id) AS id
+            FROM peak_photos
+            GROUP BY peak_id
+        ) first_photo ON first_photo.id = pp.id
+    ) pp ON pp.peak_id = p.id
+`;
+
+// Construeix una URL pública a partir de la ruta interna guardada a la base
+// de dades. La base de dades només manté el storage_path, per exemple
+// peaks/02_pedraforca.jpg, i el bucket es defineix per variable d'entorn.
+function buildPublicImageUrl(storagePath) {
+    if (!storagePath || !peakPhotosBucketName) {
+        return null;
+    }
+
+    const encodedPath = storagePath
+        .split('/')
+        .map(encodeURIComponent)
+        .join('/');
+
+    return `https://storage.googleapis.com/${peakPhotosBucketName}/${encodedPath}`;
+}
+
+// Normalitza una fila de base de dades al format que consumeix el frontend.
+// També transforma el storage_path de la foto en una URL pública preparada
+// per mostrar-se directament amb Image.network o equivalent.
+function mapPeakRow(row) {
+    return {
+        id: row.id,
+        name: row.name,
+        altitude: row.altitude,
+        latitude: row.latitude,
+        longitude: row.longitude,
+        description: row.description,
+        imageUrl: buildPublicImageUrl(row.photo_storage_path),
+    };
+}
+
 // Construeix el fragment WHERE i els paràmetres associats per als filtres
 // del catàleg. S'extreu en una funció pròpia perquè els tres punts d'entrada
 // (llista paginada, vista de mapa, comptador) han d'aplicar exactament el
@@ -92,8 +143,16 @@ const PeakModel = {
         });
 
         let sql = `
-            SELECT DISTINCT p.id, p.name, p.altitude, p.latitude, p.longitude, p.description
+            SELECT DISTINCT
+                p.id,
+                p.name,
+                p.altitude,
+                p.latitude,
+                p.longitude,
+                p.description,
+                pp.storage_path AS photo_storage_path
             FROM peaks p
+            ${PEAK_PHOTO_JOIN}
             ${join}
             ${where}
             ORDER BY p.altitude DESC, p.name ASC
@@ -124,7 +183,7 @@ const PeakModel = {
         }
 
         const [rows] = await pool.execute(sql, params);
-        return attachRegionsToPeaks(rows);
+        return attachRegionsToPeaks(rows.map(mapPeakRow));
     },
 
     // Compta el nombre total de cims que coincideixen amb els filtres.
@@ -152,12 +211,11 @@ const PeakModel = {
     },
 
     // Retorna tots els cims que coincideixen amb els filtres amb els camps
-    // necessaris per pintar-los al mapa: id, nom, coordenades, altitud i
-    // les comarques associades. Les comarques s'inclouen perquè la targeta
-    // del cim seleccionat al mapa les mostra; sense aquest camp el frontend
-    // no té manera de saber a quina comarca pertany cada cim sense fer una
-    // petició addicional per cada selecció. Es manté l'omissió de description
-    // perquè el mapa no la pinta i sí que afegiria volum significatiu.
+    // necessaris per pintar-los al mapa: id, nom, coordenades, altitud,
+    // imatge pública i les comarques associades. Les comarques s'inclouen
+    // perquè la targeta del cim seleccionat al mapa les mostra; sense aquest
+    // camp el frontend no té manera de saber a quina comarca pertany cada
+    // cim sense fer una petició addicional per cada selecció.
     // Aquest endpoint no té límit de resultats: és la vista que ha de mostrar
     // sempre el conjunt complet de cims que casen amb els filtres.
     async findAllForMap({ regionId, minAltitude, maxAltitude, search } = {}) {
@@ -166,15 +224,23 @@ const PeakModel = {
         });
 
         const sql = `
-            SELECT DISTINCT p.id, p.name, p.altitude, p.latitude, p.longitude
+            SELECT DISTINCT
+                p.id,
+                p.name,
+                p.altitude,
+                p.latitude,
+                p.longitude,
+                NULL AS description,
+                pp.storage_path AS photo_storage_path
             FROM peaks p
+            ${PEAK_PHOTO_JOIN}
             ${join}
             ${where}
             ORDER BY p.altitude DESC, p.name ASC
         `;
 
         const [rows] = await pool.execute(sql, params);
-        return attachRegionsToPeaks(rows);
+        return attachRegionsToPeaks(rows.map(mapPeakRow));
     },
 
     // Aquest mètode busca un cim pel seu identificador i hi afegeix la
@@ -183,14 +249,22 @@ const PeakModel = {
     // tota la informació sense haver de fer una segona crida.
     async findById(id) {
         const sqlPeak = `
-        SELECT id, name, altitude, latitude, longitude, description
-        FROM peaks
-        WHERE id = ?
+        SELECT
+            p.id,
+            p.name,
+            p.altitude,
+            p.latitude,
+            p.longitude,
+            p.description,
+            pp.storage_path AS photo_storage_path
+        FROM peaks p
+        ${PEAK_PHOTO_JOIN}
+        WHERE p.id = ?
         LIMIT 1
         `;
 
         const [peakRows] = await pool.execute(sqlPeak, [id]);
-        const peak = peakRows[0];
+        const peak = peakRows[0] ? mapPeakRow(peakRows[0]) : null;
 
         if (!peak) {
             return null;

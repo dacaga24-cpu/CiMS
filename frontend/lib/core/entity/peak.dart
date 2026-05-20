@@ -12,6 +12,7 @@ class Peak {
     this.description,
     this.latitude,
     this.longitude,
+    this.imageUrl,
   });
 
   final int id;
@@ -21,6 +22,7 @@ class Peak {
   final String? description;
   final double? latitude;
   final double? longitude;
+  final String? imageUrl;
 
   // Aquest constructor transforma la resposta del backend en un objecte Peak.
   // Pot llegir tant la versió resumida del catàleg com una versió més completa
@@ -80,6 +82,7 @@ class Peak {
       description: _parseNullableString(json['description']),
       latitude: _parseDouble(json['latitude']),
       longitude: _parseDouble(json['longitude']),
+      imageUrl: _parseNullableString(json['imageUrl'] ?? json['image_url']),
     );
   }
 
@@ -90,6 +93,11 @@ class Peak {
   // Aquest getter ajuda la vista a decidir si cal mostrar la descripció.
   bool get hasDescription =>
       description != null && description!.trim().isNotEmpty;
+
+  // Aquest getter indica si el cim disposa d'una imatge pública del catàleg.
+  // Permet que la interfície decideixi si ha de mostrar la imatge del bucket
+  // o mantenir la imatge local de reserva.
+  bool get hasImageUrl => imageUrl != null && imageUrl!.trim().isNotEmpty;
 
   // Aquest getter indica si el cim disposa de coordenades útils
   // per poder obrir la seva posició al mapa. La validació de rang
