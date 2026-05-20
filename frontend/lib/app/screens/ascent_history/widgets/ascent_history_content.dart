@@ -20,6 +20,7 @@ class AscentHistoryContent extends StatelessWidget {
     required this.onRefresh,
     required this.onRetryTap,
     required this.onAscentTap,
+    this.imageUrl,
   });
 
   final String peakName;
@@ -31,6 +32,7 @@ class AscentHistoryContent extends StatelessWidget {
   final Future<void> Function() onRefresh;
   final Future<void> Function() onRetryTap;
   final ValueChanged<Ascent> onAscentTap;
+  final String? imageUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +61,7 @@ class AscentHistoryContent extends StatelessWidget {
             altitude: altitude,
             regions: regions,
             totalAscents: datedAscents.length,
+            imageUrl: imageUrl,
           ),
           const SizedBox(height: 30),
           if (errorMessage != null)

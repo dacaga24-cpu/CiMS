@@ -24,12 +24,21 @@ class PeakDetailHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final regionsText =
         peak.formattedRegions.isEmpty ? 'CATALUNYA' : peak.formattedRegions;
+    final imageUrl = peak.imageUrl?.trim();
+
+    final ImageProvider<Object> imageProvider;
+
+    if (imageUrl == null || imageUrl.isEmpty) {
+      imageProvider = const AssetImage('assets/images/montana_0001.png');
+    } else {
+      imageProvider = NetworkImage(imageUrl);
+    }
 
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
-        image: const DecorationImage(
-          image: AssetImage('assets/images/montana_0001.png'),
+        image: DecorationImage(
+          image: imageProvider,
           fit: BoxFit.cover,
         ),
         boxShadow: const [

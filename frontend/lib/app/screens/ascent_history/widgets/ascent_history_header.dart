@@ -14,18 +14,29 @@ class AscentHistoryHeader extends StatelessWidget {
     required this.altitude,
     required this.regions,
     required this.totalAscents,
+    this.imageUrl,
   });
 
   // Aquestes dades defineixen el contingut principal de la capçalera:
-  // nom del cim, territori, altitud i nombre total d’ascensions registrades.
+  // nom del cim, territori, altitud, nombre total d’ascensions i imatge associada.
   final String peakName;
   final int altitude;
   final List<String> regions;
   final int totalAscents;
+  final String? imageUrl;
 
   @override
   Widget build(BuildContext context) {
     final regionsText = regions.isEmpty ? 'CATALUNYA' : regions.join(', ');
+    final trimmedImageUrl = imageUrl?.trim();
+
+    final ImageProvider<Object> headerImageProvider;
+
+    if (trimmedImageUrl == null || trimmedImageUrl.isEmpty) {
+      headerImageProvider = const AssetImage('assets/images/montana_0001.png');
+    } else {
+      headerImageProvider = NetworkImage(trimmedImageUrl);
+    }
 
     return Stack(
       clipBehavior: Clip.none,
@@ -35,8 +46,8 @@ class AscentHistoryHeader extends StatelessWidget {
           width: double.infinity,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(28),
-            image: const DecorationImage(
-              image: AssetImage('assets/images/montana_0001.png'),
+            image: DecorationImage(
+              image: headerImageProvider,
               fit: BoxFit.cover,
             ),
             boxShadow: const [

@@ -7,9 +7,11 @@
       "http://127.0.0.1:5000",
       "http://127.0.0.1:8080"
     ],
-    "method": ["PUT", "GET"],
+    "method": ["GET", "HEAD", "PUT"],
     "responseHeader": [
       "Content-Type",
+      "Content-Length",
+      "Cache-Control",
       "x-goog-content-length-range",
       "x-goog-resumable",
       "ETag"
