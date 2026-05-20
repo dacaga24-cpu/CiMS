@@ -1,5 +1,6 @@
 import 'package:cims/app/widgets/peaks/peak_circular_thumbnail.dart';
 import 'package:cims/core/entity/dashboard_summary.dart';
+import 'package:cims/core/util/format.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta secció mostra les últimes ascensions dins del dashboard.
@@ -189,7 +190,7 @@ class _DashboardRecentAscentTile extends StatelessWidget {
     final parts = <String>[
       if (ascent.regionName != null && ascent.regionName!.trim().isNotEmpty)
         ascent.regionName!,
-      if (ascent.altitude != null) '${_formatNumber(ascent.altitude!)} m',
+      if (ascent.altitude != null) formatAltitude(ascent.altitude),
     ];
 
     return parts.join(' · ');
@@ -221,22 +222,5 @@ class _DashboardRecentAscentTile extends StatelessWidget {
     final month = months[parsedDate.month - 1];
 
     return '$day $month';
-  }
-
-  String _formatNumber(int value) {
-    final text = value.toString();
-    final buffer = StringBuffer();
-
-    for (var i = 0; i < text.length; i++) {
-      final positionFromEnd = text.length - i;
-
-      buffer.write(text[i]);
-
-      if (positionFromEnd > 1 && positionFromEnd % 3 == 1) {
-        buffer.write('.');
-      }
-    }
-
-    return buffer.toString();
   }
 }

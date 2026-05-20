@@ -178,6 +178,7 @@ mixin _ProfileApiClientImplMixin on _ApiClientBase implements ProfileApiClient {
       );
     }
   }
+
   // Aquest mètode demana al backend una URL temporal per pujar la foto de perfil.
   // La resposta inclou la ruta final i els headers obligatoris per fer la pujada.
   @override

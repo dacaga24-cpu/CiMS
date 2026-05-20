@@ -22,8 +22,8 @@ CREATE TABLE IF NOT EXISTS regions (
 -- També permet associar una foto de perfil mitjançant una ruta interna del bucket.
 CREATE TABLE IF NOT EXISTS users (
   id                 INT          NOT NULL AUTO_INCREMENT,
-  first_name         VARCHAR(100) NOT NULL,
-  last_name          VARCHAR(150) NOT NULL,
+  first_name         VARCHAR(30)  NOT NULL,
+  last_name          VARCHAR(30)  NOT NULL,
   email              VARCHAR(255) NOT NULL,
   password           VARCHAR(255) NOT NULL,
   is_active          TINYINT      NOT NULL DEFAULT 1,
@@ -69,6 +69,24 @@ CREATE TABLE IF NOT EXISTS peak_regions (
 
 CREATE INDEX idx_peak_regions_peak_id   ON peak_regions(peak_id);
 CREATE INDEX idx_peak_regions_region_id ON peak_regions(region_id);
+
+-- Aquesta taula guarda les fotos públiques associades als cims del catàleg.
+-- Permet definir una imatge principal per cim i conservar informació d'atribució de la font original.
+CREATE TABLE IF NOT EXISTS peak_photos (
+  id INT NOT NULL AUTO_INCREMENT,
+  peak_id INT NOT NULL,
+  storage_path VARCHAR(500) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_peak_photos_storage_path (storage_path),
+  INDEX idx_peak_photos_peak_id (peak_id),
+
+  CONSTRAINT fk_peak_photos_peak
+    FOREIGN KEY (peak_id) REFERENCES peaks(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Aquesta taula registra les ascensions dels usuaris.
 -- El camp is_date_locked permet bloquejar la data quan l’ascensió prové d’una verificació.

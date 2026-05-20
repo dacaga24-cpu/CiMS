@@ -47,7 +47,8 @@ steps:
         SENDGRID_API_KEY=SENDGRID_API_KEY:latest,
         CORS_DEV_ORIGINS=CORS_DEV_ORIGINS:latest,
         GCS_BUCKET_NAME=GCS_BUCKET_NAME:latest,
-        GOOGLE_WEATHER_API_KEY=GOOGLE_WEATHER_API_KEY:latest'
+        GOOGLE_WEATHER_API_KEY=GOOGLE_WEATHER_API_KEY:latest,
+        PEAK_PHOTOS_BUCKET_NAME=PEAK_PHOTOS_BUCKET_NAME:latest,
 
 # Imatge final generada pel pipeline.
 images:

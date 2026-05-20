@@ -4,8 +4,8 @@ const Validation = require('../utils/validation');
 // Aquestes constants defineixen els límits de longitud acceptats als camps editables
 // del perfil. Coincideixen amb els tipus definits a la base de dades i amb els
 // mateixos valors que s'utilitzen durant el registre per mantenir coherència.
-const MAX_FIRST_NAME_LENGTH = 100;
-const MAX_LAST_NAME_LENGTH = 150;
+const MAX_FIRST_NAME_LENGTH = 30;
+const MAX_LAST_NAME_LENGTH = 30;
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 128;
 

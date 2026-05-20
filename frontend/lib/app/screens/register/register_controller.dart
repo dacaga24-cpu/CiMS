@@ -4,11 +4,10 @@ import 'package:cims/core/usecase/auth/register_usecase.dart';
 import 'package:flutter/material.dart';
 
 // Aquest bloc defineix els possibles destins de navegació de la pantalla de registre.
-// Serveix per indicar si l’usuari ha de tornar al login o obrir la pantalla de termes.
+// Per ara només cal portar l'usuari de tornada al login un cop completat el registre.
 enum RegisterNavigationDestination {
   none,
   login,
-  terms,
 }
 
 // Aquest controlador gestiona el comportament funcional de la pantalla de registre.
@@ -43,6 +42,11 @@ class RegisterController extends ChangeNotifier {
   bool showValidation = false;
   bool isLoading = false;
   String? errorMessage;
+
+  // Aquest indicador evita actualitzacions d’estat quan el controlador
+  // ja ha estat tancat (per ex., si l'usuari surt de la pantalla mentre
+  // hi ha una petició de registre en curs).
+  bool _disposed = false;
 
   RegisterNavigationDestination _destination =
       RegisterNavigationDestination.none;
@@ -176,7 +180,9 @@ class RegisterController extends ChangeNotifier {
       errorMessage = 'No s\'ha pogut completar el registre';
     } finally {
       isLoading = false;
-      notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+      }
     }
   }
 
@@ -184,12 +190,6 @@ class RegisterController extends ChangeNotifier {
   // quan ja té un compte creat.
   void onAlreadyHaveAccountTap() {
     _destination = RegisterNavigationDestination.login;
-    notifyListeners();
-  }
-
-  // Aquest mètode prepara la navegació cap a la pantalla de termes del servei.
-  void onTermsTap() {
-    _destination = RegisterNavigationDestination.terms;
     notifyListeners();
   }
 
@@ -206,9 +206,11 @@ class RegisterController extends ChangeNotifier {
   }
 
   // Aquest mètode allibera els recursos associats als camps del formulari
-  // quan el controlador deixa d’utilitzar-se.
+  // i marca el controlador com a finalitzat per evitar actualitzacions fora
+  // de temps quan l'usuari surt de la pantalla durant una petició.
   @override
   void dispose() {
+    _disposed = true;
     firstNameController.dispose();
     lastNameController.dispose();
     emailController.dispose();

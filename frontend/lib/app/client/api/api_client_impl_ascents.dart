@@ -205,7 +205,8 @@ mixin _AscentsApiClientImplMixin on _ApiClientBase implements AscentsApiClient {
 
         return decodedBody
             .whereType<Map>()
-            .map((item) => AscentPhoto.fromJson(Map<String, dynamic>.from(item)))
+            .map(
+                (item) => AscentPhoto.fromJson(Map<String, dynamic>.from(item)))
             .toList();
       }
 

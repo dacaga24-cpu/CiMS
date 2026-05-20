@@ -1,4 +1,5 @@
 import 'package:cims/core/entity/peak.dart';
+import 'package:cims/core/util/format.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget mostra el resum del cim dins de la pantalla de registre.
@@ -42,7 +43,7 @@ class AscentRegisterPeakSummary extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              '${peak.altitude} m',
+              formatAltitude(peak.altitude),
               style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,

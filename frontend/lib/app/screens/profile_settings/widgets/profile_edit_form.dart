@@ -1,5 +1,6 @@
 import 'package:cims/app/widgets/buttons/primary_gradient_button.dart';
 import 'package:cims/app/widgets/buttons/secondary_pill_button.dart';
+import 'package:cims/core/util/validation.dart';
 import 'package:flutter/material.dart';
 
 // Aquest widget mostra el formulari d’edició de dades personals.
@@ -48,9 +49,13 @@ class ProfileEditForm extends StatelessWidget {
           TextField(
             controller: firstNameController,
             enabled: !isLoading,
+            maxLength: kMaxUserNameLength,
             onChanged: (_) => onChanged(),
             decoration: InputDecoration(
               labelText: 'Nom',
+              // Amaguem el comptador integrat per no afegir soroll visual a
+              // sota el camp. El límit dur ja s'aplica via maxLength.
+              counterText: '',
               errorText:
                   showValidation && firstNameController.text.trim().isEmpty
                       ? 'El nom és obligatori'
@@ -61,9 +66,11 @@ class ProfileEditForm extends StatelessWidget {
           TextField(
             controller: lastNameController,
             enabled: !isLoading,
+            maxLength: kMaxUserNameLength,
             onChanged: (_) => onChanged(),
             decoration: InputDecoration(
               labelText: 'Cognoms',
+              counterText: '',
               errorText:
                   showValidation && lastNameController.text.trim().isEmpty
                       ? 'Els cognoms són obligatoris'

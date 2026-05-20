@@ -144,7 +144,9 @@ class PeaksCatalogContent extends StatelessWidget {
     return ListView.separated(
       controller: scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.only(bottom: 24),
+      // Padding inferior generós per no amagar l'últim cim sota el FAB de
+      // càmera i el bottom navigation bar a la versió mòbil.
+      padding: const EdgeInsets.only(bottom: 96),
       itemCount: peaks.length + (hasFooter ? 1 : 0),
       separatorBuilder: (_, __) => const SizedBox(height: 14),
       itemBuilder: (context, index) {

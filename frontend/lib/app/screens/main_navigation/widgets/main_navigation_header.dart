@@ -18,13 +18,23 @@ class MainNavigationHeader extends StatelessWidget {
     return Row(
       children: [
         const Spacer(),
-        ProfileAvatar(
-          size: 40,
-          profilePhotoUrl: profilePhotoUrl,
-          onTap: onProfileTap,
-          backgroundColor: const Color(0xFF0B57D0),
-          iconColor: Colors.white,
-          iconSize: 22,
+        // Semantics + Tooltip per fer evident que aquest avatar és el botó
+        // d'accés al perfil. Abans no tenia cap label exposat al lector de
+        // pantalla i tampoc no donava cap pista visual del seu propòsit.
+        Semantics(
+          label: 'Perfil i configuració',
+          button: true,
+          child: Tooltip(
+            message: 'Perfil',
+            child: ProfileAvatar(
+              size: 44,
+              profilePhotoUrl: profilePhotoUrl,
+              onTap: onProfileTap,
+              backgroundColor: const Color(0xFF0B57D0),
+              iconColor: Colors.white,
+              iconSize: 24,
+            ),
+          ),
         ),
       ],
     );

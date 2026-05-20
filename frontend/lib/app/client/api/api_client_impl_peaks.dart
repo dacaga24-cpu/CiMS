@@ -160,7 +160,7 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
     }
   }
 
-    // Aquest mètode recupera els cims destinats al mapa.
+  // Aquest mètode recupera els cims destinats al mapa.
   // Utilitza l’endpoint específic del backend i envia els filtres principals
   // perquè comarca, cerca, altitud i clima es resolguin amb dades completes.
   Future<List<Peak>> getMapPeaks({

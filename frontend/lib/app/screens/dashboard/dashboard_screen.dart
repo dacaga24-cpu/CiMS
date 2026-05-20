@@ -11,6 +11,7 @@ import 'package:cims/app/screens/peaks_catalog/models/peaks_filter_state.dart';
 import 'package:cims/app/widgets/layout/app_responsive.dart';
 import 'package:cims/core/entity/dashboard_summary.dart';
 import 'package:cims/core/session/app_session.dart';
+import 'package:cims/core/util/string_case.dart';
 import 'package:flutter/material.dart';
 
 @RoutePage()
@@ -117,11 +118,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onRefresh: _controller.loadDashboard,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
+                // En mòbil el FAB de càmera flota sobre el bottom navigation
+                // bar, així que afegim espai extra a sota per evitar que
+                // l'última ascensió quedi tapada per la flotant.
                 padding: AppResponsive.pagePadding(
                   context,
                   compactHorizontal: 20,
                   compactTop: 18,
-                  compactBottom: 28,
+                  compactBottom: 96,
                 ),
                 child: ResponsiveConstrainedBox(
                   child: _DashboardContent(
@@ -311,7 +315,11 @@ class _DashboardHeader extends StatelessWidget {
       builder: (context, _) {
         final user = AppSession.userProfileStore.user;
         final firstName = user?.firstName.trim() ?? '';
-        final greetingName = firstName.isEmpty ? 'explorador' : firstName;
+        // Normalitzem visualment a "Title Case" perquè la salutació es
+        // mostri sempre amb la mateixa grafia (`Marc`) independentment de
+        // com l'hagi guardat l'usuari (`MARC`, `marc`, etc.).
+        final greetingName =
+            firstName.isEmpty ? 'explorador' : capitalizeFirst(firstName);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,

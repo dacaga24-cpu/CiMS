@@ -125,9 +125,7 @@ class _PeakStatusButton extends StatelessWidget {
                 ),
               ),
               Icon(
-                isActive
-                    ? Icons.check_rounded
-                    : Icons.chevron_right_rounded,
+                isActive ? Icons.check_rounded : Icons.chevron_right_rounded,
                 color: foregroundColor,
               ),
             ],
