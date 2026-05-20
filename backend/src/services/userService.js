@@ -107,10 +107,16 @@ const UserService = {
 
     // Es verifica la contrasenya actual abans d'aplicar el canvi
     // per confirmar que qui fa la petició és el titular del compte.
+    //
+    // Important: retornem 400 (no 401) perquè aquest no és un cas de sessió
+    // caducada — el token JWT del middleware ja l'ha validat. És un error
+    // de validació del payload: la contrasenya introduïda no coincideix.
+    // Si l'usem com a 401, el client interpreta sessió caducada i tanca
+    // sessió quan en realitat només calia mostrar un missatge d'error.
     const isValid = await bcrypt.compare(currentPassword, user.password);
     if (!isValid) {
       const error = new Error('Current password is incorrect');
-      error.statusCode = 401;
+      error.statusCode = 400;
       throw error;
     }
 
@@ -137,10 +143,12 @@ const UserService = {
       throw error;
     }
 
+    // Vegeu el comentari de changePassword: aquí també retornem 400 enlloc
+    // de 401 perquè no és un error de sessió, és validació del payload.
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
       const error = new Error('Password is incorrect');
-      error.statusCode = 401;
+      error.statusCode = 400;
       throw error;
     }
 

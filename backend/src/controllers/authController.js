@@ -19,8 +19,8 @@ const MIN_EMAIL_LENGTH = 5;
 // i protegeixen l'aplicació davant de valors desmesuradament llargs.
 // El màxim de contrasenya és especialment rellevant perquè bcrypt és lent per disseny
 // i hashear contrasenyes molt grans pot convertir-se en un vector d'atac de CPU.
-const MAX_FIRST_NAME_LENGTH = 100;
-const MAX_LAST_NAME_LENGTH = 150;
+const MAX_FIRST_NAME_LENGTH = 30;
+const MAX_LAST_NAME_LENGTH = 30;
 const MAX_EMAIL_LENGTH = 255;
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 128;
