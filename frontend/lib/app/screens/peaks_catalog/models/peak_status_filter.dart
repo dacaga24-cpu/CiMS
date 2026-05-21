@@ -1,5 +1,3 @@
-import 'package:cims/core/entity/peak_status.dart';
-
 // Aquest enum defineix els filtres disponibles segons l’estat personal del cim.
 // S’utilitza des del catàleg, el mapa i el panell de filtres per mantenir
 // les opcions d’estat separades dels controllers.
@@ -30,20 +28,21 @@ extension PeakStatusFilterX on PeakStatusFilter {
     }
   }
 
-  // Comprova si l’estat d’un cim compleix el filtre actual.
-  // Si no hi ha filtre, el cim sempre es considera vàlid.
-  bool matches(PeakStatus? status) {
+  // Retorna el valor que cal enviar al backend com a query param `status`.
+  // L'enum guarda noms en català per al display, però l'API espera els
+  // mateixos identificadors que el camp de la taula `peak_status`.
+  String? toQueryParam() {
     switch (this) {
       case PeakStatusFilter.none:
-        return true;
+        return null;
       case PeakStatusFilter.pending:
-        return !(status?.isCompleted ?? false);
+        return 'pending';
       case PeakStatusFilter.completed:
-        return status?.isCompleted ?? false;
+        return 'completed';
       case PeakStatusFilter.target:
-        return status?.isTarget ?? false;
+        return 'target';
       case PeakStatusFilter.favorite:
-        return status?.isFavorite ?? false;
+        return 'favorite';
     }
   }
 }

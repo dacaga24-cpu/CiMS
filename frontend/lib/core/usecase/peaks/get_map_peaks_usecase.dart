@@ -11,19 +11,21 @@ class GetMapPeaksUseCase {
   final ApiClient _apiClient;
 
   // Aquest mètode demana al backend la llista de cims preparada per al mapa.
-  // Els filtres principals s’envien al backend perquè comarca, cerca i altitud
-  // es resolguin amb les dades completes del servidor.
+  // Els filtres principals s’envien al backend perquè comarca, cerca, altitud
+  // i estat personal es resolguin amb les dades completes del servidor.
   Future<List<Peak>> execute({
     String? search,
     int? regionId,
     int? minAltitude,
     int? maxAltitude,
+    String? status,
   }) {
     return _apiClient.getMapPeaks(
       search: search,
       regionId: regionId,
       minAltitude: minAltitude,
       maxAltitude: maxAltitude,
+      status: status,
     );
   }
 }
