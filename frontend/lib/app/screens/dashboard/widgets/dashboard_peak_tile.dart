@@ -37,8 +37,9 @@ class DashboardPeakTile extends StatelessWidget {
           children: [
             // Aquesta miniatura manté la mateixa representació visual dels cims
             // que ja s’utilitza al catàleg i al detall ràpid del mapa.
-            const PeakCircularThumbnail(
+            PeakCircularThumbnail(
               size: 48,
+              imageUrl: peak.imageUrl,
             ),
             const SizedBox(width: 12),
             Expanded(

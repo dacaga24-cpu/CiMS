@@ -64,6 +64,16 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
   // Serveix quan encara no hi ha cap cim seleccionat o visible.
   static const LatLng _cataloniaCenter = LatLng(41.7830, 1.8260);
 
+  // Caixa de coordenades raonable per a un cim català. Els cims del
+  // backend són tots dins d'aquest rectangle; un valor fora suggereix
+  // dades corruptes. Filtrar-los abans de calcular els bounds evita
+  // que un peak amb latitud/longitud estranya estiri el rectangle del
+  // mapa fins fer-lo inservible.
+  static const double _catalunyaMinLat = 40.0;
+  static const double _catalunyaMaxLat = 43.0;
+  static const double _catalunyaMinLng = 0.0;
+  static const double _catalunyaMaxLng = 3.5;
+
   final PeaksMapMarkerFactory _markerFactory = PeaksMapMarkerFactory();
 
   // Aquest mapa guarda una icona preparada per a cada filtre d’estat.
@@ -81,10 +91,20 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
   // de càmera, només la última petició s'ha d'aplicar.
   int _fitRequestId = 0;
 
-  // Retorna només els cims que tenen coordenades disponibles.
-  // Això evita intentar crear marcadors amb dades incompletes.
+  // Retorna només els cims amb coordinades vàlides i dins de Catalunya.
+  // Així `_boundsForPeaks` calcula sempre un rectangle creïble.
   List<Peak> get _visiblePeaks =>
-      widget.peaks.where((peak) => peak.hasMapPosition).toList();
+      widget.peaks.where(_isWithinCatalunya).toList();
+
+  bool _isWithinCatalunya(Peak peak) {
+    if (!peak.hasMapPosition) return false;
+    final lat = peak.latitude!;
+    final lng = peak.longitude!;
+    return lat >= _catalunyaMinLat &&
+        lat <= _catalunyaMaxLat &&
+        lng >= _catalunyaMinLng &&
+        lng <= _catalunyaMaxLng;
+  }
 
   @override
   void initState() {
@@ -149,7 +169,12 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
   }
 
   // Guarda el controller del mapa quan Google Maps ja està carregat.
-  // Després ajusta la càmera perquè els cims visibles quedin dins de la vista.
+  // Després ajusta la càmera perquè els cims visibles quedin dins de la
+  // vista. Aquesta crida cobreix la race condition habitual: si les dades
+  // dels cims arriben abans que l'iframe de Google Maps, `didUpdateWidget`
+  // intenta fer fit amb el controller a `null` i no fa res. Quan el
+  // controller arriba aquí, tornem a cridar el fit i ja sí que disposem
+  // dels cims actualitzats al `widget.peaks`.
   void _onMapCreated(GoogleMapController controller) {
     if (_disposed) return;
     _mapController = controller;
@@ -182,7 +207,10 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
   }
 
   // Ajusta la càmera perquè els cims carregats siguin visibles al mapa.
-  // Si només hi ha un cim, centra directament sobre aquell punt.
+  // Si només hi ha un cim, centra directament sobre aquell punt. Si els
+  // cims caben en una àrea molt compacta (per ex. 3-4 peaks d'una mateixa
+  // vall), forcem un zoom mínim útil per evitar que el padding del
+  // bounds deixi la càmera més oberta del que pertoca.
   void _fitVisiblePeaks() {
     if (_disposed) return;
     final requestId = ++_fitRequestId;
@@ -193,6 +221,10 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
       final controller = _mapController;
       final peaks = _visiblePeaks;
 
+      // Si encara no tenim controller, no podem moure la càmera. Tampoc
+      // cal recordar-ho explícitament: quan el controller arriba via
+      // `_onMapCreated` torna a cridar `_fitVisiblePeaks`, que en aquell
+      // moment ja veurà el `widget.peaks` definitiu.
       if (controller == null || peaks.isEmpty) return;
 
       if (peaks.length == 1) {
@@ -212,12 +244,45 @@ class _PeaksGoogleMapState extends State<PeaksGoogleMap> {
         return;
       }
 
+      final bounds = _boundsForPeaks(peaks);
+
+      // Si el rectangle dels cims és molt petit (zona compacta), Google
+      // Maps amb padding fix triaria un zoom més baix del que ens
+      // interessa per veure els marcadors a un nivell útil. En aquests
+      // casos forcem un zoom directe al centre per garantir un encaix
+      // visualment proper.
+      const compactSpanThreshold = 0.05; // graus (~5 km)
+      final latSpan =
+          (bounds.northeast.latitude - bounds.southwest.latitude).abs();
+      final lngSpan =
+          (bounds.northeast.longitude - bounds.southwest.longitude).abs();
+      if (latSpan < compactSpanThreshold && lngSpan < compactSpanThreshold) {
+        final centerLat =
+            (bounds.northeast.latitude + bounds.southwest.latitude) / 2;
+        final centerLng =
+            (bounds.northeast.longitude + bounds.southwest.longitude) / 2;
+        try {
+          await controller.animateCamera(
+            CameraUpdate.newLatLngZoom(
+              LatLng(centerLat, centerLng),
+              12,
+            ),
+          );
+        } catch (_) {
+          // Mateix raonament que als altres casos.
+        }
+        return;
+      }
+
+      // Padding adaptatiu: amb molts cims dispersats ens permetem un
+      // marge més generós, però per a filtres selectius mantenim-lo
+      // ajustat perquè Google Maps no clampi el zoom cap a un valor
+      // massa baix.
+      final padding = peaks.length > 10 ? 40.0 : 24.0;
+
       try {
         await controller.animateCamera(
-          CameraUpdate.newLatLngBounds(
-            _boundsForPeaks(peaks),
-            48,
-          ),
+          CameraUpdate.newLatLngBounds(bounds, padding),
         );
       } catch (_) {
         // Mateix raonament que al cas d'un sol cim.

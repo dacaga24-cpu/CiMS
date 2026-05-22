@@ -14,11 +14,36 @@ const DEFAULT_PAGE_SIZE = 50;
 // pàgina) i prou baix per limitar el cost de cada petició.
 const MAX_PAGE_SIZE = 100;
 
+// Valors acceptats per al filtre d'estat personal del catàleg. Els mantenim
+// com a Set per validació O(1) i com a font de veritat única tant per al
+// catàleg com per al mapa. Qualsevol altre valor és un client mal
+// configurat i mereix un 400 explícit.
+const ALLOWED_PEAK_STATUS_FILTERS = new Set([
+    'pending',
+    'completed',
+    'target',
+    'favorite',
+]);
+
+// Valors acceptats per a l'ordre d'altitud al catàleg. El default `desc`
+// manté el comportament previ a CIMS-333 (Pica d'Estats primer). Es manté
+// com a Set per validar abans d'interpolar al SQL i evitar SQL injection
+// — la interpolació és necessària perquè ORDER BY no accepta paràmetres
+// preparats a MySQL.
+const ALLOWED_PEAK_SORT_ORDERS = new Set(['asc', 'desc']);
+const DEFAULT_PEAK_SORT_ORDER = 'desc';
+
 // Aquest mètode normalitza i valida els filtres compartits entre els tres
 // punts d'entrada del catàleg (paginació, mapa i comptador). Centralitza
 // la coerció per evitar que cada mètode dupliqui la mateixa lògica i que
 // el contracte d'errors de validació quedi consistent.
-function parseFilters({ regionId, minAltitude, maxAltitude, search } = {}) {
+//
+// El filtre `status` és per-usuari, així que només es considera si arriba
+// `userId` (vegeu `optionalAuthMiddleware`). Si arriba un valor de status
+// sense usuari autenticat, l'ignorem en silenci perquè la resposta sigui
+// indistingible d'una crida sense aquest paràmetre — això evita que un
+// client pugui inferir l'estat d'autenticació a partir del codi HTTP.
+function parseFilters({ regionId, minAltitude, maxAltitude, search, status, userId, sortOrder } = {}) {
     const parsedRegionId = parseOptionalInteger(regionId, 'regionId');
     const parsedMinAltitude = parseOptionalInteger(minAltitude, 'minAltitude', { min: 0 });
     const parsedMaxAltitude = parseOptionalInteger(maxAltitude, 'maxAltitude', { min: 0 });
@@ -31,11 +56,44 @@ function parseFilters({ regionId, minAltitude, maxAltitude, search } = {}) {
         throw badRequest('minAltitude cannot be greater than maxAltitude');
     }
 
+    // Important: només validem el valor de `status` quan l'usuari està
+    // autenticat. Per a clients anònims el descartem ABANS de tocar el
+    // whitelist, garantint que `?status=favorite` i `?status=invalid`
+    // produeixin exactament la mateixa resposta. Si validéssim primer i
+    // descartéssim després, un atacant podria inferir el whitelist
+    // comparant codis HTTP (200 vs 400) sense necessitat d'estar
+    // autenticat — això viola la promesa anti-fingerprint que fa l'op.
+    const hasIdentity = userId !== undefined && userId !== null;
+    let effectiveStatus;
+    if (hasIdentity && status !== undefined && status !== null && status !== '') {
+        const normalizedStatus = String(status).trim().toLowerCase();
+        if (!ALLOWED_PEAK_STATUS_FILTERS.has(normalizedStatus)) {
+            throw badRequest(
+                `Invalid status: must be one of ${[...ALLOWED_PEAK_STATUS_FILTERS].join(', ')}`,
+            );
+        }
+        effectiveStatus = normalizedStatus;
+    }
+
+    let parsedSortOrder = DEFAULT_PEAK_SORT_ORDER;
+    if (sortOrder !== undefined && sortOrder !== null && sortOrder !== '') {
+        const normalizedSortOrder = String(sortOrder).trim().toLowerCase();
+        if (!ALLOWED_PEAK_SORT_ORDERS.has(normalizedSortOrder)) {
+            throw badRequest(
+                `Invalid sortOrder: must be one of ${[...ALLOWED_PEAK_SORT_ORDERS].join(', ')}`,
+            );
+        }
+        parsedSortOrder = normalizedSortOrder;
+    }
+
     return {
         regionId: parsedRegionId,
         minAltitude: parsedMinAltitude,
         maxAltitude: parsedMaxAltitude,
         search: search ? String(search).trim() : undefined,
+        status: effectiveStatus,
+        userId: effectiveStatus !== undefined ? userId : undefined,
+        sortOrder: parsedSortOrder,
     };
 }
 
@@ -49,8 +107,8 @@ const PeakService = {
     // scroll infinit. Els filtres són opcionals i, sense filtres, es paginen
     // tots els cims del catàleg. Tant la pàgina com la mida es validen com
     // a enters i la mida es capa al sostre defensiu.
-    async getPage({ regionId, minAltitude, maxAltitude, search, page, pageSize } = {}) {
-        const filters = parseFilters({ regionId, minAltitude, maxAltitude, search });
+    async getPage({ regionId, minAltitude, maxAltitude, search, status, userId, sortOrder, page, pageSize } = {}) {
+        const filters = parseFilters({ regionId, minAltitude, maxAltitude, search, status, userId, sortOrder });
         const parsedPage = parseOptionalInteger(page, 'page') ?? 1;
         const requestedPageSize = parseOptionalInteger(pageSize, 'pageSize') ?? DEFAULT_PAGE_SIZE;
 
@@ -87,8 +145,8 @@ const PeakService = {
     // amb els camps mínims que necessita el mapa. No té paginació perquè la
     // vista de mapa ha de poder mostrar el conjunt complet sense que un
     // sostre arbitrari amagui marcadors a l'usuari.
-    async getForMap({ regionId, minAltitude, maxAltitude, search } = {}) {
-        const filters = parseFilters({ regionId, minAltitude, maxAltitude, search });
+    async getForMap({ regionId, minAltitude, maxAltitude, search, status, userId } = {}) {
+        const filters = parseFilters({ regionId, minAltitude, maxAltitude, search, status, userId });
         return PeakModel.findAllForMap(filters);
     },
 

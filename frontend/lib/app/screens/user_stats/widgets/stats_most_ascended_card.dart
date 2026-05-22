@@ -93,8 +93,9 @@ class _TopAscendedPeakRow extends StatelessWidget {
       children: [
         _RankingBadge(position: position),
         const SizedBox(width: 10),
-        const PeakCircularThumbnail(
+        PeakCircularThumbnail(
           size: 48,
+          imageUrl: peak.imageUrl,
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -234,13 +235,13 @@ class _EmptyTopAscendedState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       children: [
         PeakCircularThumbnail(
           size: 48,
         ),
-        SizedBox(width: 12),
-        Expanded(
+        const SizedBox(width: 12),
+        const Expanded(
           child: Text(
             'Registra ascensions per veure els teus cims més coronats.',
             style: TextStyle(

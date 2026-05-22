@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:cims/app/client/api/api_client_impl.dart';
+import 'package:cims/app/screens/peaks_catalog/models/peak_sort_order.dart';
 import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
 import 'package:cims/app/screens/peaks_catalog/models/peaks_filter_state.dart';
 import 'package:cims/app/screens/peaks_catalog/models/peaks_search_debouncer.dart';
@@ -83,10 +86,10 @@ class PeaksCatalogController extends ChangeNotifier {
   String? errorMessage;
   String? loadMoreErrorMessage;
 
-  // peaks conté la llista final que veu l’usuari.
-  // _loadedPeaks conserva els cims retornats pel backend abans d’aplicar el filtre d’estat local.
+  // peaks conté la llista final que veu l’usuari. El backend ja aplica
+  // tots els filtres (cerca, comarca, altitud, estat); per això la llista
+  // visible coincideix exactament amb la que ha retornat l'última pàgina.
   List<Peak> peaks = const [];
-  List<Peak> _loadedPeaks = const [];
   List<Region> availableRegions = const [];
 
   // Aquest objecte concentra els filtres compartits amb l’altra vista de cims.
@@ -102,6 +105,14 @@ class PeaksCatalogController extends ChangeNotifier {
   int _loadRequestId = 0;
   int? _selectedPeakId;
 
+  // Ordre actual d'altitud al catàleg. És estat local del controller
+  // (no es comparteix al singleton de filtres) perquè l'ordre no afecta
+  // el mapa i així evitem refetches innecessaris quan l'usuari el
+  // canviï: només el catàleg ho ha de saber. Default `descending` per
+  // mantenir el comportament històric (Pica d'Estats primer).
+  PeakSortOrder _altitudeSortOrder = PeakSortOrder.descending;
+  PeakSortOrder get altitudeSortOrder => _altitudeSortOrder;
+
   PeaksCatalogDestination _destination = PeaksCatalogDestination.none;
   PeaksCatalogDestination get destination => _destination;
   int? get selectedPeakId => _selectedPeakId;
@@ -109,6 +120,11 @@ class PeaksCatalogController extends ChangeNotifier {
   // Aquest getter resumeix el text de cerca actiu en aquell moment.
   // És útil per reutilitzar-lo en reintents i en missatges de la pantalla.
   String get currentSearch => searchController.text.trim();
+
+  // Helper privat per evitar duplicar el ternari `isEmpty ? null : text`
+  // a tots els callsites de `_loadPeaks`. El backend espera `null` quan
+  // no hi ha text de cerca (no string buit).
+  String? get _searchOrNull => currentSearch.isEmpty ? null : currentSearch;
 
   // Aquest getter exposa la regió seleccionada per mantenir compatible la UI existent.
   int? get selectedRegionId => _filtersState.selectedRegionId;
@@ -264,11 +280,23 @@ class PeaksCatalogController extends ChangeNotifier {
     _filtersState.clear();
   }
 
+  // Alterna l'ordre d'altitud entre ascendent i descendent i refresca la
+  // primera pàgina del catàleg. Quan canvia l'ordre cal reiniciar la
+  // paginació perquè els cims ja carregats correspondrien a l'ordre
+  // anterior. Reaprofita `_loadPeaks` que ja s'encarrega de resetejar
+  // `currentPage`, `hasMore` i `_loadRequestId`.
+  Future<void> toggleAltitudeSortOrder() {
+    _altitudeSortOrder = _altitudeSortOrder.toggled();
+    return _loadPeaks(
+      search: _searchOrNull,
+    );
+  }
+
   // Aquest mètode permet tornar a carregar el catàleg amb el text actual.
   // Serveix tant per refrescar la pantalla com per reintentar si hi ha hagut un error.
   Future<void> onRetryTap() {
     return _loadPeaks(
-      search: currentSearch.isEmpty ? null : currentSearch,
+      search: _searchOrNull,
     );
   }
 
@@ -291,10 +319,12 @@ class PeaksCatalogController extends ChangeNotifier {
 
     try {
       final loadedPage = await _getPeaksPageUseCase.execute(
-        search: currentSearch.isEmpty ? null : currentSearch,
+        search: _searchOrNull,
         regionId: selectedRegionId,
         minAltitude: minAltitude,
         maxAltitude: maxAltitude,
+        status: selectedStatusFilter.toQueryParam(),
+        sortOrder: _altitudeSortOrder.toQueryParam(),
         page: nextPage,
         pageSize: _catalogPageSize,
       );
@@ -303,18 +333,19 @@ class PeaksCatalogController extends ChangeNotifier {
         return;
       }
 
-      final existingIds = _loadedPeaks.map((peak) => peak.id).toSet();
+      // El backend ja aplica tots els filtres; només cal evitar duplicats
+      // entre pàgines (per si dues peticions coincidents tornen el mateix
+      // cim).
+      final existingIds = peaks.map((peak) => peak.id).toSet();
       final newItems =
           loadedPage.items.where((peak) => existingIds.add(peak.id)).toList();
 
-      _loadedPeaks = [
-        ..._loadedPeaks,
+      peaks = [
+        ...peaks,
         ...newItems,
       ];
       currentPage = loadedPage.page;
       hasMore = loadedPage.hasMore;
-
-      _applyStatusFilter();
     } on ApiException catch (error) {
       if (_disposed || requestId != _loadRequestId) {
         return;
@@ -373,6 +404,8 @@ class PeaksCatalogController extends ChangeNotifier {
         regionId: selectedRegionId,
         minAltitude: minAltitude,
         maxAltitude: maxAltitude,
+        status: selectedStatusFilter.toQueryParam(),
+        sortOrder: _altitudeSortOrder.toQueryParam(),
         page: 1,
         pageSize: _catalogPageSize,
       );
@@ -381,17 +414,14 @@ class PeaksCatalogController extends ChangeNotifier {
         return;
       }
 
-      _loadedPeaks = loadedPage.items;
+      peaks = loadedPage.items;
       currentPage = loadedPage.page;
       hasMore = loadedPage.hasMore;
-
-      _applyStatusFilter();
     } on ApiException catch (error) {
       if (_disposed || requestId != _loadRequestId) {
         return;
       }
 
-      _loadedPeaks = const [];
       peaks = const [];
       hasMore = false;
       errorMessage = error.message;
@@ -400,7 +430,6 @@ class PeaksCatalogController extends ChangeNotifier {
         return;
       }
 
-      _loadedPeaks = const [];
       peaks = const [];
       hasMore = false;
       errorMessage = 'No s\'ha pogut carregar el catàleg de cims';
@@ -412,31 +441,25 @@ class PeaksCatalogController extends ChangeNotifier {
     }
   }
 
-  // Aquest mètode aplica el filtre d’estat personal sobre els cims ja carregats.
-  // Els filtres de cerca, comarca i altitud venen del backend; l’estat es filtra localment.
-  void _applyStatusFilter() {
-    if (selectedStatusFilter == PeakStatusFilter.none) {
-      peaks = _loadedPeaks;
-      return;
-    }
-
-    peaks = _loadedPeaks.where(_matchesStatusFilter).toList();
-  }
-
-  // Aquest mètode comprova si un cim compleix el filtre d’estat seleccionat.
-  bool _matchesStatusFilter(Peak peak) {
-    final status = _peakStatusStore.getStatus(peak.id);
-    return selectedStatusFilter.matches(status);
-  }
-
-  // Quan el store notifica un canvi, s'ha de tornar a aplicar el filtre d'estat
-  // perquè la llista visible reflecteixi la nova realitat sense recarregar dades del backend.
+  // Quan el store notifica un canvi (per exemple, l'usuari marca un cim
+  // com a favorit des del detall), només cal refetch si hi ha un filtre
+  // d'estat actiu, perquè la composició de la llista pot haver canviat
+  // (el cim ja entra o ja no entra al filtre). Si no hi ha filtre d'estat,
+  // n'hi ha prou amb notificar perquè les cards individuals actualitzin
+  // la seva insígnia visual.
   void _onStoreChanged() {
     if (_disposed) {
       return;
     }
 
-    _applyStatusFilter();
+    if (selectedStatusFilter != PeakStatusFilter.none) {
+      // Fire-and-forget intencional: `_loadPeaks` ja gestiona els seus
+      // errors internament i actualitza `errorMessage` per la UI. Marquem
+      // amb `unawaited` perquè el linter no s'alarmi i quedi explícit.
+      unawaited(_loadPeaks(search: _searchOrNull));
+      return;
+    }
+
     notifyListeners();
   }
 
@@ -447,9 +470,8 @@ class PeaksCatalogController extends ChangeNotifier {
       return;
     }
 
-    _loadPeaks(
-      search: currentSearch.isEmpty ? null : currentSearch,
-    );
+    // Mateix raonament que a `_onStoreChanged`: fire-and-forget controlat.
+    unawaited(_loadPeaks(search: _searchOrNull));
   }
 
   // Aquest mètode tanca correctament els recursos del controller quan la pantalla es destrueix.

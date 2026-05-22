@@ -7,6 +7,39 @@ const pool = require('../config/db');
 // Les ascensions sense data no formen part de les estadístiques temporals.
 // Serveixen per marcar un cim com a completat, però no sumen metres, historial,
 // repte, gràfiques mensuals ni últimes ascensions.
+const peakPhotosBucketName = process.env.PEAK_PHOTOS_BUCKET_NAME || process.env.GCS_BUCKET_NAME;
+
+// Aquesta consulta reutilitzable recupera una única foto per cim.
+// Permet afegir imatges al dashboard i a les estadístiques sense duplicar files
+// si més endavant un cim té diverses fotos associades.
+const PEAK_PHOTO_JOIN = `
+  LEFT JOIN (
+    SELECT pp.peak_id, pp.storage_path
+    FROM peak_photos pp
+    INNER JOIN (
+      SELECT peak_id, MIN(id) AS id
+      FROM peak_photos
+      GROUP BY peak_id
+    ) first_photo ON first_photo.id = pp.id
+  ) pp ON pp.peak_id = p.id
+`;
+
+// Aquesta funció transforma la ruta interna del bucket en una URL pública.
+// Si no hi ha imatge o no hi ha bucket configurat, retorna null perquè el
+// frontend pugui mantenir la imatge local de reserva.
+function buildPublicImageUrl(storagePath) {
+  if (!storagePath || !peakPhotosBucketName) {
+    return null;
+  }
+
+  const encodedPath = storagePath
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/');
+
+  return `https://storage.googleapis.com/${peakPhotosBucketName}/${encodedPath}`;
+}
+
 const StatsModel = {
 
   // Retorna l'altitud màxima entre els cims completats per l'usuari.
@@ -56,12 +89,14 @@ const StatsModel = {
         a.peak_id,
         p.name AS peak_name,
         p.altitude AS peak_altitude,
+        pp.storage_path AS photo_storage_path,
         COUNT(*) AS ascent_count
       FROM ascents a
       INNER JOIN peaks p ON p.id = a.peak_id
+      ${PEAK_PHOTO_JOIN}
       WHERE a.user_id = ?
         AND a.ascent_date IS NOT NULL
-      GROUP BY a.peak_id, p.name, p.altitude
+      GROUP BY a.peak_id, p.name, p.altitude, pp.storage_path
       ORDER BY ascent_count DESC, p.altitude DESC, p.name ASC
       LIMIT ${safeLimit}
     `;
@@ -72,6 +107,7 @@ const StatsModel = {
       peakName: row.peak_name,
       peakAltitude: Number(row.peak_altitude),
       count: Number(row.ascent_count),
+      imageUrl: buildPublicImageUrl(row.photo_storage_path),
     }));
   },
 
@@ -182,17 +218,23 @@ const StatsModel = {
   },
 
   // Retorna les últimes ascensions datades de l'usuari amb informació del cim.
-  // Les ascensions sense data es gestionen fora del llistat cronològic perquè
-  // no tenen posició temporal clara.
+  // També incorpora la imatge pública del cim perquè el dashboard pugui mostrar
+  // una miniatura real de la muntanya associada a cada ascensió.
   async getRecentAscentsRaw(userId, limit) {
     const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : 5;
 
     const sql = `
       SELECT
-        a.id, a.peak_id, a.ascent_date, a.notes,
-        p.name AS peak_name, p.altitude AS peak_altitude
+        a.id,
+        a.peak_id,
+        a.ascent_date,
+        a.notes,
+        p.name AS peak_name,
+        p.altitude AS peak_altitude,
+        pp.storage_path AS photo_storage_path
       FROM ascents a
       INNER JOIN peaks p ON p.id = a.peak_id
+      ${PEAK_PHOTO_JOIN}
       WHERE a.user_id = ?
         AND a.ascent_date IS NOT NULL
       ORDER BY a.ascent_date DESC, a.id DESC
@@ -207,6 +249,7 @@ const StatsModel = {
       peakAltitude: Number(row.peak_altitude),
       ascentDate: row.ascent_date,
       notes: row.notes,
+      imageUrl: buildPublicImageUrl(row.photo_storage_path),
     }));
   },
 
@@ -221,9 +264,14 @@ const StatsModel = {
 
     const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : 5;
     const sql = `
-      SELECT p.id AS peak_id, p.name AS peak_name, p.altitude AS peak_altitude
+      SELECT
+        p.id AS peak_id,
+        p.name AS peak_name,
+        p.altitude AS peak_altitude,
+        pp.storage_path AS photo_storage_path
       FROM peak_status ps
       INNER JOIN peaks p ON p.id = ps.peak_id
+      ${PEAK_PHOTO_JOIN}
       WHERE ps.user_id = ? AND ps.${flagColumn} = 1
       ORDER BY ps.updated_at DESC, p.name ASC
       LIMIT ${safeLimit}
@@ -234,6 +282,7 @@ const StatsModel = {
       peakId: Number(row.peak_id),
       peakName: row.peak_name,
       peakAltitude: Number(row.peak_altitude),
+      imageUrl: buildPublicImageUrl(row.photo_storage_path),
     }));
   },
 

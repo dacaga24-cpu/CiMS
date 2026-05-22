@@ -4,6 +4,22 @@ const pool = require('../config/db');
 // La seva funció és recuperar cims, aplicar filtres del catàleg
 // i unir-los amb les comarques a les quals pertanyen.
 
+// Mapeig dels valors permesos del filtre `status` a la condició WHERE
+// equivalent sobre la taula `peak_status`. El servei ja valida que el
+// valor entrant pertanyi a aquest conjunt; el mapa s'encarrega només de
+// la traducció. Mantenir-ho aquí (i no com a switch) deixa una única
+// font de veritat i permet que `default` del consumidor llanci si arriba
+// alguna cosa inesperada.
+//
+// `pending` inclou tant els cims sense fila a `peak_status` (NULL →
+// COALESCE 0) com els que la tenen amb `is_completed = 0`.
+const PEAK_STATUS_CONDITION = Object.freeze({
+    completed: 'COALESCE(ps.is_completed, 0) = 1',
+    target: 'COALESCE(ps.is_target, 0) = 1',
+    favorite: 'COALESCE(ps.is_favorite, 0) = 1',
+    pending: 'COALESCE(ps.is_completed, 0) = 0',
+});
+
 // Aquesta constant defineix el bucket utilitzat per a les fotos públiques del catàleg.
 // Si existeix PEAK_PHOTOS_BUCKET_NAME, s'utilitza aquest bucket específic.
 // Si no existeix, es fa servir GCS_BUCKET_NAME com a compatibilitat amb la configuració actual.
@@ -55,39 +71,67 @@ function mapPeakRow(row) {
     };
 }
 
-// Construeix el fragment WHERE i els paràmetres associats per als filtres
-// del catàleg. S'extreu en una funció pròpia perquè els tres punts d'entrada
-// (llista paginada, vista de mapa, comptador) han d'aplicar exactament el
-// mateix conjunt de filtres i mantenir una única font de veritat evita
-// divergències quan se n'afegeixin de nous.
-function buildPeakFilters({ regionId, minAltitude, maxAltitude, search } = {}) {
+// Construeix el fragment WHERE/JOIN i els paràmetres associats per als
+// filtres del catàleg. S'extreu en una funció pròpia perquè els tres
+// punts d'entrada (llista paginada, vista de mapa, comptador) han
+// d'aplicar exactament el mateix conjunt de filtres i mantenir una única
+// font de veritat evita divergències quan se n'afegeixin de nous.
+//
+// Important — ordre dels paràmetres: si un dels JOINs porta `?`, els
+// `joinParams` han d'anar PRIMER a la llista final que es passi a
+// `pool.execute`. Els retornem separats perquè el caller composi
+// l'ordre correcte sense haver d'endevinar-lo.
+function buildPeakFilters({ regionId, minAltitude, maxAltitude, search, status, userId } = {}) {
+    const joinClauses = [];
+    const joinParams = [];
     const conditions = [];
-    const params = [];
-    let join = '';
+    const whereParams = [];
 
     if (regionId !== undefined && regionId !== null) {
-        join = ' INNER JOIN peak_regions pr ON pr.peak_id = p.id ';
+        joinClauses.push('INNER JOIN peak_regions pr ON pr.peak_id = p.id');
         conditions.push('pr.region_id = ?');
-        params.push(regionId);
+        whereParams.push(regionId);
+    }
+
+    // El filtre `status` només té sentit amb un usuari autenticat. El servei
+    // ja descarta `status` quan falta `userId`, però aquí defensem la
+    // invariant per si la funció es crida directament.
+    if (status !== undefined && status !== null && userId !== undefined) {
+        const statusCondition = PEAK_STATUS_CONDITION[status];
+        if (!statusCondition) {
+            // Si arribem aquí és un bug intern (regressió al servei o
+            // crida directa des de tests sense passar pel validador).
+            // Llencem perquè el cas es vegi a `errorHandler` enlloc de
+            // retornar 200 amb tots els cims com si el filtre s'hagués
+            // aplicat.
+            throw new Error(`Unhandled peak status filter at model layer: ${status}`);
+        }
+
+        joinClauses.push(
+            'LEFT JOIN peak_status ps ON ps.peak_id = p.id AND ps.user_id = ?',
+        );
+        joinParams.push(userId);
+        conditions.push(statusCondition);
     }
 
     if (minAltitude !== undefined && minAltitude !== null) {
         conditions.push('p.altitude >= ?');
-        params.push(minAltitude);
+        whereParams.push(minAltitude);
     }
 
     if (maxAltitude !== undefined && maxAltitude !== null) {
         conditions.push('p.altitude <= ?');
-        params.push(maxAltitude);
+        whereParams.push(maxAltitude);
     }
 
     if (search) {
         conditions.push('p.name LIKE ?');
-        params.push(`%${search}%`);
+        whereParams.push(`%${search}%`);
     }
 
+    const join = joinClauses.length > 0 ? ' ' + joinClauses.join(' ') + ' ' : '';
     const where = conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : '';
-    return { join, where, params };
+    return { join, where, joinParams, whereParams };
 }
 
 // Adjunta a una llista de cims les seves comarques associades en una sola
@@ -137,10 +181,18 @@ const PeakModel = {
     // imprescindible per a la paginació: sense un ORDER BY determinístic,
     // dues pàgines consecutives podrien repetir o saltar-se cims si MySQL
     // canvia l'ordre intern entre crides.
-    async findAll({ regionId, minAltitude, maxAltitude, search, limit, offset } = {}) {
-        const { join, where, params } = buildPeakFilters({
-            regionId, minAltitude, maxAltitude, search,
+    async findAll({ regionId, minAltitude, maxAltitude, search, status, userId, sortOrder, limit, offset } = {}) {
+        const { join, where, joinParams, whereParams } = buildPeakFilters({
+            regionId, minAltitude, maxAltitude, search, status, userId,
         });
+
+        // ORDER BY no accepta paràmetres preparats a MySQL, així que cal
+        // interpolar el sentit de l'ordre directament a la cadena. Per
+        // evitar SQL injection, comprovem aquí defensivament que `sortOrder`
+        // sigui un dels dos valors permesos abans de fer servir el resultat.
+        // El servei ja valida amb la mateixa whitelist; aquí ens defensem
+        // de crides directes al model sense passar pel servei.
+        const direction = sortOrder === 'asc' ? 'ASC' : 'DESC';
 
         let sql = `
             SELECT DISTINCT
@@ -155,7 +207,7 @@ const PeakModel = {
             ${PEAK_PHOTO_JOIN}
             ${join}
             ${where}
-            ORDER BY p.altitude DESC, p.name ASC
+            ORDER BY p.altitude ${direction}, p.name ASC
         `;
 
         // LIMIT i OFFSET s'interpolen directament a la cadena perquè
@@ -182,7 +234,7 @@ const PeakModel = {
             }
         }
 
-        const [rows] = await pool.execute(sql, params);
+        const [rows] = await pool.execute(sql, [...joinParams, ...whereParams]);
         return attachRegionsToPeaks(rows.map(mapPeakRow));
     },
 
@@ -194,9 +246,9 @@ const PeakModel = {
     // S'usa SELECT COUNT(DISTINCT p.id) perquè el JOIN amb peak_regions pot
     // duplicar files quan un cim pertany a més d'una comarca i això inflaria
     // el comptador respecte als resultats reals que retorna findAll.
-    async count({ regionId, minAltitude, maxAltitude, search } = {}) {
-        const { join, where, params } = buildPeakFilters({
-            regionId, minAltitude, maxAltitude, search,
+    async count({ regionId, minAltitude, maxAltitude, search, status, userId } = {}) {
+        const { join, where, joinParams, whereParams } = buildPeakFilters({
+            regionId, minAltitude, maxAltitude, search, status, userId,
         });
 
         const sql = `
@@ -206,7 +258,7 @@ const PeakModel = {
             ${where}
         `;
 
-        const [rows] = await pool.execute(sql, params);
+        const [rows] = await pool.execute(sql, [...joinParams, ...whereParams]);
         return Number(rows[0].total);
     },
 
@@ -218,9 +270,16 @@ const PeakModel = {
     // cim sense fer una petició addicional per cada selecció.
     // Aquest endpoint no té límit de resultats: és la vista que ha de mostrar
     // sempre el conjunt complet de cims que casen amb els filtres.
-    async findAllForMap({ regionId, minAltitude, maxAltitude, search } = {}) {
-        const { join, where, params } = buildPeakFilters({
-            regionId, minAltitude, maxAltitude, search,
+    //
+    // Nota: `sortOrder` NO es propaga aquí encara que `parseFilters` el
+    // retorni amb un default. L'ordre dels marcadors al mapa no és
+    // visible a l'usuari (els marcadors es renderitzen tots alhora),
+    // així que mantenim un ORDER BY fix per simplificar. Si en el futur
+    // calgués (per exemple, per donar prioritat de render a cims més
+    // alts), només cal afegir-lo aquí.
+    async findAllForMap({ regionId, minAltitude, maxAltitude, search, status, userId } = {}) {
+        const { join, where, joinParams, whereParams } = buildPeakFilters({
+            regionId, minAltitude, maxAltitude, search, status, userId,
         });
 
         const sql = `
@@ -239,7 +298,7 @@ const PeakModel = {
             ORDER BY p.altitude DESC, p.name ASC
         `;
 
-        const [rows] = await pool.execute(sql, params);
+        const [rows] = await pool.execute(sql, [...joinParams, ...whereParams]);
         return attachRegionsToPeaks(rows.map(mapPeakRow));
     },
 

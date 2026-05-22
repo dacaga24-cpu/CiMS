@@ -6,6 +6,7 @@ import 'package:cims/app/screens/peaks_catalog/widgets/peaks_active_filters_summ
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_catalog_content.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_filters_sheet.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_search_bar.dart';
+import 'package:cims/app/screens/peaks_catalog/widgets/peaks_sort_order_button.dart';
 import 'package:cims/app/widgets/layout/app_responsive.dart';
 import 'package:flutter/material.dart';
 
@@ -130,6 +131,11 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
                     onChanged: controller.onSearchChanged,
                     onFilterTap: _openFiltersSheet,
                     hasActiveFilters: controller.hasActiveFilters,
+                    trailingAction: PeaksSortOrderButton(
+                      sortOrder: controller.altitudeSortOrder,
+                      isLoading: controller.isLoading,
+                      onTap: controller.toggleAltitudeSortOrder,
+                    ),
                   ),
                   if (controller.hasActiveFilters) ...[
                     const SizedBox(height: 12),

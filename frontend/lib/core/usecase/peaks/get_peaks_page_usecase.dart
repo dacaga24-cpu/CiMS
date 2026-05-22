@@ -17,6 +17,8 @@ class GetPeaksPageUseCase {
     int? regionId,
     int? minAltitude,
     int? maxAltitude,
+    String? status,
+    String? sortOrder,
     int page = 1,
     int pageSize = 50,
   }) {
@@ -25,6 +27,8 @@ class GetPeaksPageUseCase {
       regionId: regionId,
       minAltitude: minAltitude,
       maxAltitude: maxAltitude,
+      status: status,
+      sortOrder: sortOrder,
       page: page,
       pageSize: pageSize,
     );

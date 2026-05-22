@@ -261,7 +261,7 @@ class MostAscendedPeakStats {
   });
 
   // Aquest bloc conté la informació necessària per destacar cims repetits.
-  // La imatge és opcional perquè el backend actual encara no l'envia.
+  // La imatge és opcional i es mostra només quan el backend retorna una URL pública del cim.
   final int peakId;
   final String peakName;
   final int totalAscents;
@@ -279,7 +279,7 @@ class MostAscendedPeakStats {
         json['peakAltitude'] ?? json['peak_altitude'],
       ),
       regions: _parseRegions(json['regions']),
-      imageUrl: _parseNullableString(json['imageUrl']),
+      imageUrl: _parseNullableString(json['imageUrl'] ?? json['image_url']),
     );
   }
 
@@ -458,15 +458,18 @@ class RecentAscentStats {
     required this.altitude,
     required this.ascentDate,
     required this.regions,
+    this.imageUrl,
   });
 
   // Aquest bloc conté identificadors, informació del cim, data i classificació territorial.
+  // La imatge és opcional i permet mostrar la foto pública del cim quan està disponible.
   final int id;
   final int peakId;
   final String peakName;
   final int altitude;
   final DateTime ascentDate;
   final List<String> regions;
+  final String? imageUrl;
 
   // Aquest constructor transforma una ascensió recent del backend en una entitat de pantalla.
   factory RecentAscentStats.fromJson(Map<String, dynamic> json) {
@@ -479,6 +482,7 @@ class RecentAscentStats {
       ),
       ascentDate: _parseDateOnly(json['ascentDate'] ?? json['ascent_date']),
       regions: _parseRegions(json['regions']),
+      imageUrl: _parseNullableString(json['imageUrl'] ?? json['image_url']),
     );
   }
 
@@ -523,5 +527,16 @@ class RecentAscentStats {
     }
 
     return DateTime.now();
+  }
+
+  // Aquest mètode valida textos opcionals com la URL de la imatge.
+  static String? _parseNullableString(dynamic value) {
+    final text = value?.toString().trim();
+
+    if (text == null || text.isEmpty) {
+      return null;
+    }
+
+    return text;
   }
 }

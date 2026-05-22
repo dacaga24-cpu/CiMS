@@ -127,8 +127,9 @@ class _DashboardRecentAscentTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 7),
         child: Row(
           children: [
-            const PeakCircularThumbnail(
+            PeakCircularThumbnail(
               size: 48,
+              imageUrl: ascent.imageUrl,
             ),
             const SizedBox(width: 12),
             Expanded(
