@@ -177,22 +177,45 @@ const PeakModel = {
     // de la pàgina i offset des de quin element començar. Tots els filtres
     // són opcionals i es combinen amb AND.
     //
-    // L'ordre per altitud descendent + nom ascendent és estable, condició
-    // imprescindible per a la paginació: sense un ORDER BY determinístic,
-    // dues pàgines consecutives podrien repetir o saltar-se cims si MySQL
-    // canvia l'ordre intern entre crides.
-    async findAll({ regionId, minAltitude, maxAltitude, search, status, userId, sortOrder, limit, offset } = {}) {
+    // L'ORDER BY és estrictament determinístic — un únic ordre possible
+    // per a tota la sortida — condició imprescindible per a la paginació
+    // offset-based: si dues files tenen el mateix valor al camp d'ordre,
+    // l'estàndard SQL no garanteix quina retorna primer, i això pot
+    // provocar que LIMIT/OFFSET consecutius repeteixin o saltin cims
+    // entre pàgines. El camp `sortBy` decideix el criteri primari
+    // (altitud o nom) i `sortOrder` el sentit. S'afegeix `p.id ASC` com
+    // a desempat final perquè qualsevol col·lisió residual en els
+    // camps primari i secundari tingui un ordre únic entre crides.
+    async findAll({ regionId, minAltitude, maxAltitude, search, status, userId, sortBy, sortOrder, limit, offset } = {}) {
         const { join, where, joinParams, whereParams } = buildPeakFilters({
             regionId, minAltitude, maxAltitude, search, status, userId,
         });
 
         // ORDER BY no accepta paràmetres preparats a MySQL, així que cal
-        // interpolar el sentit de l'ordre directament a la cadena. Per
-        // evitar SQL injection, comprovem aquí defensivament que `sortOrder`
-        // sigui un dels dos valors permesos abans de fer servir el resultat.
-        // El servei ja valida amb la mateixa whitelist; aquí ens defensem
-        // de crides directes al model sense passar pel servei.
+        // interpolar tant el camp com el sentit directament a la cadena.
+        // Per evitar SQL injection, llencem si els valors no pertanyen al
+        // whitelist abans d'usar-los. El servei ja valida amb la mateixa
+        // whitelist; aquí ens defensem de crides directes al model sense
+        // passar pel servei (per exemple, tests o un futur endpoint que
+        // s'oblidi de passar per `parseFilters`). Llencem en comptes de
+        // caure al default per no enmascarar regressions, seguint el
+        // mateix patró que `buildPeakFilters` aplica per a `status`.
+        if (sortOrder !== 'asc' && sortOrder !== 'desc') {
+            throw new Error(`Unhandled sortOrder at model layer: ${sortOrder}`);
+        }
+        if (sortBy !== 'altitude' && sortBy !== 'name') {
+            throw new Error(`Unhandled sortBy at model layer: ${sortBy}`);
+        }
+
         const direction = sortOrder === 'asc' ? 'ASC' : 'DESC';
+        const primaryColumn = sortBy === 'name' ? 'p.name' : 'p.altitude';
+        // Tie-break secundari: si l'ordre primari és per altitud, ordenem
+        // dins els empats per nom ascendent (criteri visual estable); si
+        // és per nom, mantenim el cim més alt primer per coherència amb
+        // l'ORDER BY del mapa (`p.altitude DESC, p.name ASC`), que és el
+        // que l'usuari ja veu en altres vistes del catàleg quan hi ha
+        // empats. L'`id` final tanca qualsevol col·lisió restant.
+        const secondaryOrder = sortBy === 'name' ? 'p.altitude DESC' : 'p.name ASC';
 
         let sql = `
             SELECT DISTINCT
@@ -207,7 +230,7 @@ const PeakModel = {
             ${PEAK_PHOTO_JOIN}
             ${join}
             ${where}
-            ORDER BY p.altitude ${direction}, p.name ASC
+            ORDER BY ${primaryColumn} ${direction}, ${secondaryOrder}, p.id ASC
         `;
 
         // LIMIT i OFFSET s'interpolen directament a la cadena perquè
@@ -271,12 +294,15 @@ const PeakModel = {
     // Aquest endpoint no té límit de resultats: és la vista que ha de mostrar
     // sempre el conjunt complet de cims que casen amb els filtres.
     //
-    // Nota: `sortOrder` NO es propaga aquí encara que `parseFilters` el
-    // retorni amb un default. L'ordre dels marcadors al mapa no és
-    // visible a l'usuari (els marcadors es renderitzen tots alhora),
-    // així que mantenim un ORDER BY fix per simplificar. Si en el futur
-    // calgués (per exemple, per donar prioritat de render a cims més
-    // alts), només cal afegir-lo aquí.
+    // Nota: el mapa no accepta `sortBy` ni `sortOrder` del client (el
+    // controller `listForMap` no els llegeix del query) i el model
+    // ignora qualsevol valor que arribi al destructure. L'ordre dels
+    // marcadors no és visible a l'usuari (els marcadors es renderitzen
+    // tots alhora), així que mantenim un ORDER BY fix per simplificar.
+    // Si algun dia calgués (per exemple, per donar prioritat de render a
+    // cims més alts), només cal estendre el controller, el servei i
+    // aquesta funció — les tres capes alhora per mantenir el contracte
+    // consistent.
     async findAllForMap({ regionId, minAltitude, maxAltitude, search, status, userId } = {}) {
         const { join, where, joinParams, whereParams } = buildPeakFilters({
             regionId, minAltitude, maxAltitude, search, status, userId,

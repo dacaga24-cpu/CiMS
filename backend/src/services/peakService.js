@@ -25,13 +25,15 @@ const ALLOWED_PEAK_STATUS_FILTERS = new Set([
     'favorite',
 ]);
 
-// Valors acceptats per a l'ordre d'altitud al catàleg. El default `desc`
-// manté el comportament previ a CIMS-333 (Pica d'Estats primer). Es manté
+// Valors acceptats per a l'ordre del catàleg. El default `desc` + `altitude`
+// manté el comportament previ a CIMS-333 (Pica d'Estats primer). Es mantenen
 // com a Set per validar abans d'interpolar al SQL i evitar SQL injection
 // — la interpolació és necessària perquè ORDER BY no accepta paràmetres
 // preparats a MySQL.
 const ALLOWED_PEAK_SORT_ORDERS = new Set(['asc', 'desc']);
 const DEFAULT_PEAK_SORT_ORDER = 'desc';
+const ALLOWED_PEAK_SORT_BY = new Set(['altitude', 'name']);
+const DEFAULT_PEAK_SORT_BY = 'altitude';
 
 // Aquest mètode normalitza i valida els filtres compartits entre els tres
 // punts d'entrada del catàleg (paginació, mapa i comptador). Centralitza
@@ -43,7 +45,7 @@ const DEFAULT_PEAK_SORT_ORDER = 'desc';
 // sense usuari autenticat, l'ignorem en silenci perquè la resposta sigui
 // indistingible d'una crida sense aquest paràmetre — això evita que un
 // client pugui inferir l'estat d'autenticació a partir del codi HTTP.
-function parseFilters({ regionId, minAltitude, maxAltitude, search, status, userId, sortOrder } = {}) {
+function parseFilters({ regionId, minAltitude, maxAltitude, search, status, userId, sortBy, sortOrder } = {}) {
     const parsedRegionId = parseOptionalInteger(regionId, 'regionId');
     const parsedMinAltitude = parseOptionalInteger(minAltitude, 'minAltitude', { min: 0 });
     const parsedMaxAltitude = parseOptionalInteger(maxAltitude, 'maxAltitude', { min: 0 });
@@ -86,6 +88,17 @@ function parseFilters({ regionId, minAltitude, maxAltitude, search, status, user
         parsedSortOrder = normalizedSortOrder;
     }
 
+    let parsedSortBy = DEFAULT_PEAK_SORT_BY;
+    if (sortBy !== undefined && sortBy !== null && sortBy !== '') {
+        const normalizedSortBy = String(sortBy).trim().toLowerCase();
+        if (!ALLOWED_PEAK_SORT_BY.has(normalizedSortBy)) {
+            throw badRequest(
+                `Invalid sortBy: must be one of ${[...ALLOWED_PEAK_SORT_BY].join(', ')}`,
+            );
+        }
+        parsedSortBy = normalizedSortBy;
+    }
+
     return {
         regionId: parsedRegionId,
         minAltitude: parsedMinAltitude,
@@ -93,6 +106,7 @@ function parseFilters({ regionId, minAltitude, maxAltitude, search, status, user
         search: search ? String(search).trim() : undefined,
         status: effectiveStatus,
         userId: effectiveStatus !== undefined ? userId : undefined,
+        sortBy: parsedSortBy,
         sortOrder: parsedSortOrder,
     };
 }
@@ -107,8 +121,8 @@ const PeakService = {
     // scroll infinit. Els filtres són opcionals i, sense filtres, es paginen
     // tots els cims del catàleg. Tant la pàgina com la mida es validen com
     // a enters i la mida es capa al sostre defensiu.
-    async getPage({ regionId, minAltitude, maxAltitude, search, status, userId, sortOrder, page, pageSize } = {}) {
-        const filters = parseFilters({ regionId, minAltitude, maxAltitude, search, status, userId, sortOrder });
+    async getPage({ regionId, minAltitude, maxAltitude, search, status, userId, sortBy, sortOrder, page, pageSize } = {}) {
+        const filters = parseFilters({ regionId, minAltitude, maxAltitude, search, status, userId, sortBy, sortOrder });
         const parsedPage = parseOptionalInteger(page, 'page') ?? 1;
         const requestedPageSize = parseOptionalInteger(pageSize, 'pageSize') ?? DEFAULT_PAGE_SIZE;
 

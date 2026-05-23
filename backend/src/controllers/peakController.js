@@ -23,7 +23,7 @@ const PeakController = {
   // l'estat d'autenticació a través de codes HTTP.
   async list(req, res, next) {
     try {
-      const { regionId, minAltitude, maxAltitude, search, status, sortOrder, page, pageSize } = req.query;
+      const { regionId, minAltitude, maxAltitude, search, status, sortBy, sortOrder, page, pageSize } = req.query;
 
       const result = await PeakService.getPage({
         regionId,
@@ -32,6 +32,7 @@ const PeakController = {
         search,
         status,
         userId: req.userId,
+        sortBy,
         sortOrder,
         page,
         pageSize,

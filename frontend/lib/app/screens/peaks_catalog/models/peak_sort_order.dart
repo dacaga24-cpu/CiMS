@@ -1,15 +1,14 @@
-// Aquest enum representa l'ordre d'altitud aplicat al catàleg de cims.
-// És un estat local del controller del catàleg (no es comparteix amb el
-// mapa, perquè l'ordre no afecta visualment el mapa). Es manté com a
-// font de veritat única perquè els mapejos a query param i a títols
-// visibles no es duplique en a la UI.
+// Aquest enum representa el sentit d'ordre del catàleg. Va aparellat
+// sempre amb `PeakSortBy` (altitud/nom): la combinació dels dos és
+// l'única manera vàlida d'expressar l'ordre. És estat local del
+// controller del catàleg (no es comparteix amb el mapa, perquè
+// l'ordre no afecta visualment el mapa). Es manté com a font de
+// veritat única perquè els mapejos a query param no es dupliquin a la UI.
 enum PeakSortOrder {
-  // Des de més baix a més alt: 80 m → 3.143 m.
+  // En altitud: de més baix a més alt. En nom: A → Z.
   ascending,
-  // Des de més alt a més baix (per defecte): 3.143 m → 80 m.
-  // Coincideix amb el comportament històric del backend (`ORDER BY
-  // altitude DESC`) per no canviar la primera impressió que té
-  // l'usuari quan obre el catàleg per primera vegada.
+  // En altitud: de més alt a més baix (default, manté el comportament
+  // històric "Pica d'Estats primer"). En nom: Z → A.
   descending,
 }
 
@@ -24,18 +23,6 @@ extension PeakSortOrderX on PeakSortOrder {
         return 'asc';
       case PeakSortOrder.descending:
         return 'desc';
-    }
-  }
-
-  // Retorna l'ordre oposat. S'usa des del botó toggle del header
-  // perquè cada toc alterni entre ascendent i descendent sense que la
-  // UI hagi de conèixer els valors concrets.
-  PeakSortOrder toggled() {
-    switch (this) {
-      case PeakSortOrder.ascending:
-        return PeakSortOrder.descending;
-      case PeakSortOrder.descending:
-        return PeakSortOrder.ascending;
     }
   }
 }

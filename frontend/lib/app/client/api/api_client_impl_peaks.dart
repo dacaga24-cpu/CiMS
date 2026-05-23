@@ -35,6 +35,7 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
     int? minAltitude,
     int? maxAltitude,
     String? status,
+    String? sortBy,
     String? sortOrder,
     int? page,
     int? pageSize,
@@ -47,6 +48,7 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
       if (minAltitude != null) 'minAltitude': minAltitude.toString(),
       if (maxAltitude != null) 'maxAltitude': maxAltitude.toString(),
       if (status != null && status.isNotEmpty) 'status': status,
+      if (sortBy != null && sortBy.isNotEmpty) 'sortBy': sortBy,
       if (sortOrder != null && sortOrder.isNotEmpty) 'sortOrder': sortOrder,
     };
   }
@@ -133,6 +135,7 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
     int? minAltitude,
     int? maxAltitude,
     String? status,
+    String? sortBy,
     String? sortOrder,
     int page = 1,
     int pageSize = 50,
@@ -146,6 +149,7 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
           minAltitude: minAltitude,
           maxAltitude: maxAltitude,
           status: status,
+          sortBy: sortBy,
           sortOrder: sortOrder,
           page: page,
           pageSize: pageSize,
