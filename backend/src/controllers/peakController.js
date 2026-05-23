@@ -15,15 +15,25 @@ const PeakController = {
   // els filtres rebuts. Els filtres i la paginació arriben per query string
   // i tots són opcionals; sense paràmetres es retorna la primera pàgina
   // del catàleg complet amb la mida per defecte definida al servei.
+  //
+  // `status` és un filtre que depèn de l'usuari (pendents, completats,
+  // objectius, preferits). Si la petició arriba autenticada via
+  // `optionalAuthMiddleware`, `req.userId` està establert i el servei
+  // l'aplica; si no, el servei ignora `status` en silenci per no filtrar
+  // l'estat d'autenticació a través de codes HTTP.
   async list(req, res, next) {
     try {
-      const { regionId, minAltitude, maxAltitude, search, page, pageSize } = req.query;
+      const { regionId, minAltitude, maxAltitude, search, status, sortBy, sortOrder, page, pageSize } = req.query;
 
       const result = await PeakService.getPage({
         regionId,
         minAltitude,
         maxAltitude,
         search,
+        status,
+        userId: req.userId,
+        sortBy,
+        sortOrder,
         page,
         pageSize,
       });
@@ -39,13 +49,15 @@ const PeakController = {
   // i al model; aquí només es delega.
   async listForMap(req, res, next) {
     try {
-      const { regionId, minAltitude, maxAltitude, search } = req.query;
+      const { regionId, minAltitude, maxAltitude, search, status } = req.query;
 
       const peaks = await PeakService.getForMap({
         regionId,
         minAltitude,
         maxAltitude,
         search,
+        status,
+        userId: req.userId,
       });
 
       res.status(200).json(peaks);

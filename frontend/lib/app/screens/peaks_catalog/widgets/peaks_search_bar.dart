@@ -14,6 +14,7 @@ class PeaksSearchBar extends StatelessWidget {
     required this.onChanged,
     required this.onFilterTap,
     this.hasActiveFilters = false,
+    this.trailingAction,
   });
 
   // Aquestes propietats connecten el camp de cerca amb la pantalla que l'utilitza.
@@ -22,6 +23,11 @@ class PeaksSearchBar extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final VoidCallback onFilterTap;
   final bool hasActiveFilters;
+
+  // Widget opcional que apareix entre el camp de cerca i el botó de
+  // filtres. S'usa al catàleg per encabir el botó d'ordre d'altitud,
+  // que no és rellevant al mapa.
+  final Widget? trailingAction;
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +55,10 @@ class PeaksSearchBar extends StatelessWidget {
             ),
           ),
         ),
+        if (trailingAction != null) ...[
+          const SizedBox(width: 12),
+          trailingAction!,
+        ],
         const SizedBox(width: 12),
         Material(
           color: hasActiveFilters

@@ -3,6 +3,28 @@ part of 'api_client_impl.dart';
 // Aquest mixin agrupa les operacions relacionades amb el catàleg
 // i el detall dels cims dins del client d’API.
 mixin _PeaksApiClientImplMixin on _ApiClientBase {
+  // Aquest helper centralitza el tractament del catch genèric dels 4
+  // mètodes peaks (`getPeaks`, `getPeaksPage`, `getMapPeaks`,
+  // `getPeakById`). Sense això cada mètode tenia 8 línies idèntiques
+  // de log + rethrow ApiException + throw connexió. Marcat com a
+  // `Never` perquè sempre llança i el caller no necessita un return.
+  Never _throwUnexpectedPeaksError(Object error, StackTrace stack) {
+    if (error is ApiException) throw error;
+
+    // Loguem el tipus i la traça abans de transformar a missatge
+    // genèric. Sense això, problemes com canvis de contracte al
+    // backend, errors de parse o problemes de TLS queden emmascarats
+    // per "No s'ha pogut connectar amb el servidor" i no es poden
+    // diagnosticar des del client.
+    debugPrint(
+      '[ApiClientImpl peaks] unexpected (${error.runtimeType}): $error\n$stack',
+    );
+
+    throw const ApiException(
+      'No s\'ha pogut connectar amb el servidor',
+    );
+  }
+
   // Aquest mètode centralitza la construcció dels query params del
   // catàleg (paginat i mapa). Manté la traducció dels filtres a
   // strings en un únic lloc perquè els dos endpoints comparteixin
@@ -12,6 +34,9 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
     int? regionId,
     int? minAltitude,
     int? maxAltitude,
+    String? status,
+    String? sortBy,
+    String? sortOrder,
     int? page,
     int? pageSize,
   }) {
@@ -22,6 +47,9 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
       if (regionId != null) 'regionId': regionId.toString(),
       if (minAltitude != null) 'minAltitude': minAltitude.toString(),
       if (maxAltitude != null) 'maxAltitude': maxAltitude.toString(),
+      if (status != null && status.isNotEmpty) 'status': status,
+      if (sortBy != null && sortBy.isNotEmpty) 'sortBy': sortBy,
+      if (sortOrder != null && sortOrder.isNotEmpty) 'sortOrder': sortOrder,
     };
   }
 
@@ -91,22 +119,24 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
       throw const ApiException(
         'El servidor no respon. Torna-ho a provar',
       );
-    } catch (error) {
-      if (error is ApiException) rethrow;
-
-      throw const ApiException(
-        'No s\'ha pogut connectar amb el servidor',
-      );
+    } catch (error, stack) {
+      _throwUnexpectedPeaksError(error, stack);
     }
   }
 
   // Aquest mètode recupera una pàgina concreta del catàleg de cims.
   // Manté la informació de paginació perquè la pantalla pugui carregar més resultats en fer scroll.
+  // El paràmetre `status` filtra per estat personal i requereix sessió:
+  // el client envia el token JWT si està disponible (`attachTokenIfAvailable`)
+  // i el backend ignora `status` quan no n'hi ha cap.
   Future<PeaksPage> getPeaksPage({
     String? search,
     int? regionId,
     int? minAltitude,
     int? maxAltitude,
+    String? status,
+    String? sortBy,
+    String? sortOrder,
     int page = 1,
     int pageSize = 50,
   }) async {
@@ -118,9 +148,13 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
           regionId: regionId,
           minAltitude: minAltitude,
           maxAltitude: maxAltitude,
+          status: status,
+          sortBy: sortBy,
+          sortOrder: sortOrder,
           page: page,
           pageSize: pageSize,
         ),
+        attachTokenIfAvailable: true,
       );
 
       if (response.statusCode == 200) {
@@ -151,23 +185,20 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
       throw const ApiException(
         'El servidor no respon. Torna-ho a provar',
       );
-    } catch (error) {
-      if (error is ApiException) rethrow;
-
-      throw const ApiException(
-        'No s\'ha pogut connectar amb el servidor',
-      );
+    } catch (error, stack) {
+      _throwUnexpectedPeaksError(error, stack);
     }
   }
 
   // Aquest mètode recupera els cims destinats al mapa.
   // Utilitza l’endpoint específic del backend i envia els filtres principals
-  // perquè comarca, cerca, altitud i clima es resolguin amb dades completes.
+  // perquè comarca, cerca, altitud, estat i clima es resolguin amb dades completes.
   Future<List<Peak>> getMapPeaks({
     String? search,
     int? regionId,
     int? minAltitude,
     int? maxAltitude,
+    String? status,
   }) async {
     try {
       final response = await _getJson(
@@ -177,7 +208,9 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
           regionId: regionId,
           minAltitude: minAltitude,
           maxAltitude: maxAltitude,
+          status: status,
         ),
+        attachTokenIfAvailable: true,
       );
 
       if (response.statusCode == 200) {
@@ -224,12 +257,8 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
       throw const ApiException(
         'El servidor no respon. Torna-ho a provar',
       );
-    } catch (error) {
-      if (error is ApiException) rethrow;
-
-      throw const ApiException(
-        'No s\'ha pogut connectar amb el servidor',
-      );
+    } catch (error, stack) {
+      _throwUnexpectedPeaksError(error, stack);
     }
   }
 
@@ -274,12 +303,8 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
       throw const ApiException(
         'El servidor no respon. Torna-ho a provar',
       );
-    } catch (error) {
-      if (error is ApiException) rethrow;
-
-      throw const ApiException(
-        'No s\'ha pogut connectar amb el servidor',
-      );
+    } catch (error, stack) {
+      _throwUnexpectedPeaksError(error, stack);
     }
   }
 }

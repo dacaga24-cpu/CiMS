@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:cims/app/client/api/api_config.dart';
 import 'package:cims/app/client/api/api_endpoints.dart';
 import 'package:cims/core/client/api_client.dart';
@@ -102,10 +104,17 @@ abstract class _ApiClientBase {
 
   // Aquest mètode encapsula les peticions GET de l’aplicació
   // per reutilitzar la mateixa construcció d’headers i el mateix control d’errors d’autenticació.
+  //
+  // `attachTokenIfAvailable` és un mode diferent de `requiresAuth`: si hi
+  // ha token, l'afegim a la petició perquè el backend pugui aplicar
+  // funcionalitat enriquida (per exemple, filtres per estat d'usuari al
+  // catàleg públic). Si no n'hi ha, NO forcem logout: la petició surt sense
+  // header i el backend tracta el client com a anònim.
   Future<http.Response> _getJson(
     String endpoint, {
     Map<String, String>? queryParameters,
     bool requiresAuth = false,
+    bool attachTokenIfAvailable = false,
   }) async {
     final uri = Uri.parse('$_baseUrl$endpoint').replace(
       queryParameters: queryParameters == null || queryParameters.isEmpty
@@ -116,7 +125,10 @@ abstract class _ApiClientBase {
     final response = await _client
         .get(
           uri,
-          headers: await _buildHeaders(requiresAuth: requiresAuth),
+          headers: await _buildHeaders(
+            requiresAuth: requiresAuth,
+            attachTokenIfAvailable: attachTokenIfAvailable,
+          ),
         )
         .timeout(const Duration(seconds: 20));
 
@@ -129,28 +141,43 @@ abstract class _ApiClientBase {
   }
 
   // Aquest mètode construeix els headers comuns de les peticions.
-  // Quan la petició necessita autenticació, afegeix el token Bearer.
+  // - `requiresAuth: true` exigeix token vàlid: si manca o és invàlid,
+  //   l'aplicació força logout i llança ApiUnauthorizedException.
+  // - `attachTokenIfAvailable: true` és més permissiu: si hi ha token,
+  //   l'afegim; si no, retornem els headers sense Authorization i la
+  //   petició surt com a anònima. NO força logout. Pensat per a rutes
+  //   públiques que enriqueixen la resposta amb dades de l'usuari quan
+  //   l'usuari està connectat (filtre `?status=` al catàleg).
+  // Si tots dos flags són false (default), no s'envia mai token.
   Future<Map<String, String>> _buildHeaders({
     bool requiresAuth = false,
+    bool attachTokenIfAvailable = false,
   }) async {
     final headers = <String, String>{
       'Content-Type': 'application/json',
     };
 
-    if (!requiresAuth) {
+    if (requiresAuth) {
+      final token = await AppSession.storage.readToken();
+
+      // Si no hi ha token disponible, l’aplicació tracta aquesta situació
+      // com una sessió no vàlida i força la sortida de l’usuari.
+      if (token == null || token.isEmpty) {
+        await AppSession.handleUnauthorized();
+        throw const ApiUnauthorizedException();
+      }
+
+      headers['Authorization'] = 'Bearer $token';
       return headers;
     }
 
-    final token = await AppSession.storage.readToken();
-
-    // Si no hi ha token disponible, l’aplicació tracta aquesta situació
-    // com una sessió no vàlida i força la sortida de l’usuari.
-    if (token == null || token.isEmpty) {
-      await AppSession.handleUnauthorized();
-      throw const ApiUnauthorizedException();
+    if (attachTokenIfAvailable) {
+      final token = await AppSession.storage.readToken();
+      if (token != null && token.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $token';
+      }
     }
 
-    headers['Authorization'] = 'Bearer $token';
     return headers;
   }
 

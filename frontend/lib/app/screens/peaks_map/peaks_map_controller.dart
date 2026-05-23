@@ -77,7 +77,9 @@ class PeaksMapController extends ChangeNotifier {
   String? errorMessage;
 
   // peaks conté els cims finals que es poden mostrar al mapa.
-  // _loadedPeaks conserva els cims retornats pel backend abans d’aplicar filtres locals.
+  // _loadedPeaks conserva els cims retornats pel backend abans del filtre
+  // local `hasMapPosition`, que descarta cims amb coordinades absents per
+  // no contaminar els bounds del mapa.
   List<Peak> peaks = const [];
   List<Peak> _loadedPeaks = const [];
   List<Region> availableRegions = const [];
@@ -395,6 +397,7 @@ class PeaksMapController extends ChangeNotifier {
         regionId: selectedRegionId,
         minAltitude: minAltitude,
         maxAltitude: maxAltitude,
+        status: selectedStatusFilter.toQueryParam(),
       );
 
       if (_disposed || requestId != _loadRequestId) {
@@ -430,23 +433,16 @@ class PeaksMapController extends ChangeNotifier {
     }
   }
 
-  // Aplica només els filtres que depenen del frontend.
-  // La cerca, la comarca i l’altitud ja venen resoltes pel backend.
+  // Aplica només els filtres locals indispensables per al render del
+  // mapa. Cerca, comarca, altitud i estat ja venen resoltes pel backend;
+  // aquí només descartem cims sense coordinades per no espatllar els
+  // bounds que calcula `peaks_google_map.dart`.
   void _applyLocalFilters() {
-    final filteredPeaks = _loadedPeaks
-        .where((peak) => peak.hasMapPosition)
-        .where(_matchesStatusFilter)
-        .toList();
+    final filteredPeaks =
+        _loadedPeaks.where((peak) => peak.hasMapPosition).toList();
 
     peaks = filteredPeaks;
     _syncSelectedPeak();
-  }
-
-  // Comprova si un cim compleix el filtre d’estat seleccionat.
-  // Aquesta validació permet mostrar només pendents, completats, objectius o preferits.
-  bool _matchesStatusFilter(Peak peak) {
-    final status = _peakStatusStore.getStatus(peak.id);
-    return selectedStatusFilter.matches(status);
   }
 
   // Aplica la selecció inicial quan la pantalla s’obre des del detall d’un cim.
@@ -508,14 +504,23 @@ class PeaksMapController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Reacciona als canvis globals dels estats dels cims.
-  // Quan un estat canvia, recalcula els filtres locals perquè el mapa mostri dades actualitzades.
+  // Reacciona als canvis globals dels estats dels cims. Si hi ha un
+  // filtre d'estat actiu, cal refetch perquè la composició de la llista
+  // pot haver canviat (un cim que abans no entrava ara hi entra, o
+  // viceversa). Si no n'hi ha, només notifiquem perquè les insígnies
+  // dels marcadors o de la targeta seleccionada s'actualitzin.
   void _onStoreChanged() {
     if (_disposed) {
       return;
     }
 
-    _applyLocalFilters();
+    if (selectedStatusFilter != PeakStatusFilter.none) {
+      _loadPeaks(
+        search: currentSearch.isEmpty ? null : currentSearch,
+      );
+      return;
+    }
+
     notifyListeners();
   }
 
