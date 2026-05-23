@@ -8,6 +8,7 @@ import 'package:cims/core/entity/peak_status.dart';
 import 'package:cims/core/entity/region.dart';
 import 'package:cims/core/session/app_session.dart';
 import 'package:cims/core/store/peak_status_store.dart';
+import 'package:cims/core/store/user_stats_refresh_store.dart';
 import 'package:cims/core/usecase/get_regions_usecase.dart';
 import 'package:cims/core/usecase/peak_status/get_user_peak_statuses_usecase.dart';
 import 'package:cims/core/usecase/peak_status/update_peak_status_usecase.dart';
@@ -34,7 +35,10 @@ class PeaksMapController extends ChangeNotifier {
     GetUserPeakStatusesUseCase? getUserPeakStatusesUseCase,
     UpdatePeakStatusUseCase? updatePeakStatusUseCase,
     PeakStatusStore? peakStatusStore,
-  }) : _peakStatusStore = peakStatusStore ?? AppSession.peakStatusStore {
+    UserStatsRefreshStore? userStatsRefreshStore,
+  })  : _peakStatusStore = peakStatusStore ?? AppSession.peakStatusStore,
+        _userStatsRefreshStore =
+            userStatsRefreshStore ?? AppSession.userStatsRefreshStore {
     final apiClient = ApiClientImpl();
 
     _getMapPeaksUseCase =
@@ -65,6 +69,13 @@ class PeaksMapController extends ChangeNotifier {
   late final GetUserPeakStatusesUseCase _getUserPeakStatusesUseCase;
   late final UpdatePeakStatusUseCase _updatePeakStatusUseCase;
   final PeakStatusStore _peakStatusStore;
+
+  // Notifica a la resta de pantalles (dashboard, stats) que l'usuari ha
+  // modificat algun cim. El mapa el dispara quan canvia objectiu o
+  // preferit perquè el dashboard refresqui els seus comptadors sense
+  // esperar un F5 — el detall ja segueix aquest patró a
+  // `peak_detail_controller`.
+  final UserStatsRefreshStore _userStatsRefreshStore;
 
   // Aquest controller gestiona el text de cerca introduït per l’usuari.
   final searchController = TextEditingController();
@@ -337,6 +348,11 @@ class PeaksMapController extends ChangeNotifier {
       }
 
       _peakStatusStore.setStatus(updatedStatus);
+      // Avisa el dashboard i stats que un comptador (preferits/objectius)
+      // pot haver canviat. Es notifica només quan el backend ha confirmat
+      // el canvi per no enganyar amb estats optimistes que després
+      // fallin.
+      _userStatsRefreshStore.notifyStatsChanged();
     } on ApiException catch (error) {
       if (_disposed) {
         return;

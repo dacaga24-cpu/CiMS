@@ -187,8 +187,6 @@ class _UserStatsContent extends StatelessWidget {
           );
         }
 
-        final cardWidth = (constraints.maxWidth - spacing) / 2;
-
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -203,25 +201,32 @@ class _UserStatsContent extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: cardWidth,
-                  child: StatsMostAscendedCard(
-                    topAscendedPeaks: stats.topAscendedPeaks,
-                    onPeakTap: onPeakTap,
+            // `IntrinsicHeight` + `CrossAxisAlignment.stretch` força que les
+            // dues targetes d'una mateixa fila comparteixin l'altura del
+            // contingut més alt, en lloc d'alinear-se cadascuna a la seva
+            // altura natural (que provocava un escaló visual quan la card
+            // de Ratxa mensual era més baixa que Top 3). Cada `Expanded`
+            // pren la meitat de l'ample disponible amb el `SizedBox`
+            // intermedi com a separador.
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: StatsMostAscendedCard(
+                      topAscendedPeaks: stats.topAscendedPeaks,
+                      onPeakTap: onPeakTap,
+                    ),
                   ),
-                ),
-                const SizedBox(width: spacing),
-                SizedBox(
-                  width: cardWidth,
-                  child: _StatsMonthlyStreakCard(
-                    current: stats.monthlyStreak.current,
-                    best: stats.monthlyStreak.best,
+                  const SizedBox(width: spacing),
+                  Expanded(
+                    child: _StatsMonthlyStreakCard(
+                      current: stats.monthlyStreak.current,
+                      best: stats.monthlyStreak.best,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 18),
             StatsHistoryCard(
@@ -230,26 +235,26 @@ class _UserStatsContent extends StatelessWidget {
               monthsToShow: 12,
             ),
             const SizedBox(height: 18),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: cardWidth,
-                  child: StatsChallengeCard(
-                    current: controller.challengeCurrent,
-                    target: controller.challengeTarget,
-                    percentage: controller.challengePercentage,
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: StatsChallengeCard(
+                      current: controller.challengeCurrent,
+                      target: controller.challengeTarget,
+                      percentage: controller.challengePercentage,
+                    ),
                   ),
-                ),
-                const SizedBox(width: spacing),
-                SizedBox(
-                  width: cardWidth,
-                  child: StatsTotalMetersCard(
-                    totalMeters: stats.totalAltitudeMeters,
-                    comparisonLabel: controller.monthlyComparisonLabel,
+                  const SizedBox(width: spacing),
+                  Expanded(
+                    child: StatsTotalMetersCard(
+                      totalMeters: stats.totalAltitudeMeters,
+                      comparisonLabel: controller.monthlyComparisonLabel,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         );
