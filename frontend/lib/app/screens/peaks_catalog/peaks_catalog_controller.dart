@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cims/app/client/api/api_client_impl.dart';
+import 'package:cims/app/screens/peaks_catalog/models/peak_sort_by.dart';
 import 'package:cims/app/screens/peaks_catalog/models/peak_sort_order.dart';
 import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
 import 'package:cims/app/screens/peaks_catalog/models/peaks_filter_state.dart';
@@ -105,13 +106,18 @@ class PeaksCatalogController extends ChangeNotifier {
   int _loadRequestId = 0;
   int? _selectedPeakId;
 
-  // Ordre actual d'altitud al catàleg. És estat local del controller
-  // (no es comparteix al singleton de filtres) perquè l'ordre no afecta
-  // el mapa i així evitem refetches innecessaris quan l'usuari el
-  // canviï: només el catàleg ho ha de saber. Default `descending` per
-  // mantenir el comportament històric (Pica d'Estats primer).
-  PeakSortOrder _altitudeSortOrder = PeakSortOrder.descending;
-  PeakSortOrder get altitudeSortOrder => _altitudeSortOrder;
+  // Ordre actual del catàleg (camp + sentit). És estat local del
+  // controller (no es comparteix al singleton de filtres) perquè l'ordre
+  // no afecta el mapa i així evitem refetches innecessaris quan l'usuari
+  // el canviï: només el catàleg ho ha de saber. Defaults `altitude` +
+  // `descending` per mantenir el comportament històric (Pica d'Estats
+  // primer). La combinació dels dos camps representa l'única manera
+  // vàlida d'expressar l'ordre i la UI els canvia sempre alhora a
+  // través d'`onSortChanged`.
+  PeakSortBy _sortBy = PeakSortBy.altitude;
+  PeakSortOrder _sortOrder = PeakSortOrder.descending;
+  PeakSortBy get sortBy => _sortBy;
+  PeakSortOrder get sortOrder => _sortOrder;
 
   PeaksCatalogDestination _destination = PeaksCatalogDestination.none;
   PeaksCatalogDestination get destination => _destination;
@@ -280,13 +286,25 @@ class PeaksCatalogController extends ChangeNotifier {
     _filtersState.clear();
   }
 
-  // Alterna l'ordre d'altitud entre ascendent i descendent i refresca la
-  // primera pàgina del catàleg. Quan canvia l'ordre cal reiniciar la
-  // paginació perquè els cims ja carregats correspondrien a l'ordre
-  // anterior. Reaprofita `_loadPeaks` que ja s'encarrega de resetejar
-  // `currentPage`, `hasMore` i `_loadRequestId`.
-  Future<void> toggleAltitudeSortOrder() {
-    _altitudeSortOrder = _altitudeSortOrder.toggled();
+  // Aplica un nou ordre (camp + sentit) al catàleg i refresca la primera
+  // pàgina. Quan canvia l'ordre cal reiniciar la paginació perquè els
+  // cims ja carregats correspondrien a l'ordre anterior. Reaprofita
+  // `_loadPeaks` que ja s'encarrega de resetejar `currentPage`,
+  // `hasMore` i `_loadRequestId`.
+  //
+  // Si la combinació rebuda és idèntica a l'actual, no es fa res perquè
+  // el resultat seria el mateix llistat: evitem una petició redundant
+  // al backend i una redibuixada de la UI.
+  Future<void> onSortChanged({
+    required PeakSortBy sortBy,
+    required PeakSortOrder sortOrder,
+  }) {
+    if (sortBy == _sortBy && sortOrder == _sortOrder) {
+      return Future<void>.value();
+    }
+
+    _sortBy = sortBy;
+    _sortOrder = sortOrder;
     return _loadPeaks(
       search: _searchOrNull,
     );
@@ -324,7 +342,8 @@ class PeaksCatalogController extends ChangeNotifier {
         minAltitude: minAltitude,
         maxAltitude: maxAltitude,
         status: selectedStatusFilter.toQueryParam(),
-        sortOrder: _altitudeSortOrder.toQueryParam(),
+        sortBy: _sortBy.toQueryParam(),
+        sortOrder: _sortOrder.toQueryParam(),
         page: nextPage,
         pageSize: _catalogPageSize,
       );
@@ -352,11 +371,15 @@ class PeaksCatalogController extends ChangeNotifier {
       }
 
       loadMoreErrorMessage = error.message;
-    } catch (_) {
+    } catch (error, stack) {
       if (_disposed || requestId != _loadRequestId) {
         return;
       }
 
+      debugPrint(
+        '[PeaksCatalogController] loadMorePeaks unexpected '
+        '(${error.runtimeType}): $error\n$stack',
+      );
       loadMoreErrorMessage = 'No s\'han pogut carregar més cims';
     } finally {
       if (!_disposed && requestId == _loadRequestId) {
@@ -405,7 +428,8 @@ class PeaksCatalogController extends ChangeNotifier {
         minAltitude: minAltitude,
         maxAltitude: maxAltitude,
         status: selectedStatusFilter.toQueryParam(),
-        sortOrder: _altitudeSortOrder.toQueryParam(),
+        sortBy: _sortBy.toQueryParam(),
+        sortOrder: _sortOrder.toQueryParam(),
         page: 1,
         pageSize: _catalogPageSize,
       );
@@ -425,11 +449,15 @@ class PeaksCatalogController extends ChangeNotifier {
       peaks = const [];
       hasMore = false;
       errorMessage = error.message;
-    } catch (_) {
+    } catch (error, stack) {
       if (_disposed || requestId != _loadRequestId) {
         return;
       }
 
+      debugPrint(
+        '[PeaksCatalogController] _loadPeaks unexpected '
+        '(${error.runtimeType}): $error\n$stack',
+      );
       peaks = const [];
       hasMore = false;
       errorMessage = 'No s\'ha pogut carregar el catàleg de cims';

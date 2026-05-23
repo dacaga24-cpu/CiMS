@@ -113,19 +113,19 @@ class _UserStatsContent extends StatelessWidget {
               topAscendedPeaks: stats.topAscendedPeaks,
               onPeakTap: onPeakTap,
             ),
-            StatsChallengeCard(
-              current: controller.challengeCurrent,
-              target: controller.challengeTarget,
-              percentage: controller.challengePercentage,
+            _StatsMonthlyStreakCard(
+              current: stats.monthlyStreak.current,
+              best: stats.monthlyStreak.best,
             ),
             StatsHistoryCard(
               totalAscents: stats.totalAscents,
               monthlyAscents: stats.monthlyAscents,
               monthsToShow: 12,
             ),
-            _StatsMonthlyStreakCard(
-              current: stats.monthlyStreak.current,
-              best: stats.monthlyStreak.best,
+            StatsChallengeCard(
+              current: controller.challengeCurrent,
+              target: controller.challengeTarget,
+              percentage: controller.challengePercentage,
             ),
             StatsRangeSelector(
               options: controller.rangeOptions,
@@ -157,19 +157,19 @@ class _UserStatsContent extends StatelessWidget {
                   topAscendedPeaks: stats.topAscendedPeaks,
                   onPeakTap: onPeakTap,
                 ),
-                StatsChallengeCard(
-                  current: controller.challengeCurrent,
-                  target: controller.challengeTarget,
-                  percentage: controller.challengePercentage,
+                _StatsMonthlyStreakCard(
+                  current: stats.monthlyStreak.current,
+                  best: stats.monthlyStreak.best,
                 ),
                 StatsHistoryCard(
                   totalAscents: stats.totalAscents,
                   monthlyAscents: stats.monthlyAscents,
                   monthsToShow: 12,
                 ),
-                _StatsMonthlyStreakCard(
-                  current: stats.monthlyStreak.current,
-                  best: stats.monthlyStreak.best,
+                StatsChallengeCard(
+                  current: controller.challengeCurrent,
+                  target: controller.challengeTarget,
+                  percentage: controller.challengePercentage,
                 ),
                 StatsRangeSelector(
                   options: controller.rangeOptions,
@@ -216,10 +216,9 @@ class _UserStatsContent extends StatelessWidget {
                 const SizedBox(width: spacing),
                 SizedBox(
                   width: cardWidth,
-                  child: StatsChallengeCard(
-                    current: controller.challengeCurrent,
-                    target: controller.challengeTarget,
-                    percentage: controller.challengePercentage,
+                  child: _StatsMonthlyStreakCard(
+                    current: stats.monthlyStreak.current,
+                    best: stats.monthlyStreak.best,
                   ),
                 ),
               ],
@@ -236,9 +235,10 @@ class _UserStatsContent extends StatelessWidget {
               children: [
                 SizedBox(
                   width: cardWidth,
-                  child: _StatsMonthlyStreakCard(
-                    current: stats.monthlyStreak.current,
-                    best: stats.monthlyStreak.best,
+                  child: StatsChallengeCard(
+                    current: controller.challengeCurrent,
+                    target: controller.challengeTarget,
+                    percentage: controller.challengePercentage,
                   ),
                 ),
                 const SizedBox(width: spacing),

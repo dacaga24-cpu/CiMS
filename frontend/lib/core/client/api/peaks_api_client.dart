@@ -20,8 +20,12 @@ abstract class PeaksApiClient {
   // implementació envia el token JWT si està disponible i el backend
   // l'ignora si no ho està.
   //
+  // `sortBy` accepta `altitude` o `name` (default backend: `altitude`).
   // `sortOrder` accepta `asc` o `desc` (default backend: `desc`).
-  // Només afecta el catàleg; el mapa manté sempre l'ordre estable
+  // Els dos paràmetres treballen sempre junts: el backend els valida i
+  // construeix l'ORDER BY a partir de la combinació.
+  //
+  // Només afecten el catàleg; el mapa manté sempre l'ordre estable
   // del backend perquè l'ordre no afecta el render dels marcadors.
   Future<PeaksPage> getPeaksPage({
     String? search,
@@ -29,6 +33,7 @@ abstract class PeaksApiClient {
     int? minAltitude,
     int? maxAltitude,
     String? status,
+    String? sortBy,
     String? sortOrder,
     int page = 1,
     int pageSize = 50,

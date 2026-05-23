@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:cims/app/router/app_router.dart';
 import 'package:cims/app/screens/peaks_catalog/models/peak_status_filter.dart';
@@ -7,6 +9,7 @@ import 'package:cims/app/screens/peaks_catalog/widgets/peaks_catalog_content.dar
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_filters_sheet.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_search_bar.dart';
 import 'package:cims/app/screens/peaks_catalog/widgets/peaks_sort_order_button.dart';
+import 'package:cims/app/screens/peaks_catalog/widgets/peaks_sort_order_sheet.dart';
 import 'package:cims/app/widgets/layout/app_responsive.dart';
 import 'package:flutter/material.dart';
 
@@ -96,6 +99,25 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
     );
   }
 
+  Future<void> _openSortOrderSheet() {
+    return PeaksSortOrderSheet.show(
+      context,
+      sortBy: controller.sortBy,
+      sortOrder: controller.sortOrder,
+      onSelected: (sortBy, sortOrder) {
+        // Fire-and-forget intencional: `onSortChanged` retorna un
+        // `Future` que dispara `_loadPeaks` en segon pla. El controller
+        // ja captura els seus errors internament i els exposa via
+        // `errorMessage`, així que no cal esperar el resultat aquí.
+        // Marquem amb `unawaited` per coherència amb la resta de
+        // call-sites del controller que també descarten futurs.
+        unawaited(
+          controller.onSortChanged(sortBy: sortBy, sortOrder: sortOrder),
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _scrollController.removeListener(_handleScroll);
@@ -132,9 +154,10 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
                     onFilterTap: _openFiltersSheet,
                     hasActiveFilters: controller.hasActiveFilters,
                     trailingAction: PeaksSortOrderButton(
-                      sortOrder: controller.altitudeSortOrder,
+                      sortBy: controller.sortBy,
+                      sortOrder: controller.sortOrder,
                       isLoading: controller.isLoading,
-                      onTap: controller.toggleAltitudeSortOrder,
+                      onTap: _openSortOrderSheet,
                     ),
                   ),
                   if (controller.hasActiveFilters) ...[
