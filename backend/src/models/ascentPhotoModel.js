@@ -1,12 +1,11 @@
 const pool = require('../config/db');
 
-// Aquest model gestiona l'accés a les fotos associades a les ascensions.
-// Centralitza les consultes i modificacions sobre ascent_photos, mantenint
-// un format coherent per als serveis que consumeixen aquestes dades.
+// Aquest model centralitza l’accés a les fotos associades a les ascensions.
+// Permet crear, consultar, llistar i eliminar imatges mantenint la propietat de cada usuari.
 const AscentPhotoModel = {
 
   // Insereix diverses fotos vinculades a una mateixa ascensió.
-  // També permet marcar una imatge com a evidència principal de verificació.
+  // També permet identificar la imatge principal o l’evidència d’una verificació.
   async createMany(ascentId, photos, connection) {
     if (!Array.isArray(photos) || photos.length === 0) {
       return [];
@@ -51,9 +50,8 @@ const AscentPhotoModel = {
     return rows;
   },
 
-  // Retorna totes les fotos d'una ascensió concreta.
-  // La consulta comprova que l'ascensió pertanyi a l'usuari autenticat
-  // per evitar l'accés a imatges d'altres comptes.
+  // Retorna totes les fotos d’una ascensió concreta.
+  // La consulta comprova que l’ascensió pertanyi a l’usuari autenticat.
   async findAllByAscentIdAndUserId(ascentId, userId) {
     const sql = `
       SELECT ap.id, ap.ascent_id, ap.storage_path, ap.is_primary, ap.is_verification_evidence, ap.created_at
@@ -67,8 +65,8 @@ const AscentPhotoModel = {
     return rows;
   },
 
-  // Retorna una foto concreta només si pertany a una ascensió de l'usuari.
-  // Serveix per validar la propietat abans de permetre operacions destructives.
+  // Retorna una foto concreta només si pertany a una ascensió de l’usuari.
+  // Aquesta comprovació protegeix les imatges abans de permetre accions sensibles.
   async findByIdAndUserId(photoId, userId) {
     const sql = `
       SELECT ap.id, ap.ascent_id, ap.storage_path, ap.is_primary, ap.is_verification_evidence, ap.created_at
@@ -83,8 +81,7 @@ const AscentPhotoModel = {
   },
 
   // Retorna la foto principal de cada ascensió indicada.
-  // S'utilitza per mostrar una imatge resum als llistats sense haver de
-  // carregar totes les fotos de cada ascensió.
+  // Serveix per mostrar imatges resum en llistats sense carregar tota la galeria.
   async findPrimaryByAscentIds(ascentIds) {
     if (!Array.isArray(ascentIds) || ascentIds.length === 0) {
       return new Map();
@@ -110,10 +107,8 @@ const AscentPhotoModel = {
     return byAscentId;
   },
 
-  // Retorna les últimes fotos reals pujades per l'usuari.
-  // No limita el resultat a una foto per ascensió, perquè el dashboard
-  // mostra activitat fotogràfica recent i pot incloure diverses imatges
-  // d'una mateixa ascensió.
+  // Retorna les fotos més recents pujades per l’usuari.
+  // Aquesta informació permet mostrar activitat visual recent al dashboard.
   async findRecentByUserId(userId, limit = 12) {
     const safeLimit = Number.isInteger(Number(limit))
       ? Math.min(Math.max(Number(limit), 1), 50)
@@ -142,9 +137,8 @@ const AscentPhotoModel = {
     return rows;
   },
 
-  // Retorna les fotos de totes les ascensions de l'usuari.
-  // S'utilitza per construir la galeria completa, ordenada per les ascensions
-  // més recents i preparada per carregar-se de manera paginada.
+  // Retorna les fotos de totes les ascensions de l’usuari.
+  // S’utilitza per construir una galeria completa amb càrrega paginada.
   async findGalleryByUserId(userId, limit, offset = 0) {
     const safeLimit = Number.isInteger(Number(limit))
       ? Math.min(Math.max(Number(limit), 1), 50)
@@ -177,8 +171,8 @@ const AscentPhotoModel = {
     return rows;
   },
 
-  // Elimina una foto concreta només si pertany a una ascensió de l'usuari.
-  // Aquesta comprovació evita que un usuari pugui eliminar imatges d'un altre compte.
+  // Elimina una foto concreta només si pertany a una ascensió de l’usuari.
+  // Aquesta comprovació evita que un compte pugui esborrar imatges alienes.
   async deleteByIdAndUserId(photoId, userId) {
     const sql = `
       DELETE ap
@@ -191,8 +185,8 @@ const AscentPhotoModel = {
     return result.affectedRows;
   },
 
-  // Marca com a principal la primera foto disponible d'una ascensió.
-  // S'utilitza quan s'elimina la foto principal i encara queden altres imatges.
+  // Marca com a principal la primera foto disponible d’una ascensió.
+  // S’utilitza quan s’elimina la imatge principal i encara queden altres fotos.
   async promoteFirstPhotoAsPrimary(ascentId) {
     const sql = `
       UPDATE ascent_photos

@@ -1,13 +1,11 @@
 const StatsService = require('../services/statsService');
 
-// Aquest controlador exposa les estadístiques personals de l'usuari autenticat.
-// La seva responsabilitat és llegir els paràmetres de la petició, delegar el
-// càlcul al servei i retornar una resposta HTTP estable.
+// Aquest controlador gestiona les peticions relacionades amb les estadístiques personals.
+// Delega el càlcul al servei i retorna una resposta preparada per mostrar el progrés de l’usuari.
 const StatsController = {
 
-  // Retorna el resum de progrés de l'usuari autenticat.
-  // El paràmetre range permet ajustar les mètriques variables de la pantalla,
-  // com els metres acumulats, sense crear endpoints separats.
+  // Retorna el resum de progrés de l’usuari autenticat.
+  // El rang permet ajustar algunes mètriques de la pantalla sense crear noves rutes.
   async getUserStats(req, res, next) {
     try {
       const stats = await StatsService.getUserStats(

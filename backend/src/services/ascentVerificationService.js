@@ -12,6 +12,8 @@ const MAX_DEVICE_LOCATION_ACCURACY_METERS = Number(
   process.env.ASCENT_VERIFICATION_MAX_ACCURACY_METERS || 100
 );
 
+// Aquesta constant representa el radi aproximat de la Terra en metres.
+// S’utilitza per calcular la distància entre la ubicació capturada i el cim.
 const EARTH_RADIUS_METERS = 6371000;
 
 // Aquest mètode valida que una coordenada sigui numèrica i estigui dins del rang correcte.
@@ -48,14 +50,8 @@ function requireAccuracyMeters(value) {
   return parsed;
 }
 
-// Aquest mètode valida que el capturedAt rebut sigui parseable. El valor el
-// genera el rellotge del dispositiu i serveix com a metadada d'auditoria a
-// ascent_verifications.captured_at. No fem cap comprovació de "no futur"
-// perquè els rellotges dels mòbils poden anar desfasats (NTP fluix, hora
-// manual, canvis de zona horària) i això no aporta cap garantia real: la
-// ubicació i la precisió del GPS són les dades que validen la verificació,
-// no la hora. La data efectiva de l'ascensió (ascents.ascent_date) la
-// deriva el servei a partir del seu propi rellotge.
+// Aquest mètode valida la data de captura enviada pel dispositiu.
+// La data es conserva com a informació d’auditoria, però la data oficial de l’ascensió la fixa el servidor.
 function requireCapturedAt(value) {
   if (value === undefined || value === null || value === '') {
     throw badRequest('Missing required field: capturedAt');
@@ -113,8 +109,7 @@ function ensurePeakHasCoordinates(peak) {
 }
 
 // Aquest servei centralitza la lògica de verificació d’ascensions.
-// Decideix si una evidència és vàlida, pendent o rebutjada sense dependre
-// directament dels controllers ni de la base de dades.
+// Decideix si una evidència és vàlida, pendent o rebutjada sense dependre dels controladors.
 const AscentVerificationService = {
   calculateDistanceMeters,
 
@@ -161,7 +156,7 @@ const AscentVerificationService = {
   },
 
   // Aquest mètode és el punt d’entrada general de la verificació.
-  // Permet validar una ascensió sense que el controller conegui els detalls de cada mètode.
+  // Permet validar una ascensió sense que el controlador conegui els detalls de cada mètode.
   evaluateVerification({
     method,
     peak,
@@ -192,7 +187,7 @@ const AscentVerificationService = {
   },
 
   // Aquest mètode avalua una verificació basada en la ubicació capturada pel dispositiu.
-  // Retorna el mètode, l’estat final, la distància al cim i el motiu funcional.
+  // Retorna l’estat final, la distància al cim i el motiu de la decisió.
   evaluateDeviceLocationVerification({
     peak,
     capturedLatitude,
@@ -256,7 +251,7 @@ const AscentVerificationService = {
   },
 
   // Aquest mètode deixa preparat el flux de verificació per metadades EXIF.
-  // La lectura real de metadades es completarà en la tasca específica d’EXIF.
+  // La lectura real de metadades es completarà en una tasca específica.
   evaluatePhotoExifVerification() {
     return {
       method: 'photo_exif',

@@ -1,23 +1,16 @@
 const PeakModel = require('../models/peakModel');
 const { badRequest, parseOptionalInteger } = require('../utils/validation');
 
-// Mida per defecte de la pàgina del catàleg quan el client no la indica.
-// Coincideix amb el que el frontend espera carregar a cada scroll, així el
-// catàleg s'omple amb un nombre de cims que cap còmodament a la pantalla
-// sense fer una sola petició massa pesada.
+// Defineix la mida per defecte de cada pàgina del catàleg.
+// Permet carregar un nombre equilibrat de cims sense fer respostes massa pesades.
 const DEFAULT_PAGE_SIZE = 50;
 
-// Sostre defensiu de la mida de pàgina. Sense un màxim, un client podria
-// demanar pageSize=10000 i recuperar el catàleg sencer d'un cop, anul·lant
-// el propòsit de la paginació. El valor és prou alt per cobrir casos
-// legítims (per exemple, una vista de taula que vulgui més registres per
-// pàgina) i prou baix per limitar el cost de cada petició.
+// Defineix el màxim de cims que es poden demanar en una sola pàgina.
+// Evita peticions excessives i manté controlat el cost de la consulta.
 const MAX_PAGE_SIZE = 100;
 
-// Valors acceptats per al filtre d'estat personal del catàleg. Els mantenim
-// com a Set per validació O(1) i com a font de veritat única tant per al
-// catàleg com per al mapa. Qualsevol altre valor és un client mal
-// configurat i mereix un 400 explícit.
+// Defineix els valors acceptats per filtrar cims segons l’estat personal.
+// Aquest conjunt permet validar el filtre abans d’enviar-lo al model.
 const ALLOWED_PEAK_STATUS_FILTERS = new Set([
     'pending',
     'completed',
@@ -25,26 +18,15 @@ const ALLOWED_PEAK_STATUS_FILTERS = new Set([
     'favorite',
 ]);
 
-// Valors acceptats per a l'ordre del catàleg. El default `desc` + `altitude`
-// manté el comportament previ a CIMS-333 (Pica d'Estats primer). Es mantenen
-// com a Set per validar abans d'interpolar al SQL i evitar SQL injection
-// — la interpolació és necessària perquè ORDER BY no accepta paràmetres
-// preparats a MySQL.
+// Defineix els valors acceptats per ordenar el catàleg.
+// Aquests valors es validen perquè després s’utilitzen dins de la consulta SQL.
 const ALLOWED_PEAK_SORT_ORDERS = new Set(['asc', 'desc']);
 const DEFAULT_PEAK_SORT_ORDER = 'desc';
 const ALLOWED_PEAK_SORT_BY = new Set(['altitude', 'name']);
 const DEFAULT_PEAK_SORT_BY = 'altitude';
 
-// Aquest mètode normalitza i valida els filtres compartits entre els tres
-// punts d'entrada del catàleg (paginació, mapa i comptador). Centralitza
-// la coerció per evitar que cada mètode dupliqui la mateixa lògica i que
-// el contracte d'errors de validació quedi consistent.
-//
-// El filtre `status` és per-usuari, així que només es considera si arriba
-// `userId` (vegeu `optionalAuthMiddleware`). Si arriba un valor de status
-// sense usuari autenticat, l'ignorem en silenci perquè la resposta sigui
-// indistingible d'una crida sense aquest paràmetre — això evita que un
-// client pugui inferir l'estat d'autenticació a partir del codi HTTP.
+// Aquest mètode normalitza i valida els filtres del catàleg.
+// Centralitza el tractament de cerca, altitud, estat personal i ordenació.
 function parseFilters({ regionId, minAltitude, maxAltitude, search, status, userId, sortBy, sortOrder } = {}) {
     const parsedRegionId = parseOptionalInteger(regionId, 'regionId');
     const parsedMinAltitude = parseOptionalInteger(minAltitude, 'minAltitude', { min: 0 });
@@ -58,13 +40,8 @@ function parseFilters({ regionId, minAltitude, maxAltitude, search, status, user
         throw badRequest('minAltitude cannot be greater than maxAltitude');
     }
 
-    // Important: només validem el valor de `status` quan l'usuari està
-    // autenticat. Per a clients anònims el descartem ABANS de tocar el
-    // whitelist, garantint que `?status=favorite` i `?status=invalid`
-    // produeixin exactament la mateixa resposta. Si validéssim primer i
-    // descartéssim després, un atacant podria inferir el whitelist
-    // comparant codis HTTP (200 vs 400) sense necessitat d'estar
-    // autenticat — això viola la promesa anti-fingerprint que fa l'op.
+    // El filtre d’estat només s’aplica quan hi ha usuari autenticat.
+    // Si no hi ha sessió, es manté el comportament públic del catàleg.
     const hasIdentity = userId !== undefined && userId !== null;
     let effectiveStatus;
     if (hasIdentity && status !== undefined && status !== null && status !== '') {
@@ -112,15 +89,11 @@ function parseFilters({ regionId, minAltitude, maxAltitude, search, status, user
 }
 
 // Aquest servei centralitza la lògica del catàleg de cims.
-// Aquí es validen els filtres rebuts, es consulten les dades a través del model
-// i es gestionen els casos on el recurs sol·licitat no existeix.
+// Valida els filtres, consulta el model i gestiona els casos en què un cim no existeix.
 const PeakService = {
 
-    // Aquest mètode retorna una pàgina del catàleg juntament amb la
-    // metadada de paginació necessària perquè el frontend pugui implementar
-    // scroll infinit. Els filtres són opcionals i, sense filtres, es paginen
-    // tots els cims del catàleg. Tant la pàgina com la mida es validen com
-    // a enters i la mida es capa al sostre defensiu.
+    // Retorna una pàgina del catàleg amb la informació de paginació.
+    // Aquesta resposta permet al frontend mostrar resultats filtrats i controlar el scroll o les pàgines.
     async getPage({ regionId, minAltitude, maxAltitude, search, status, userId, sortBy, sortOrder, page, pageSize } = {}) {
         const filters = parseFilters({ regionId, minAltitude, maxAltitude, search, status, userId, sortBy, sortOrder });
         const parsedPage = parseOptionalInteger(page, 'page') ?? 1;
@@ -133,9 +106,8 @@ const PeakService = {
         const limit = requestedPageSize;
         const offset = (parsedPage - 1) * limit;
 
-        // Es paral·lelitza la pàgina i el comptador perquè comparteixen
-        // filtres però no depenen entre si, així es minimitza la latència
-        // total respecte a fer-los seqüencialment.
+        // Aquestes consultes es fan en paral·lel perquè la llista i el total no depenen entre si.
+        // Això redueix el temps necessari per construir la resposta del catàleg.
         const [items, totalItems] = await Promise.all([
             PeakModel.findAll({ ...filters, limit, offset }),
             PeakModel.count(filters),
@@ -155,18 +127,15 @@ const PeakService = {
         };
     },
 
-    // Aquest mètode retorna tots els cims que coincideixen amb els filtres
-    // amb els camps mínims que necessita el mapa. No té paginació perquè la
-    // vista de mapa ha de poder mostrar el conjunt complet sense que un
-    // sostre arbitrari amagui marcadors a l'usuari.
+    // Retorna els cims necessaris per mostrar-los al mapa.
+    // No aplica paginació perquè el mapa ha de representar tots els resultats filtrats.
     async getForMap({ regionId, minAltitude, maxAltitude, search, status, userId } = {}) {
         const filters = parseFilters({ regionId, minAltitude, maxAltitude, search, status, userId });
         return PeakModel.findAllForMap(filters);
     },
 
-    // Aquest mètode retorna el detall d'un cim concret.
-    // Si el cim no existeix, es llança un error 404 perquè la resposta HTTP
-    // reflecteixi correctament que el recurs no s'ha trobat.
+    // Retorna el detall d’un cim concret.
+    // Si el cim no existeix, genera un error perquè el client pugui mostrar el cas correctament.
     async getById(id) {
         const peak = await PeakModel.findById(id);
 

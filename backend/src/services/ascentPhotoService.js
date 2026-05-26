@@ -7,16 +7,15 @@ const {
 } = require('../utils/validation');
 
 // Defineix quantes fotos es carreguen per defecte a la galeria.
-// Aquest valor permet mostrar una primera pàgina àmplia sense fer la resposta massa pesada.
+// Permet mostrar una primera pàgina completa sense fer la resposta massa pesada.
 const DEFAULT_GALLERY_LIMIT = 30;
 
 // Defineix el màxim de fotos que es poden demanar en una sola petició.
-// Evita càrregues massa grans si el frontend o un client extern envia un límit excessiu.
+// Evita càrregues massa grans si el client envia un límit excessiu.
 const MAX_GALLERY_LIMIT = 60;
 
 // Aquest helper intenta eliminar una imatge del bucket.
-// Si l'eliminació falla, la foto ja eliminada de la base de dades no es restaura;
-// l'error queda registrat per poder revisar possibles fitxers orfes.
+// Si falla, deixa constància de l’error per poder revisar possibles fitxers orfes.
 async function safeDeletePhotoBlob(storagePath, photoId) {
   try {
     await StorageService.deleteObject(storagePath);
@@ -28,13 +27,12 @@ async function safeDeletePhotoBlob(storagePath, photoId) {
   }
 }
 
-// Aquest servei gestiona les operacions directes sobre fotos d'ascensions.
-// Inclou la generació de signed URLs, la consulta paginada de la galeria
-// personal i l'eliminació segura de fotos pròpies.
+// Aquest servei gestiona les fotos d’ascensions de l’usuari.
+// Permet generar URLs de pujada, consultar la galeria i eliminar imatges pròpies.
 const AscentPhotoService = {
 
-  // Genera una URL temporal perquè el frontend pugui pujar una foto al bucket.
-  // La imatge encara no queda associada a cap ascensió fins que l'usuari confirma el formulari.
+  // Genera una URL temporal perquè el frontend pugui pujar una foto.
+  // La imatge només quedarà vinculada a una ascensió quan es confirmi el formulari.
   async generateUploadUrl(userId, { mimeType } = {}) {
     if (!mimeType || typeof mimeType !== 'string') {
       throw badRequest('Missing required field: mimeType');
@@ -43,8 +41,8 @@ const AscentPhotoService = {
     return StorageService.generateSignedUploadUrl(userId, mimeType, 'ascents');
   },
 
-  // Retorna una pàgina de fotos de l'usuari autenticat.
-  // Cada imatge inclou una URL temporal de descàrrega perquè el bucket continuï sent privat.
+  // Retorna una pàgina de fotos de l’usuari autenticat.
+  // Cada imatge inclou una URL temporal per poder mostrar-la mantenint el bucket privat.
   async getUserGallery(userId, { limit, offset } = {}) {
     const parsedLimit = parseOptionalInteger(limit, 'limit') ??
       DEFAULT_GALLERY_LIMIT;
@@ -103,8 +101,8 @@ const AscentPhotoService = {
     };
   },
 
-  // Elimina una foto d'una ascensió de l'usuari autenticat.
-  // La foto d’evidència no es pot eliminar sola perquè forma part de la prova de verificació.
+  // Elimina una foto d’una ascensió de l’usuari autenticat.
+  // Les fotos d’evidència no es poden eliminar individualment perquè formen part de la verificació.
   async deletePhoto(userId, photoId) {
     const parsedPhotoId = requireInteger(photoId, 'photoId');
 

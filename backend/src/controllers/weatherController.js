@@ -1,17 +1,11 @@
 const WeatherService = require('../services/weatherService');
 
-// Aquest controlador gestiona les peticions meteorològiques per cim de
-// CiMS. La seva funció és llegir els paràmetres de la petició, delegar
-// al servei i retornar la resposta HTTP en el format que el frontend
-// espera. L'identificador de l'usuari s'obté de req.userId (poblat pel
-// middleware d'autenticació) i només s'utilitza per a registres futurs
-// o quotes per usuari; la previsió en si no depèn de qui consulta.
+// Aquest controlador gestiona les peticions meteorològiques associades als cims.
+// Delega la consulta al servei i retorna la previsió en el format esperat pel frontend.
 const WeatherController = {
 
-  // Aquest mètode retorna la previsió diària d'un cim a partir del seu
-  // identificador. El paràmetre days és opcional i es valida al servei
-  // perquè la mateixa lògica de límits s'apliqui des de qualsevol
-  // punt d'entrada.
+  // Retorna la previsió diària d’un cim concret.
+  // El nombre de dies és opcional i el servei valida els límits disponibles.
   async getPeakDaily(req, res, next) {
     try {
       const { peakId } = req.params;
@@ -27,11 +21,8 @@ const WeatherController = {
     }
   },
 
-  // Aquest mètode retorna la previsió horària d'un cim per a una data
-  // concreta dins de l'horitzó disponible. La data es valida al servei i,
-  // si la previsió ja no és disponible per a aquella data (cau fora del
-  // rang de 240h), es retorna 404 perquè el client mostri el missatge
-  // adequat.
+  // Retorna la previsió horària d’un cim per a una data concreta.
+  // Aquesta informació permet mostrar una previsió més detallada dins del rang disponible.
   async getPeakHourly(req, res, next) {
     try {
       const { peakId } = req.params;

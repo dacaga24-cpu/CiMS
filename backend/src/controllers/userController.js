@@ -1,23 +1,20 @@
 const UserService = require('../services/userService');
 const Validation = require('../utils/validation');
 
-// Aquestes constants defineixen els límits de longitud acceptats als camps editables
-// del perfil. Coincideixen amb els tipus definits a la base de dades i amb els
-// mateixos valors que s'utilitzen durant el registre per mantenir coherència.
+// Aquestes constants defineixen els límits dels camps editables del perfil.
+// Permeten validar les dades abans d’enviar-les al servei i mantenir coherència amb el registre.
 const MAX_FIRST_NAME_LENGTH = 30;
 const MAX_LAST_NAME_LENGTH = 30;
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 128;
 
 
-// Aquest controlador gestiona les peticions relacionades amb el perfil de l'usuari.
-// La seva funció és rebre les dades de la petició, validar les més bàsiques,
-// delegar la feina al servei corresponent i enviar la resposta HTTP.
+// Aquest controlador gestiona les peticions relacionades amb el perfil de l’usuari.
+// Valida les dades bàsiques, delega la lògica al servei corresponent i retorna la resposta HTTP.
 const UserController = {
 
-  // Aquest mètode retorna el perfil de l'usuari autenticat.
-  // L'identificador arriba preparat pel middleware d'autenticació
-  // i es trasllada directament al servei sense cap manipulació addicional.
+  // Retorna el perfil de l’usuari autenticat.
+  // L’identificador prové del middleware d’autenticació i permet recuperar només les seves dades.
   async getProfile(req, res, next) {
     try {
       const userId = req.userId;
@@ -28,9 +25,8 @@ const UserController = {
     }
   },
 
-  // Aquest mètode actualitza el nom i el cognom de l'usuari autenticat.
-  // Comprova que els camps obligatoris arribin i que la seva longitud
-  // no superi els límits definits per la base de dades.
+  // Actualitza el nom i el cognom de l’usuari autenticat.
+  // Les comprovacions eviten guardar dades incompletes o massa llargues.
   async updateProfile(req, res, next) {
     try {
       const userId = req.userId;
@@ -53,6 +49,8 @@ const UserController = {
     }
   },
 
+  // Canvia la contrasenya de l’usuari autenticat.
+  // Valida la contrasenya actual i els límits de la nova abans de delegar l’actualització al servei.
   async changePassword(req, res, next) {
     try {
       const userId = req.userId;
@@ -75,6 +73,8 @@ const UserController = {
     }
   },
 
+  // Elimina el compte de l’usuari autenticat.
+  // La contrasenya confirma que l’acció la fa realment el propietari del compte.
   async deleteAccount(req, res, next) {
     try {
       const userId = req.userId;
@@ -91,8 +91,8 @@ const UserController = {
     }
   },
 
-  // Genera una signed URL perquè el frontend pugui pujar la foto de perfil
-  // directament al bucket de GCS sense passar pel backend.
+  // Genera una URL temporal per pujar la foto de perfil.
+  // Això permet que el frontend enviï la imatge directament al sistema d’emmagatzematge.
   async createProfilePhotoUploadUrl(req, res, next) {
     try {
       const { mimeType } = req.body || {};
@@ -103,9 +103,8 @@ const UserController = {
     }
   },
 
-  // Confirma una pujada de foto de perfil un cop el client l'ha completada
-  // contra GCS. Retorna el perfil actualitzat amb la signed URL ja
-  // disponible per visualitzar.
+  // Confirma la foto de perfil pujada per l’usuari.
+  // El servei guarda la ruta de la imatge i retorna el perfil actualitzat.
   async setProfilePhoto(req, res, next) {
     try {
       const { storagePath } = req.body || {};
@@ -116,8 +115,8 @@ const UserController = {
     }
   },
 
-  // Esborra la foto de perfil. Idempotent: respon 200 amb el perfil tal
-  // com queda fins i tot si l'usuari no en tenia cap.
+  // Elimina la foto de perfil de l’usuari autenticat.
+  // Retorna el perfil actualitzat perquè el frontend pugui mostrar el canvi immediatament.
   async deleteProfilePhoto(req, res, next) {
     try {
       const updated = await UserService.removeProfilePhoto(req.userId);

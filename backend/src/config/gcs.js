@@ -1,21 +1,11 @@
-// Aquest fitxer prepara la connexió compartida amb Google Cloud Storage.
-// La seva funció és centralitzar la inicialització del client i exposar el
-// bucket on es guarden les fotos d'ascensions perquè la resta del backend
-// no hagi de saber d'on surten les credencials ni el nom concret del bucket.
-//
-// L'autenticació amb GCP es resol automàticament per la llibreria. A Cloud
-// Run, la Service Account associada al servei està disponible sense cap
-// variable extra. En desenvolupament local, cal definir la variable
-// GOOGLE_APPLICATION_CREDENTIALS apuntant al fitxer JSON de la clau d'una
-// Service Account amb permisos Storage Object Admin sobre el bucket i
-// Service Account Token Creator sobre si mateixa (necessari per signar URLs).
+// Aquest fitxer centralitza la connexió amb Google Cloud Storage.
+// Permet reutilitzar el bucket de fotos d’ascensions des de diferents parts del backend.
 const { Storage } = require('@google-cloud/storage');
 
 const bucketName = process.env.GCS_BUCKET_NAME;
 
-// El backend necessita saber a quin bucket ha de pujar i llegir. Si la variable
-// no està definida, es para l'arrencada amb un missatge clar perquè no es
-// detecti l'error tard, en mig del primer intent de pujada.
+// Aquesta validació assegura que el backend coneix el bucket abans d’iniciar-se.
+// Si falta la configuració, l’error es mostra de manera clara i immediata.
 if (!bucketName) {
   throw new Error(
     'GCS_BUCKET_NAME is not defined. Set it as an environment variable ' +
@@ -23,6 +13,8 @@ if (!bucketName) {
   );
 }
 
+// Aquest client utilitza l’autenticació configurada a Google Cloud o a l’entorn local.
+// A partir del nom del bucket, prepara l’accés on es guardaran les imatges.
 const storage = new Storage();
 const bucket = storage.bucket(bucketName);
 

@@ -1,25 +1,21 @@
 // Aquest fitxer és el punt d’inici del backend.
-// La seva funció és carregar la configuració necessària, posar en marxa el servidor
-// i comprovar si la connexió amb la base de dades està disponible.
+// Carrega la configuració, arrenca el servidor i comprova la connexió amb la base de dades.
 require('dotenv').config();
 
 const app = require('./app');
 const testDb = require('./config/testDb');
 const PasswordResetModel = require('./models/passwordResetModel');
 
-// Aquest valor defineix en quin port escoltarà el servidor.
-// A Cloud Run el port arriba per variable d’entorn, i si no existeix
-// es fa servir 8080 com a valor per defecte.
+// Aquest valor defineix el port on escoltarà el servidor.
+// En producció pot venir de l’entorn, i en local s’utilitza 8080 per defecte.
 const PORT = process.env.PORT || 8080;
 
-// Periodicitat de la neteja de tokens de recuperació de contrasenya caducats.
-// Sense aquesta neteja la taula password_reset_tokens creixeria indefinidament
-// perquè els tokens utilitzats o caducats no s'esborren en cap altre flux.
+// Defineix cada quant temps es netegen els tokens de recuperació caducats o utilitzats.
+// Aquesta neteja evita acumular registres que ja no tenen valor funcional.
 const TOKEN_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hores
 
-// Aquest mètode executa la neteja periòdica i registra els errors sense aturar
-// el procés. Cloud Run reinicia instàncies sovint, per això la neteja s'executa
-// també just després d'arrencar i no s'espera al primer interval.
+// Aquest mètode elimina tokens de recuperació que ja no són vàlids.
+// Si la neteja falla, registra l’error sense aturar el servidor.
 async function cleanupExpiredResetTokens() {
   try {
     const removed = await PasswordResetModel.deleteExpired();
@@ -31,8 +27,8 @@ async function cleanupExpiredResetTokens() {
   }
 }
 
-// Aquest bloc posa en marxa el servidor i mostra per consola que ja està actiu.
-// Just després, es fa una comprovació de la base de dades per validar que la connexió respon correctament.
+// Aquest bloc posa en marxa el servidor.
+// Després d’arrencar, comprova la connexió amb la base de dades i programa la neteja periòdica.
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
 
@@ -42,9 +38,8 @@ app.listen(PORT, async () => {
     console.error('Database connection test failed:', error.message);
   }
 
-  // Es fa una primera neteja en arrencar i s'agenda la repetició diària.
-  // El timer no manté viu el procés (unref) perquè a Cloud Run el cicle de
-  // vida l'imposa la plataforma i no volem allargar-lo per culpa del timer.
+  // La primera neteja s’executa en arrencar i després es repeteix cada dia.
+  // El temporitzador no manté viu el procés si la plataforma decideix aturar-lo.
   await cleanupExpiredResetTokens();
   setInterval(cleanupExpiredResetTokens, TOKEN_CLEANUP_INTERVAL_MS).unref();
 });

@@ -1,13 +1,11 @@
 const pool = require('../config/db');
 
-// Aquest model gestiona els tokens utilitzats per recuperar la contrasenya.
-// La seva funció és guardar-los, consultar-los, marcar-los com a utilitzats
-// i eliminar els que ja no són vàlids.
+// Aquest model gestiona els tokens de recuperació de contrasenya.
+// Permet crear-los, consultar-los, marcar-los com a utilitzats i eliminar els que ja no són vàlids.
 const PasswordResetModel = {
 
-  // Aquest mètode crea un nou registre de recuperació de contrasenya.
-  // Rep l’identificador de l’usuari, el token i la seva data de caducitat,
-  // i retorna el registre acabat de crear.
+  // Crea un nou token de recuperació per a un usuari.
+  // La data de caducitat permet limitar durant quant temps es pot utilitzar.
   async create({ userId, token, expiresAt }) {
     const sql = `
       INSERT INTO password_reset_tokens (user_id, token, expires_at)
@@ -18,7 +16,7 @@ const PasswordResetModel = {
     return this.findById(result.insertId);
   },
 
-  // Aquest mètode busca un token pel seu identificador intern.
+  // Busca un token de recuperació pel seu identificador intern.
   // Retorna el registre si existeix o null si no s’ha trobat.
   async findById(id) {
     const sql = `
@@ -32,8 +30,8 @@ const PasswordResetModel = {
     return rows[0] || null;
   },
 
-  // Aquest mètode busca un registre a partir del token rebut.
-  // És rellevant perquè permet comprovar si el token de recuperació existeix i es pot validar.  
+  // Busca un registre a partir del token rebut.
+  // Aquesta consulta permet validar si un enllaç de recuperació existeix i encara es pot utilitzar.
   async findByToken(token) {
     const sql = `
       SELECT id, user_id, token, expires_at, is_used, created_at
@@ -46,8 +44,8 @@ const PasswordResetModel = {
     return rows[0] || null;
   },
 
-  // Aquest mètode marca un token com a utilitzat.
-  // Això evita que el mateix enllaç o codi de recuperació es pugui reutilitzar més d’una vegada.  
+  // Marca un token com a utilitzat.
+  // Això evita que el mateix procés de recuperació es pugui repetir més d’una vegada.
   async markAsUsed(id) {
     const sql = `
       UPDATE password_reset_tokens
@@ -59,8 +57,8 @@ const PasswordResetModel = {
     return this.findById(id);
   },
 
-  // Aquest mètode elimina els tokens que ja han caducat o que ja s’han fet servir.
-  // És útil per mantenir aquesta taula neta i evitar acumular registres que ja no tenen valor.  
+  // Elimina els tokens caducats o ja utilitzats.
+  // Aquesta neteja evita acumular registres que ja no tenen valor funcional.
   async deleteExpired() {
     const sql = `
       DELETE FROM password_reset_tokens
@@ -71,8 +69,8 @@ const PasswordResetModel = {
     return result.affectedRows;
   },
 
-  // Aquest mètode elimina tots els tokens associats a un usuari concret.
-  // Pot ser útil, per exemple, quan es vol invalidar qualsevol procés de recuperació anterior.  
+  // Elimina tots els tokens de recuperació d’un usuari.
+  // Serveix per invalidar processos anteriors quan cal garantir un únic flux actiu.
   async deleteByUserId(userId) {
     const sql = `
       DELETE FROM password_reset_tokens

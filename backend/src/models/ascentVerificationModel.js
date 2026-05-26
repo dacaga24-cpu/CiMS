@@ -1,10 +1,10 @@
 const pool = require('../config/db');
 
-// Aquest model gestiona l’accés a les dades de verificació d’una ascensió.
-// Separa la prova de validació de l’activitat principal registrada a ascents.
+// Aquest model centralitza les dades de verificació d’una ascensió.
+// Permet guardar i consultar la prova que confirma si una ascensió ha estat validada.
 const AscentVerificationModel = {
-    // Aquest mètode crea la verificació associada a una ascensió.
-    // Rep el resultat calculat pel servei de verificació i el desa a la base de dades.
+    // Crea la verificació associada a una ascensió.
+    // Desa la ubicació capturada, la distància al cim i el resultat de la validació.
     async create(
         {
             ascentId,
@@ -68,8 +68,8 @@ const AscentVerificationModel = {
         }
     },
 
-    // Aquest mètode retorna una verificació pel seu identificador.
-    // Serveix per recuperar el registre creat amb el mateix format que guarda la base de dades.
+    // Retorna una verificació a partir del seu identificador.
+    // Serveix per recuperar el registre creat amb tota la informació guardada.
     async findById(id, connection) {
         const executor = connection || pool;
 
@@ -97,8 +97,8 @@ const AscentVerificationModel = {
         return rows[0] || null;
     },
 
-    // Aquest mètode retorna la verificació vinculada a una ascensió concreta.
-    // Serà útil per mostrar l’estat de verificació al detall o a l’historial.
+    // Retorna la verificació vinculada a una ascensió concreta.
+    // Aquesta informació permet mostrar l’estat de validació al detall o a l’historial.
     async findByAscentId(ascentId, connection) {
         const executor = connection || pool;
 

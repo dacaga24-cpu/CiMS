@@ -5,19 +5,11 @@ const { badRequest } = require('../utils/validation');
 const bcrypt = require('bcrypt');
 const SALT_ROUNDS = 10;
 
-// Aquest servei centralitza la lògica de negoci relacionada amb el perfil d'usuari.
-// La seva funció és rebre les dades validades des del controlador, aplicar les
-// regles necessàries i delegar les operacions de persistència al model.
-//
-// Per a la foto de perfil es comparteix el mateix patró que les fotos
-// d'ascens (signed URL de pujada directa a GCS), però amb el namespace
-// `profile-photos` per separar-les a nivell de bucket i de validació.
+// Aquest servei centralitza la lògica relacionada amb el perfil d’usuari.
+// Gestiona dades personals, contrasenya, desactivació del compte i foto de perfil.
 
-// Aquest helper esborra un blob del bucket sense aturar el flux si l'esborrat
-// falla. S'usa quan se substitueix o s'elimina la foto de perfil: si GCS
-// té un problema transitori, el path a la BD ja està actualitzat i no
-// volem que l'usuari rebi un 500 per un blob orfe que es pot netejar
-// posteriorment via lifecycle policy o un job de manteniment.
+// Aquest helper intenta eliminar una foto de perfil del bucket.
+// Si l’eliminació falla, l’error queda registrat sense bloquejar el flux principal.
 async function safeDeleteProfilePhotoBlob(storagePath, context = {}) {
   if (!storagePath) {
     return;
@@ -32,17 +24,8 @@ async function safeDeleteProfilePhotoBlob(storagePath, context = {}) {
   }
 }
 
-// Aquest helper construeix la representació pública del perfil que el
-// frontend rep. La signed URL de descàrrega es genera aquí (no al model)
-// perquè és una operació asíncrona i fora del SQL. S'omet el path cru de
-// la resposta perquè el client mai ha de necessitar-lo: només interactua
-// amb la URL de visualització, i no exposar-lo evita filtrar l'estructura
-// interna del bucket ni l'esquema de noms.
-//
-// Si la signatura de la URL falla per un problema transitori de GCS, es
-// degrada a profilePhotoUrl null i es loga l'error: la resposta del perfil
-// sencera no ha de caure perquè la foto no es pugui mostrar puntualment,
-// l'usuari ha de poder veure les seves dades bàsiques sempre.
+// Aquest helper prepara la resposta pública del perfil.
+// Afegeix una URL temporal per mostrar la foto sense exposar la ruta interna del bucket.
 async function composeProfileResponse(user) {
   let profilePhotoUrl = null;
   if (user.profile_photo_path) {
@@ -62,9 +45,8 @@ async function composeProfileResponse(user) {
 
 const UserService = {
 
-  // Aquest mètode recupera el perfil complet de l'usuari autenticat amb
-  // la signed URL de la foto ja generada perquè el client la pugui mostrar
-  // sense haver de fer una segona crida.
+  // Retorna el perfil complet de l’usuari autenticat.
+  // Inclou la URL temporal de la foto perquè el frontend la pugui mostrar directament.
   async getProfile(userId) {
     const user = await UserModel.findById(userId);
 
@@ -77,12 +59,8 @@ const UserService = {
     return composeProfileResponse(user);
   },
 
-  // Aquest mètode actualitza el nom i el cognom de l'usuari autenticat.
-  // Els noms es netegen d'espais superflus abans de guardar-los perquè
-  // la base de dades no emmagatzemi variants idèntiques visualment però
-  // diferents a nivell de text.
-  // Un cop actualitzats, es retorna el perfil complet i actualitzat
-  // perquè el client no hagi de fer una crida addicional per refrescar les dades.
+  // Actualitza el nom i el cognom de l’usuari autenticat.
+  // Neteja espais innecessaris i retorna el perfil actualitzat.
   async updateProfile(userId, { firstName, lastName }) {
     const trimmedFirstName = firstName.trim();
     const trimmedLastName = lastName.trim();
@@ -96,6 +74,8 @@ const UserService = {
     return composeProfileResponse(user);
   },
 
+  // Canvia la contrasenya de l’usuari autenticat.
+  // Comprova primer la contrasenya actual per confirmar que l’acció és legítima.
   async changePassword(userId, { currentPassword, newPassword }) {
     const user = await UserModel.findByIdWithPassword(userId);
 
@@ -105,14 +85,6 @@ const UserService = {
       throw error;
     }
 
-    // Es verifica la contrasenya actual abans d'aplicar el canvi
-    // per confirmar que qui fa la petició és el titular del compte.
-    //
-    // Important: retornem 400 (no 401) perquè aquest no és un cas de sessió
-    // caducada — el token JWT del middleware ja l'ha validat. És un error
-    // de validació del payload: la contrasenya introduïda no coincideix.
-    // Si l'usem com a 401, el client interpreta sessió caducada i tanca
-    // sessió quan en realitat només calia mostrar un missatge d'error.
     const isValid = await bcrypt.compare(currentPassword, user.password);
     if (!isValid) {
       const error = new Error('Current password is incorrect');
@@ -126,14 +98,8 @@ const UserService = {
     return { message: 'Password changed successfully' };
   },
 
-  // Aquest mètode desactiva el compte de l'usuari autenticat.
-  // Es demana la contrasenya actual per confirmar que l'acció
-  // és voluntària i que ningú altre no pot fer-la en nom seu.
-  //
-  // Per decisió de producte, no s'esborren els blobs del bucket (foto
-  // de perfil, fotos d'ascens) en aquest punt: el compte queda desactivat
-  // (soft delete) però les dades es conserven per si l'usuari reactiva
-  // el compte més endavant.
+  // Desactiva el compte de l’usuari autenticat.
+  // La contrasenya confirma que l’acció la fa el titular del compte.
   async deleteAccount(userId, { password }) {
     const user = await UserModel.findByIdWithPassword(userId);
 
@@ -143,8 +109,6 @@ const UserService = {
       throw error;
     }
 
-    // Vegeu el comentari de changePassword: aquí també retornem 400 enlloc
-    // de 401 perquè no és un error de sessió, és validació del payload.
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
       const error = new Error('Password is incorrect');
@@ -156,9 +120,8 @@ const UserService = {
     return { message: 'Account deleted successfully' };
   },
 
-  // Genera una signed URL de pujada per a la foto de perfil. Delega al
-  // StorageService passant el namespace `profile-photos` per garantir
-  // que el path generat queda separat del de les fotos d'ascens.
+  // Genera una URL temporal per pujar la foto de perfil.
+  // La imatge queda separada de les fotos d’ascensions dins del bucket.
   async generateProfilePhotoUploadUrl(userId, { mimeType } = {}) {
     if (!mimeType || typeof mimeType !== 'string') {
       throw badRequest('Missing required field: mimeType');
@@ -166,20 +129,8 @@ const UserService = {
     return StorageService.generateSignedUploadUrl(userId, mimeType, 'profile-photos');
   },
 
-  // Confirma una pujada de foto de perfil un cop el client l'ha completada
-  // contra GCS. Valida el shape del path (UUID v4 + extensió de la
-  // whitelist al namespace de l'usuari) i comprova que el blob existeix
-  // realment al bucket abans d'actualitzar la BD. Si l'usuari ja tenia
-  // una foto de perfil anterior, s'esborra del bucket per no acumular
-  // orfes; aquest esborrat no és bloquejant (safeDeleteProfilePhotoBlob).
-  //
-  // Race condition coneguda: dos PUTs concurrents poden interleave
-  // (read-old → update-new → delete-old) i deixar la BD apuntant a un
-  // blob que el rival ja ha esborrat. La mitigació actual és el rate
-  // limiter i la convenció d'una sola sessió activa per usuari; si en
-  // el futur cal una garantia més estricta, s'hauria d'usar un UPDATE
-  // condicional (WHERE profile_photo_path = ?) o una transacció
-  // SELECT ... FOR UPDATE que serialitzi els PUTs.
+  // Confirma una foto de perfil ja pujada al bucket.
+  // Valida que la ruta pertanyi a l’usuari, comprova que existeixi i actualitza el perfil.
   async setProfilePhoto(userId, { storagePath } = {}) {
     if (!storagePath || typeof storagePath !== 'string') {
       throw badRequest('Missing required field: storagePath');
@@ -210,14 +161,13 @@ const UserService = {
       await safeDeleteProfilePhotoBlob(previousPath, { userId });
     }
 
-    // S'evita un segon findById construint la resposta a partir de la fila
-    // que ja teníem llegida i sobreescrivint el camp acabat d'actualitzar.
+    // Es construeix la resposta amb el perfil ja carregat i la nova ruta de foto.
+    // Això evita una segona consulta a la base de dades.
     return composeProfileResponse({ ...previous, profile_photo_path: storagePath });
   },
 
-  // Esborra la foto de perfil de l'usuari. Idempotent: si l'usuari no en
-  // tenia, no fa res i retorna el perfil tal qual. Si en tenia, posa el
-  // camp a NULL i intenta esborrar el blob del bucket.
+  // Elimina la foto de perfil de l’usuari.
+  // Si no tenia cap foto, retorna el perfil sense fer canvis innecessaris.
   async removeProfilePhoto(userId) {
     const user = await UserModel.findById(userId);
     if (!user) {
@@ -227,9 +177,6 @@ const UserService = {
     }
     const previousPath = user.profile_photo_path;
 
-    // Camí ràpid quan no hi havia foto: no cal tocar BD ni bucket ni
-    // tornar a llegir el perfil, ja que el resultat és el perfil tal
-    // com l'acabem de carregar.
     if (!previousPath) {
       return composeProfileResponse(user);
     }
@@ -237,8 +184,7 @@ const UserService = {
     await UserModel.updateProfilePhoto(userId, null);
     await safeDeleteProfilePhotoBlob(previousPath, { userId });
 
-    // S'evita un segon findById construint la resposta a partir de la fila
-    // que ja teníem llegida amb el camp actualitzat a null.
+    // Es retorna el perfil amb la foto eliminada sense tornar a consultar la base de dades.
     return composeProfileResponse({ ...user, profile_photo_path: null });
   },
 };

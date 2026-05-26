@@ -1,6 +1,5 @@
 // Aquest fitxer defineix les rutes relacionades amb el perfil i la gestió del compte.
-// És rellevant perquè agrupa sota /api/users tots els endpoints que un usuari
-// autenticat pot utilitzar per consultar i modificar les seves pròpies dades.
+// Agrupa les accions que permeten a l’usuari consultar i modificar les seves pròpies dades.
 const express = require('express');
 const router = express.Router();
 
@@ -11,31 +10,25 @@ const {
   signedUploadUrlRateLimiter,
 } = require('../middleware/rateLimiters');
 
-// Totes les rutes d'aquest fitxer requereixen autenticació.
-// El middleware es registra a nivell de router perquè s'apliqui
-// automàticament a tots els endpoints sense haver de repetir-lo.
+// Aquest middleware protegeix totes les rutes d’aquest recurs.
+// Això garanteix que només l’usuari autenticat pugui operar sobre el seu compte.
 router.use(authMiddleware);
 
-// Ruta per canviar la contrasenya amb limitació de taxa.
+// Canvia la contrasenya de l’usuari autenticat.
+// El limitador redueix el risc d’intents repetits sobre una acció sensible.
 router.put('/password', changePasswordRateLimiter, UserController.changePassword);
 
-// Aquest endpoint permet a l'usuari consultar les seves dades de perfil.
+// Retorna les dades del perfil de l’usuari autenticat.
 router.get('/profile', UserController.getProfile);
 
-// Aquest endpoint permet a l'usuari actualitzar el nom i el cognom del seu compte.
+// Actualitza el nom i el cognom del perfil de l’usuari.
 router.put('/profile', UserController.updateProfile);
 
-// Aquest endpoint permet a l'usuari desactivar el seu compte de manera voluntària.
+// Desactiva el compte de l’usuari de manera voluntària.
 router.delete('/account', UserController.deleteAccount);
 
-// Endpoints de la foto de perfil. La pujada segueix el mateix patró que les
-// fotos d'ascens: el client demana una signed URL, puja directament a GCS
-// i després confirma el path al backend perquè quedi enllaçat al perfil.
-// El rate limiter es comparteix amb el d'ascent-photos i s'aplica també
-// als endpoints de mutació (PUT i DELETE) perquè cada operació toca BD
-// i fa una o dues operacions a GCS (objectExists, deleteObject,
-// generateSignedDownloadUrl); sense límit, un usuari autenticat podria
-// abusar-ne i saturar les quotes del bucket.
+// Aquestes rutes gestionen la foto de perfil.
+// El frontend demana una URL temporal, puja la imatge i després confirma la ruta al backend.
 router.post(
   '/profile-photo/signed-upload-url',
   signedUploadUrlRateLimiter,

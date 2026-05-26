@@ -1,17 +1,13 @@
 const sgMail = require('@sendgrid/mail');
 
-// Aquest servei centralitza l'enviament de correus de l'aplicació.
-// Utilitza SendGrid com a proveïdor i exposa mètodes específics
-// per a cada tipus de correu que l'aplicació pot enviar.
+// Aquest servei centralitza l’enviament de correus de l’aplicació.
+// Utilitza SendGrid per enviar missatges relacionats amb processos del compte.
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const EmailService = {
 
-  // Aquest mètode envia el correu de recuperació de contrasenya.
-  // Construeix l'enllaç amb el token i l'envia a l'adreça de l'usuari.
-  // Rep el temps de caducitat com a paràmetre perquè el missatge sempre coincideixi
-  // amb la durada real definida a la capa de servei, evitant que el correu
-  // mostri una informació diferent de la que aplica el backend.
+  // Envia el correu de recuperació de contrasenya.
+  // Construeix l’enllaç amb el token i indica durant quant temps serà vàlid.
   async sendPasswordReset({ to, token, expiryHours }) {
     const resetUrl = `${process.env.APP_URL}/reset-password?token=${token}`;
     const expiryLabel = `${expiryHours} ${expiryHours === 1 ? 'hora' : 'hores'}`;

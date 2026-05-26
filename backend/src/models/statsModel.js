@@ -1,17 +1,11 @@
 const pool = require('../config/db');
 
-// Aquest model agrupa les consultes agregades específiques per a la pantalla
-// d'estadístiques. Es manté separat dels models de domini perquè aquí es
-// resolen càlculs, JOINs i resums pensats per alimentar vistes de progrés.
-//
-// Les ascensions sense data no formen part de les estadístiques temporals.
-// Serveixen per marcar un cim com a completat, però no sumen metres, historial,
-// repte, gràfiques mensuals ni últimes ascensions.
+// Aquest model agrupa les consultes necessàries per construir les estadístiques.
+// Calcula resums de progrés, activitat mensual, cims destacats i dades per al dashboard.
 const peakPhotosBucketName = process.env.PEAK_PHOTOS_BUCKET_NAME || process.env.GCS_BUCKET_NAME;
 
-// Aquesta consulta reutilitzable recupera una única foto per cim.
-// Permet afegir imatges al dashboard i a les estadístiques sense duplicar files
-// si més endavant un cim té diverses fotos associades.
+// Aquesta consulta afegeix una única foto pública a cada cim.
+// Permet mostrar imatges a estadístiques i dashboard sense duplicar resultats.
 const PEAK_PHOTO_JOIN = `
   LEFT JOIN (
     SELECT pp.peak_id, pp.storage_path
@@ -24,9 +18,8 @@ const PEAK_PHOTO_JOIN = `
   ) pp ON pp.peak_id = p.id
 `;
 
-// Aquesta funció transforma la ruta interna del bucket en una URL pública.
-// Si no hi ha imatge o no hi ha bucket configurat, retorna null perquè el
-// frontend pugui mantenir la imatge local de reserva.
+// Construeix una URL pública a partir de la ruta interna de la imatge.
+// Si no hi ha imatge configurada, retorna null perquè el frontend pugui usar una imatge de reserva.
 function buildPublicImageUrl(storagePath) {
   if (!storagePath || !peakPhotosBucketName) {
     return null;
@@ -42,9 +35,8 @@ function buildPublicImageUrl(storagePath) {
 
 const StatsModel = {
 
-  // Retorna l'altitud màxima entre els cims completats per l'usuari.
-  // Aquest valor depèn de l'estat completat del cim, no de la cronologia
-  // d'ascensions, perquè un cim pot estar completat amb un registre sense data.
+  // Retorna l’altitud màxima entre els cims completats per l’usuari.
+  // Aquest valor permet destacar el cim més alt assolit dins del seu progrés.
   async getHighestCompletedAltitude(userId) {
     const sql = `
       SELECT MAX(p.altitude) AS highest_altitude
@@ -58,9 +50,8 @@ const StatsModel = {
     return value === null ? null : Number(value);
   },
 
-  // Retorna la suma d'altitud acumulada per les ascensions amb data.
-  // Accepta un rang temporal opcional per alimentar el selector de la pantalla
-  // d'estadístiques sense duplicar consultes específiques.
+  // Retorna la suma d’altitud acumulada per les ascensions amb data.
+  // El rang opcional permet adaptar la mètrica al període seleccionat a la pantalla.
   async getTotalAltitudeMeters(userId, range = 'total') {
     const rangeCondition = buildAscentDateRangeCondition(range);
 
@@ -77,8 +68,8 @@ const StatsModel = {
     return rows[0] ? Number(rows[0].total_altitude) : 0;
   },
 
-  // Retorna els cims més coronats per l'usuari.
-  // Es fa servir per mostrar el top 3 de cims amb més ascensions registrades.
+  // Retorna els cims més repetits per l’usuari.
+  // S’utilitza per mostrar el rànquing de cims amb més ascensions registrades.
   async getTopAscendedPeaks(userId, limit = 3) {
     const safeLimit = Number.isInteger(limit) && limit > 0
       ? Math.min(limit, 10)
@@ -111,17 +102,15 @@ const StatsModel = {
     }));
   },
 
-  // Retorna el cim amb més ascensions datades de l'usuari.
-  // Es manté per compatibilitat amb el contracte anterior, però internament
-  // aprofita el mateix criteri que el top de cims més coronats.
+  // Retorna el cim amb més ascensions datades de l’usuari.
+  // Manté la compatibilitat amb pantalles que només necessiten un únic cim destacat.
   async getMostAscendedPeak(userId) {
     const peaks = await this.getTopAscendedPeaks(userId, 1);
     return peaks.length === 0 ? null : peaks[0];
   },
 
-  // Retorna el nombre d'ascensions agrupades per any i mes.
-  // Només inclou ascensions amb data, ja que els registres sense data no es
-  // poden ubicar dins d'una gràfica mensual.
+  // Retorna les ascensions agrupades per any i mes.
+  // Aquesta informació alimenta les gràfiques d’activitat mensual.
   async getMonthlyAscentsRaw(userId, monthsBack) {
     const sql = `
       SELECT
@@ -147,9 +136,8 @@ const StatsModel = {
     }));
   },
 
-  // Retorna tots els mesos amb activitat de l'usuari.
-  // Aquesta informació permet calcular ratxes mensuals actuals i històriques
-  // des del servei sense traslladar aquesta lògica a la base de dades.
+  // Retorna tots els mesos amb activitat de l’usuari.
+  // Serveix per calcular ratxes i continuïtat d’activitat des del servei.
   async getMonthlyActivityRaw(userId) {
     const sql = `
       SELECT
@@ -171,9 +159,8 @@ const StatsModel = {
     }));
   },
 
-  // Calcula el progrés del repte rolling de 100 cims únics.
-  // La finestra es calcula només amb ascensions datades, perquè el repte
-  // necessita una referència temporal fiable.
+  // Calcula el progrés del repte de 100 cims únics.
+  // Utilitza ascensions datades per establir una finestra temporal fiable.
   async getChallengeProgress(userId) {
     const sql = `
       SELECT
@@ -217,9 +204,8 @@ const StatsModel = {
     };
   },
 
-  // Retorna les últimes ascensions datades de l'usuari amb informació del cim.
-  // També incorpora la imatge pública del cim perquè el dashboard pugui mostrar
-  // una miniatura real de la muntanya associada a cada ascensió.
+  // Retorna les últimes ascensions datades de l’usuari.
+  // Inclou dades del cim i la seva imatge per mostrar activitat recent al dashboard.
   async getRecentAscentsRaw(userId, limit) {
     const safeLimit = Number.isInteger(limit) && limit > 0 ? limit : 5;
 
@@ -253,9 +239,8 @@ const StatsModel = {
     }));
   },
 
-  // Retorna els cims que tenen un flag concret actiu al peak_status d'un usuari.
-  // S'utilitza per llistar objectius, preferits o completats sense duplicar
-  // consultes específiques per a cada tipus d'estat.
+  // Retorna els cims que tenen una marca concreta activa per a l’usuari.
+  // Permet reutilitzar la mateixa consulta per objectius, favorits o completats.
   async findFlaggedPeaks(userId, flagColumn, limit) {
     const allowedFlags = ['is_target', 'is_favorite', 'is_completed'];
     if (!allowedFlags.includes(flagColumn)) {
@@ -286,9 +271,8 @@ const StatsModel = {
     }));
   },
 
-  // Retorna les comarques associades a un conjunt de cims en una sola consulta.
-  // Això evita fer una consulta individual per cada cim mostrat a estadístiques
-  // o al dashboard.
+  // Retorna les comarques associades a un conjunt de cims.
+  // Fa una sola consulta per evitar repetir accessos a la base de dades.
   async getRegionsForPeaks(peakIds) {
     const result = new Map();
     if (!Array.isArray(peakIds) || peakIds.length === 0) {
@@ -317,8 +301,8 @@ const StatsModel = {
   },
 };
 
-// Aquesta funció construeix la condició temporal per a consultes d'ascensions.
-// Només accepta valors interns controlats pel servei per evitar SQL dinàmic insegur.
+// Aquesta funció construeix la condició temporal per filtrar ascensions.
+// Només utilitza rangs controlats pel servei per mantenir la consulta segura.
 function buildAscentDateRangeCondition(range) {
   switch (range) {
     case 'month':

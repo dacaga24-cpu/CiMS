@@ -1,11 +1,11 @@
 const AscentPhotoService = require('../services/ascentPhotoService');
 
-// Aquest controlador gestiona les peticions relacionades amb fotos d'ascensions.
-// Totes les accions treballen amb l'usuari autenticat, sense acceptar userId des del client.
+// Aquest controlador gestiona les peticions relacionades amb les fotos d’ascensions.
+// Totes les accions utilitzen l’usuari autenticat per protegir les dades personals.
 const AscentPhotoController = {
 
-  // Retorna una URL temporal perquè el frontend pugui pujar una imatge al bucket.
-  // Aquesta imatge encara no queda vinculada a cap ascensió fins que es desa el formulari.
+  // Genera una URL temporal perquè el frontend pugui pujar una imatge.
+  // La foto només quedarà vinculada a una ascensió quan es guardi el formulari corresponent.
   async createUploadUrl(req, res, next) {
     try {
       const { mimeType } = req.body || {};
@@ -20,8 +20,8 @@ const AscentPhotoController = {
     }
   },
 
-  // Retorna la galeria paginada de fotos de l'usuari autenticat.
-  // Aquesta resposta alimentarà la pantalla completa de galeria del frontend.
+  // Retorna la galeria paginada de fotos de l’usuari autenticat.
+  // Aquesta informació permet mostrar l’historial visual d’ascensions al frontend.
   async getUserGallery(req, res, next) {
     try {
       const result = await AscentPhotoService.getUserGallery(req.userId, {
@@ -35,9 +35,8 @@ const AscentPhotoController = {
     }
   },
 
-  // Elimina una foto d'ascensió de l'usuari autenticat.
-  // El servei comprova que la foto pertanyi realment a l'usuari abans
-  // d'esborrar-la de la base de dades i intentar eliminar-la del bucket.
+  // Elimina una foto d’ascensió de l’usuari autenticat.
+  // El servei comprova la propietat de la foto abans d’eliminar-la de manera segura.
   async deletePhoto(req, res, next) {
     try {
       await AscentPhotoService.deletePhoto(req.userId, req.params.photoId);

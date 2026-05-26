@@ -1,25 +1,24 @@
-// Aquest fitxer defineix les rutes relacionades amb les ascensions dels usuaris.
-// Totes elles estan protegides per authMiddleware perquè cada usuari només
-// pot consultar i modificar les seves pròpies ascensions.
+// Aquest fitxer defineix les rutes relacionades amb les ascensions.
+// Totes les rutes requereixen autenticació per protegir l’historial personal de cada usuari.
 const express = require('express');
 const router = express.Router();
 
 const AscentController = require('../controllers/ascentController');
 const authMiddleware = require('../middleware/authMiddleware');
 
-// El middleware s'aplica a totes les rutes d'aquest fitxer, ja que no n'hi ha
-// cap de pública. Centralitzar-ho aquí evita oblits si en el futur s'afegeixen
-// endpoints nous a aquest mateix recurs.
+// Aquest middleware protegeix totes les rutes d’aquest recurs.
+// Això evita repetir la mateixa comprovació d’autenticació a cada endpoint.
 router.use(authMiddleware);
 
-// Aquestes rutes específiques han d'anar abans de les rutes amb paràmetres.
-// Això evita que Express interpreti valors com "verified" o "peak" com si fossin ascentId.
+// Aquestes rutes específiques es declaren abans de les rutes amb paràmetres.
+// Això evita conflictes d’interpretació amb identificadors dinàmics.
 router.get('/peak/:peakId', AscentController.getByUserAndPeak);
 router.get('/:ascentId/photos', AscentController.getPhotosForAscent);
 router.post('/:ascentId/photos', AscentController.addPhotosToAscent);
 router.post('/verified', AscentController.createVerified);
 
-// Aquestes rutes gestionen les operacions generals sobre ascensions.
+// Aquestes rutes gestionen les operacions principals sobre ascensions.
+// Permeten consultar, crear, editar i eliminar registres de l’usuari autenticat.
 router.get('/', AscentController.getByUser);
 router.post('/', AscentController.create);
 router.put('/:ascentId', AscentController.update);

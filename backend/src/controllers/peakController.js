@@ -1,5 +1,7 @@
 const PeakService = require('../services/peakService');
 
+// Aquest mètode crea un error de validació amb codi 400.
+// S’utilitza quan algun paràmetre rebut no és vàlid.
 function badRequest(message) {
   const error = new Error(message);
   error.statusCode = 400;
@@ -7,20 +9,11 @@ function badRequest(message) {
 }
 
 // Aquest controlador gestiona les peticions relacionades amb el catàleg de cims.
-// La seva funció és llegir els paràmetres de la petició, delegar la feina al servei
-// i enviar la resposta HTTP amb el codi i el format adequats.
+// Llegeix els paràmetres rebuts, delega la lògica al servei i retorna la resposta adequada.
 const PeakController = {
 
-  // Aquest mètode retorna una pàgina del catàleg de cims que compleixen
-  // els filtres rebuts. Els filtres i la paginació arriben per query string
-  // i tots són opcionals; sense paràmetres es retorna la primera pàgina
-  // del catàleg complet amb la mida per defecte definida al servei.
-  //
-  // `status` és un filtre que depèn de l'usuari (pendents, completats,
-  // objectius, preferits). Si la petició arriba autenticada via
-  // `optionalAuthMiddleware`, `req.userId` està establert i el servei
-  // l'aplica; si no, el servei ignora `status` en silenci per no filtrar
-  // l'estat d'autenticació a través de codes HTTP.
+  // Retorna una pàgina del catàleg de cims segons els filtres rebuts.
+  // Permet aplicar cerca, filtratge, ordenació i paginació de manera centralitzada.
   async list(req, res, next) {
     try {
       const { regionId, minAltitude, maxAltitude, search, status, sortBy, sortOrder, page, pageSize } = req.query;
@@ -44,9 +37,8 @@ const PeakController = {
     }
   },
 
-  // Aquest mètode retorna tots els cims per al mapa, amb camps mínims i
-  // sense paginació. La justificació de quins camps i per què viu al servei
-  // i al model; aquí només es delega.
+  // Retorna els cims necessaris per mostrar-los al mapa.
+  // Aquesta resposta evita la paginació perquè el mapa necessita representar tots els resultats filtrats.
   async listForMap(req, res, next) {
     try {
       const { regionId, minAltitude, maxAltitude, search, status } = req.query;
@@ -66,8 +58,8 @@ const PeakController = {
     }
   },
 
-  // Aquest mètode retorna el detall d'un cim concret a partir del seu identificador.
-  // Comprova que l'identificador sigui un enter vàlid abans de consultar el servei.
+  // Retorna el detall d’un cim concret.
+  // L’identificador es valida abans de consultar el servei per evitar peticions incorrectes.
   async getById(req, res, next) {
     try {
       const id = Number(req.params.id);

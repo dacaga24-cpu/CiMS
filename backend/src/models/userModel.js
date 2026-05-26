@@ -1,13 +1,12 @@
 const pool = require('../config/db');
 
 
-// Aquest model centralitza l'accés a les dades dels usuaris.
-// La seva funció és crear usuaris, buscar-los i actualitzar informació concreta
-// relacionada amb el compte dins de la base de dades.
+// Aquest model centralitza l’accés a les dades dels usuaris.
+// Permet crear comptes, recuperar perfils i actualitzar informació vinculada al compte.
 const UserModel = {
 
-  // Aquest mètode crea un nou usuari a la base de dades.
-  // Rep les dades bàsiques del compte i retorna el registre complet un cop ja s'ha guardat.
+  // Crea un nou usuari a la base de dades.
+  // Retorna el registre creat per poder continuar el flux amb les dades actualitzades.
   async create({ firstName, lastName, email, password }) {
     const sql = `
       INSERT INTO users (first_name, last_name, email, password)
@@ -24,8 +23,8 @@ const UserModel = {
     return this.findById(result.insertId);
   },
 
-  // Aquest mètode busca un usuari a partir del seu identificador.
-  // És rellevant quan cal recuperar el perfil d'un usuari concret dins de l'aplicació.
+  // Busca un usuari a partir del seu identificador.
+  // S’utilitza per recuperar les dades visibles del perfil sense exposar la contrasenya.
   async findById(id) {
     const sql = `
       SELECT id, first_name, last_name, email, is_active, profile_photo_path, created_at, updated_at
@@ -38,9 +37,8 @@ const UserModel = {
     return rows[0] || null;
   },
 
-  // Aquest mètode busca un usuari pel seu correu electrònic.
-  // Es fa servir sobretot per comprovar si ja existeix un compte
-  // i per recuperar les dades necessàries durant l'inici de sessió.
+  // Busca un usuari pel seu correu electrònic.
+  // És necessari per validar registres existents i gestionar l’inici de sessió.
   async findByEmail(email) {
     const sql = `
       SELECT id, first_name, last_name, email, password, is_active, profile_photo_path, created_at, updated_at
@@ -53,8 +51,8 @@ const UserModel = {
     return rows[0] || null;
   },
 
-  // Aquest mètode actualitza la contrasenya d'un usuari concret.
-  // Rep l'identificador de l'usuari i la nova contrasenya ja preparada per ser guardada.
+  // Actualitza la contrasenya d’un usuari.
+  // La nova contrasenya ja arriba preparada per guardar-se de manera segura.
   async updatePassword(id, hashedPassword) {
     const sql = `
       UPDATE users
@@ -65,9 +63,8 @@ const UserModel = {
     return result.affectedRows;
   },
 
-  // Aquest mètode actualitza el nom i el cognom d'un usuari concret.
-  // Només modifica els camps editables del perfil, deixant intactes les dades
-  // que l'usuari no pot canviar directament, com el correu o la contrasenya.
+  // Actualitza el nom i el cognom d’un usuari.
+  // Només modifica les dades editables del perfil.
   async updateProfile(id, { firstName, lastName }) {
     const sql = `
       UPDATE users
@@ -78,10 +75,8 @@ const UserModel = {
     return result.affectedRows;
   },
 
-  // Aquest mètode actualitza el path de la foto de perfil. Acceptar NULL
-  // permet usar el mateix mètode tant per assignar una foto nova com per
-  // esborrar-la, així el servei no necessita dos mètodes diferents per
-  // operacions que toquen la mateixa columna.
+  // Actualitza la ruta de la foto de perfil.
+  // Permet assignar una nova imatge o eliminar-la guardant un valor nul.
   async updateProfilePhoto(id, storagePathOrNull) {
     const sql = `
       UPDATE users
@@ -91,10 +86,8 @@ const UserModel = {
     const [result] = await pool.execute(sql, [storagePathOrNull, id]);
     return result.affectedRows;
   },
-  // Aquest mètode recupera l'usuari amb la contrasenya inclosa.
-  // S'utilitza exclusivament per verificar la contrasenya actual
-  // abans de permetre un canvi. No s'ha d'utilitzar per retornar
-  // dades al client.
+  // Recupera l’usuari amb la contrasenya inclosa.
+  // S’utilitza només per comprovar la contrasenya actual abans de canviar-la.
   async findByIdWithPassword(id) {
     const sql = `
       SELECT id, password
@@ -106,9 +99,8 @@ const UserModel = {
     return rows[0] || null;
   },
 
-  // Aquest mètode desactiva el compte d'un usuari posant is_active a false.
-  // Es fa una baixa lògica en lloc d'eliminar el registre per preservar
-  // la integritat de les dades relacionades com ascensions o estadístiques.
+  // Desactiva el compte d’un usuari sense eliminar-lo físicament.
+  // Aquesta baixa lògica conserva la coherència de les dades relacionades.
   async deactivateAccount(id) {
     const sql = `
       UPDATE users

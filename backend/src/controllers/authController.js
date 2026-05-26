@@ -1,24 +1,13 @@
 const AuthService = require('../services/authService');
 const UserModel = require('../models/userModel');
 
-// Aquesta expressió serveix per fer una comprovació del format del correu electrònic
-// abans d’intentar registrar o validar un usuari. La validació definitiva l'ha de fer
-// l'enviament real del correu, però aquesta primera barrera bloqueja entrades
-// clarament invàlides com cadenes sense @, sense domini o amb caràcters prohibits.
-// Es requereix:
-//   - una part local amb caràcters habituals (lletres, dígits, punt i alguns símbols)
-//   - exactament una @
-//   - un domini amb almenys un punt i una extensió de dues lletres com a mínim
-// Aquesta forma cobreix la gran majoria de correus reals sense intentar implementar
-// l'estàndard RFC 5322 complet, que requeriria una llibreria dedicada.
+// Aquesta expressió valida el format bàsic del correu electrònic.
+// Evita entrades clarament incorrectes abans de continuar amb el registre o l’inici de sessió.
 const EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 const MIN_EMAIL_LENGTH = 5;
 
-// Aquestes constants defineixen els límits de longitud acceptats als camps del registre.
-// Coincideixen amb els tipus definits a la base de dades per evitar errors d'inserció
-// i protegeixen l'aplicació davant de valors desmesuradament llargs.
-// El màxim de contrasenya és especialment rellevant perquè bcrypt és lent per disseny
-// i hashear contrasenyes molt grans pot convertir-se en un vector d'atac de CPU.
+// Aquestes constants defineixen els límits principals dels camps d’usuari.
+// Ajuden a protegir el sistema i mantenen la coherència amb les dades acceptades per l’aplicació.
 const MAX_FIRST_NAME_LENGTH = 30;
 const MAX_LAST_NAME_LENGTH = 30;
 const MAX_EMAIL_LENGTH = 255;
@@ -34,13 +23,11 @@ function badRequest(message) {
 }
 
 // Aquest controlador gestiona les peticions relacionades amb l’autenticació i el perfil d’usuari.
-// La seva funció és rebre les dades de la petició, validar les més bàsiques,
-// delegar la feina al servei corresponent i enviar la resposta HTTP.
+// Valida les dades bàsiques, delega la lògica al servei corresponent i retorna la resposta HTTP.
 const AuthController = {
 
   // Aquest mètode gestiona el registre d’un nou usuari.
-  // Comprova que arribin totes les dades necessàries, valida el correu i la longitud mínima
-  // de la contrasenya i, si tot és correcte, crea el compte a través del servei.
+  // Comprova les dades necessàries i crea el compte si la informació és vàlida.
   async register(req, res, next) {
     try {
       const { firstName, lastName, email, password } = req.body || {};
@@ -48,9 +35,8 @@ const AuthController = {
         throw badRequest('Missing required fields: firstName, lastName, email, password');
       }
 
-      // Aquestes comprovacions de longitud eviten que es puguin enviar valors
-      // més grans del que la base de dades accepta i protegeixen el servidor
-      // davant de peticions amb camps desmesuradament llargs.
+      // Aquestes comprovacions eviten guardar dades incompletes o massa llargues.
+      // També redueixen el risc de peticions que puguin afectar el rendiment del servidor.
       if (firstName.length > MAX_FIRST_NAME_LENGTH) {
         throw badRequest(`First name must be at most ${MAX_FIRST_NAME_LENGTH} characters long`);
       }
@@ -70,8 +56,8 @@ const AuthController = {
         throw badRequest(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
       }
 
-      // El límit superior de la contrasenya protegeix contra peticions que intenten
-      // saturar el servidor enviant contrasenyes molt llargues per fer patir bcrypt.
+      // Aquest límit protegeix el procés de xifrat de contrasenyes.
+      // Evita que una entrada excessivament gran pugui sobrecarregar el servidor.
       if (password.length > MAX_PASSWORD_LENGTH) {
         throw badRequest(`Password must be at most ${MAX_PASSWORD_LENGTH} characters long`);
       }
@@ -84,8 +70,7 @@ const AuthController = {
   },
 
   // Aquest mètode gestiona l’inici de sessió.
-  // Rep el correu i la contrasenya, comprova que s’hagin enviat
-  // i delega al servei la validació de les credencials.
+  // Comprova que s’hagin enviat les credencials i delega la validació al servei.
   async login(req, res, next) {
     try {
       const { email, password } = req.body || {};
@@ -100,8 +85,8 @@ const AuthController = {
     }
   },
 
-  // Aquest mètode inicia el procés de restabliment de contrasenya.
-  // Només necessita el correu de l’usuari per començar el flux de recuperació.
+  // Aquest mètode inicia el procés de recuperació de contrasenya.
+  // Utilitza el correu de l’usuari per generar el flux de restabliment.
   async requestPasswordReset(req, res, next) {
     try {
       const { email } = req.body || {};
@@ -116,9 +101,8 @@ const AuthController = {
     }
   },
 
-  // Aquest mètode aplica el canvi de contrasenya.
-  // Rep el token de recuperació i la nova contrasenya, comprova que siguin vàlids
-  // i delega al servei l’actualització final.
+  // Aquest mètode aplica el canvi de contrasenya mitjançant un token de recuperació.
+  // Valida la nova contrasenya abans de delegar l’actualització al servei.
   async resetPassword(req, res, next) {
     try {
       const { token, newPassword } = req.body || {};
@@ -130,8 +114,7 @@ const AuthController = {
         throw badRequest(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
       }
 
-      // Es reutilitza el mateix límit superior que al registre per evitar que
-      // una recuperació de contrasenya es pugui fer servir per saturar bcrypt.
+      // Aquest límit evita que el procés de recuperació pugui rebre contrasenyes excessivament llargues.
       if (newPassword.length > MAX_PASSWORD_LENGTH) {
         throw badRequest(`Password must be at most ${MAX_PASSWORD_LENGTH} characters long`);
       }
@@ -143,9 +126,8 @@ const AuthController = {
     }
   },
 
-  // Aquest mètode retorna el perfil de l’usuari que ja ha iniciat sessió.
-  // L’identificador de l’usuari arriba informat des del sistema d’autenticació
-  // i es fa servir per recuperar les seves dades.
+  // Aquest mètode retorna el perfil de l’usuari autenticat.
+  // L’identificador prové del middleware d’autenticació i permet recuperar només les seves dades.
   async getProfile(req, res, next) {
     try {
       const userId = req.userId; // Valor establert pel middleware d'autenticació
@@ -157,8 +139,7 @@ const AuthController = {
         throw error;
       }
 
-      // El model ja retorna les dades preparades per a la resposta
-      // i exclou la contrasenya per motius de seguretat.
+      // La resposta exclou la contrasenya per protegir la informació sensible de l’usuari.
       res.status(200).json(user);
     } catch (error) {
       next(error);

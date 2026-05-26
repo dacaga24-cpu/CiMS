@@ -1,32 +1,27 @@
 const PeakStatusService = require('../services/peakStatusService');
 
 // Aquest mètode crea un error de validació amb codi 400.
-// S'utilitza quan el cos de la petició conté camps amb un format inesperat.
+// S’utilitza quan el cos de la petició conté dades incorrectes.
 function badRequest(message) {
   const error = new Error(message);
   error.statusCode = 400;
   return error;
 }
 
-// Aquest mètode comprova que un camp opcional, si s'ha enviat, sigui un boolean
-// estricte. Sense aquesta validació, JavaScript faria coerció de strings o
-// números a booleans i el client podria persistir estats incorrectes enviant
-// per exemple "true" (string) o 1 (número) sense que es detectés l'error.
+// Aquest mètode valida que un camp opcional sigui un booleà quan s’envia.
+// Ajuda a evitar que es guardin estats incorrectes per valors amb formats no esperats.
 function ensureOptionalBoolean(value, fieldName) {
   if (value !== undefined && typeof value !== 'boolean') {
     throw badRequest(`Invalid ${fieldName}: must be a boolean`);
   }
 }
 
-// Aquest controlador gestiona les peticions relacionades amb l'estat personal
-// dels cims per a cada usuari. La seva funció és llegir els paràmetres de la petició,
-// delegar la feina al servei i enviar la resposta HTTP amb el codi i el format adequats.
-// L'identificador de l'usuari s'obté exclusivament de req.userId, que el middleware
-// d'autenticació ha poblat a partir del token JWT, i mai del cos o la URL de la petició.
+// Aquest controlador gestiona les peticions relacionades amb l’estat personal dels cims.
+// Totes les operacions utilitzen l’usuari autenticat per protegir la informació de cada compte.
 const PeakStatusController = {
 
-  // Aquest mètode retorna tots els estats de cims de l'usuari autenticat.
-  // Si l'usuari no ha creat cap estat, es retorna una llista buida amb codi 200.
+  // Retorna tots els estats de cims de l’usuari autenticat.
+  // Si l’usuari encara no ha marcat cap cim, es retorna una llista buida.
   async getStatusByUser(req, res, next) {
     try {
       const statuses = await PeakStatusService.getStatusByUser(req.userId);
@@ -36,8 +31,8 @@ const PeakStatusController = {
     }
   },
 
-  // Aquest mètode retorna l'estat d'un cim concret per a l'usuari autenticat.
-  // Si no existeix cap registre per a la parella usuari-cim, el servei llança un 404.
+  // Retorna l’estat personal d’un cim concret per a l’usuari autenticat.
+  // Aquesta informació permet saber si el cim és objectiu, favorit o completat.
   async getByUserAndPeak(req, res, next) {
     try {
       const status = await PeakStatusService.getStatusByUserAndPeak(req.userId, req.params.peakId);
@@ -47,10 +42,8 @@ const PeakStatusController = {
     }
   },
 
-  // Aquest mètode crea o actualitza l'estat d'un cim per a l'usuari autenticat.
-  // Només permet modificar els estats manuals, com objectiu i preferit.
-  // L'estat completat es calcula a partir de les ascensions registrades i no es pot
-  // modificar directament des d'aquest endpoint.
+  // Crea o actualitza l’estat manual d’un cim per a l’usuari autenticat.
+  // Només permet modificar objectiu i favorit, perquè l’estat completat depèn de les ascensions registrades.
   async upsertPeakStatus(req, res, next) {
     try {
       const body = req.body || {};
@@ -60,10 +53,8 @@ const PeakStatusController = {
         throw badRequest('Completed status is derived from ascents and cannot be updated manually');
       }
 
-      // Els flags manuals arriben com a booleans estrictes per garantir que el client
-      // expressa la intenció de manera explícita. Si s'acceptessin valors com
-      // "true" o 1, una crida amb tipus incorrectes podria persistir estats
-      // erronis sense que ningú se n'adonés.
+      // Aquesta validació assegura que els estats manuals arribin amb un valor clar i explícit.
+      // Això evita guardar informació amb formats incorrectes.
       ensureOptionalBoolean(isTarget, 'isTarget');
       ensureOptionalBoolean(isFavorite, 'isFavorite');
 
@@ -79,9 +70,8 @@ const PeakStatusController = {
     }
   },
 
-  // Aquest mètode elimina l'estat d'un cim per a l'usuari autenticat.
-  // Si no existia cap registre, el servei llança un 404.
-  // Si s'ha eliminat correctament, es respon amb 204 sense cos de resposta.
+  // Elimina l’estat personal d’un cim per a l’usuari autenticat.
+  // Aquesta acció permet desfer la relació manual entre l’usuari i el cim.
   async removeByUserAndPeak(req, res, next) {
     try {
       await PeakStatusService.removeByUserAndPeak(req.userId, req.params.peakId);

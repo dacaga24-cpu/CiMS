@@ -1,8 +1,8 @@
 const PeakStatusModel = require('../models/peakStatusModel');
 const { badRequest, requireInteger } = require('../utils/validation');
 
-// Aquest helper crea un estat neutre quan l’usuari no té cap marca activa sobre el cim.
-// També manté el camp de verificació perquè el frontend rebi sempre la mateixa estructura.
+// Aquest helper crea un estat neutre per a un cim sense marques actives.
+// Manté una resposta estable perquè el frontend rebi sempre la mateixa estructura.
 function emptyStatus(userId, peakId) {
   return {
     user_id: userId,
@@ -15,12 +15,11 @@ function emptyStatus(userId, peakId) {
 }
 
 // Aquest servei centralitza la gestió de l’estat personal dels cims.
-// Coordina la lectura, creació, actualització i eliminació de marques com completat,
-// objectiu o preferit, mantenint la lògica separada del controller.
+// Permet consultar, crear, actualitzar i eliminar marques com completat, objectiu o preferit.
 const PeakStatusService = {
 
   // Retorna l’estat personal d’un cim concret per a l’usuari autenticat.
-  // Si no existeix cap registre, informa que encara no hi ha cap estat guardat.
+  // Si no hi ha cap registre guardat, retorna un error perquè el client pugui gestionar-ho.
   async getStatusByUserAndPeak(userId, peakId) {
     const parsedPeakId = requireInteger(peakId, 'peakId');
 
@@ -42,12 +41,12 @@ const PeakStatusService = {
   },
 
   // Crea o actualitza l’estat personal d’un cim.
-  // Permet modificar només les marques enviades i evita crear registres buits.
+  // Només modifica les marques rebudes i evita guardar registres sense valor funcional.
   async upsertPeakStatus(userId, peakId, { isCompleted, isTarget, isFavorite } = {}) {
     const parsedPeakId = requireInteger(peakId, 'peakId');
 
-    // Aquest bloc comprova que la petició indiqui almenys una marca a modificar.
-    // Evita operacions ambigües que no aportarien cap canvi real al sistema.
+    // Aquesta comprovació assegura que la petició indiqui almenys una marca a modificar.
+    // Evita operacions que no aportarien cap canvi real.
     const hasAnyFlag =
       isCompleted !== undefined ||
       isTarget !== undefined ||
@@ -63,7 +62,7 @@ const PeakStatusService = {
 
     if (existing) {
       // Aquest bloc calcula l’estat final abans de guardar-lo.
-      // Si totes les marques queden desactivades, s’elimina el registre per mantenir la base de dades neta.
+      // Si totes les marques queden desactivades, elimina el registre i retorna un estat neutre.
       const finalCompleted = isCompleted !== undefined
         ? Boolean(isCompleted)
         : existing.is_completed === 1;
@@ -85,13 +84,13 @@ const PeakStatusService = {
         isFavorite,
       });
 
-      // Es torna a consultar l’estat perquè la resposta inclogui tots els camps actualitzats.
-      // Això també conserva informació derivada com si el cim té una ascensió verificada.
+      // Es torna a consultar l’estat per retornar una resposta completa i actualitzada.
+      // També conserva informació derivada, com l’existència d’una ascensió verificada.
       return PeakStatusModel.findByUserAndPeak(userId, parsedPeakId);
     }
 
     // Si no existeix cap registre i cap marca queda activa, es retorna un estat neutre.
-    // Això evita crear files sense valor funcional.
+    // Això evita crear files innecessàries a la base de dades.
     if (!isCompleted && !isTarget && !isFavorite) {
       return emptyStatus(userId, parsedPeakId);
     }

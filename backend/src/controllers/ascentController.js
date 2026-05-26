@@ -1,12 +1,11 @@
 const AscentService = require('../services/ascentService');
 
-// Aquest controlador gestiona les peticions HTTP relacionades amb les ascensions.
-// L’usuari sempre s’obté del token validat pel middleware, evitant que el client
-// pugui actuar sobre dades d’un altre compte.
+// Aquest controlador gestiona les peticions relacionades amb les ascensions.
+// Garanteix que totes les operacions es facin sobre l’usuari autenticat.
 const AscentController = {
 
-  // Retorna totes les ascensions de l'usuari autenticat.
-  // Sempre 200, amb llista buida si l'usuari encara no n'ha registrat cap.
+  // Retorna l’historial complet d’ascensions de l’usuari.
+  // Si encara no n’ha registrat cap, es retorna una llista buida.
   async getByUser(req, res, next) {
     try {
       const ascents = await AscentService.getByUser(req.userId);
@@ -16,8 +15,8 @@ const AscentController = {
     }
   },
 
-  // Retorna les ascensions de l'usuari autenticat sobre un cim concret.
-  // El peakId arriba per la URL i es valida al servei.
+  // Retorna les ascensions de l’usuari associades a un cim concret.
+  // El cim es rep des de la URL i el servei en valida la informació.
   async getByUserAndPeak(req, res, next) {
     try {
       const ascents = await AscentService.getByUserAndPeak(
@@ -30,8 +29,8 @@ const AscentController = {
     }
   },
 
-  // Retorna totes les fotos d'un ascens concret amb signed download URLs.
-  // El servei valida que l'ascensió pertanyi a l'usuari autenticat.
+  // Retorna les fotos associades a una ascensió concreta.
+  // El servei comprova que l’ascensió pertanyi a l’usuari autenticat.
   async getPhotosForAscent(req, res, next) {
     try {
       const photos = await AscentService.getPhotosForAscent(
@@ -44,8 +43,8 @@ const AscentController = {
     }
   },
 
-  // Afegeix fotos noves a una ascensió existent de l'usuari autenticat.
-  // Les imatges ja han d'estar pujades al bucket i el servei valida rutes, propietat i límits.
+  // Afegeix fotos a una ascensió existent de l’usuari.
+  // Les imatges ja han d’estar pujades i el servei valida que siguin correctes.
   async addPhotosToAscent(req, res, next) {
     try {
       const { photos } = req.body || {};
@@ -62,8 +61,8 @@ const AscentController = {
     }
   },
 
-  // Crea una ascensió manual per a l'usuari autenticat.
-  // Pot incloure data, notes i fotos ja pujades al bucket.
+  // Crea una ascensió manual per a l’usuari autenticat.
+  // Pot incloure la data, les notes i les fotos associades.
   async create(req, res, next) {
     try {
       const { peakId, ascentDate, notes, photos } = req.body || {};
@@ -82,7 +81,7 @@ const AscentController = {
   },
 
   // Crea una ascensió verificada amb la ubicació capturada pel dispositiu.
-  // La data queda vinculada al moment real de captura i no es podrà editar.
+  // Aquest flux aporta més fiabilitat perquè vincula l’ascensió amb una posició real.
   async createVerified(req, res, next) {
     try {
       const {
@@ -114,8 +113,8 @@ const AscentController = {
     }
   },
 
-  // Actualitza una ascensió existent de l'usuari autenticat.
-  // Si no existeix o no pertany a l'usuari, el servei respon amb 404.
+  // Actualitza una ascensió existent de l’usuari autenticat.
+  // El servei valida que el registre existeixi i que pertanyi al mateix usuari.
   async update(req, res, next) {
     try {
       const { peakId, ascentDate, notes } = req.body || {};
@@ -132,8 +131,8 @@ const AscentController = {
     }
   },
 
-  // Elimina una ascensió de l'usuari autenticat.
-  // Si tot va bé, retorna 204 sense cos.
+  // Elimina una ascensió de l’usuari autenticat.
+  // Aquesta acció permet mantenir l’historial personal corregit i actualitzat.
   async remove(req, res, next) {
     try {
       await AscentService.remove(req.userId, req.params.ascentId);

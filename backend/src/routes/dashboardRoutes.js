@@ -1,17 +1,16 @@
-// Aquest fitxer defineix la ruta del dashboard de l'usuari.
-// Hi ha un sol endpoint perquè la pantalla d'inici només necessita una
-// petició per obtenir totes les dades que mostra (repte, objectius,
-// preferits i sèrie mensual).
+// Aquest fitxer defineix la ruta del dashboard de l’usuari.
+// Permet obtenir en una sola petició el resum principal que es mostra a la pantalla d’inici.
 const express = require('express');
 const router = express.Router();
 
 const DashboardController = require('../controllers/dashboardController');
 const authMiddleware = require('../middleware/authMiddleware');
 
-// L'autenticació s'aplica a totes les rutes d'aquest recurs perquè el
-// dashboard sempre és personal i requereix saber qui és l'usuari.
+// Aquest middleware protegeix totes les rutes del dashboard.
+// El resum és personal i sempre necessita identificar l’usuari autenticat.
 router.use(authMiddleware);
 
+// Retorna les dades principals del dashboard de l’usuari.
 router.get('/', DashboardController.getDashboard);
 
 module.exports = router;

@@ -1,12 +1,11 @@
 const pool = require('../config/db');
 
-// Aquest model centralitza l'accés a les dades de les ascensions registrades pels usuaris.
-// Cada ascensió representa una pujada concreta d'un usuari a un cim, amb data opcional,
-// notes, bloqueig de data, verificació i possibles fotos associades.
+// Aquest model centralitza l’accés a les dades de les ascensions.
+// Permet consultar, crear, actualitzar i eliminar registres mantenint la propietat de cada usuari.
 const AscentModel = {
 
-    // Aquest mètode retorna totes les ascensions d'un usuari.
-    // Inclou l'estat de verificació perquè l'historial pugui diferenciar ascensions manuals i verificades.
+    // Retorna totes les ascensions d’un usuari.
+    // Inclou la informació de verificació per diferenciar ascensions manuals i verificades.
     async findAllByUserId(userId) {
         const sql = `
         SELECT
@@ -34,8 +33,8 @@ const AscentModel = {
         return rows;
     },
 
-    // Aquest mètode retorna les ascensions d'un usuari sobre un cim concret.
-    // Permet mostrar l'historial del cim amb la informació de verificació associada.
+    // Retorna les ascensions d’un usuari associades a un cim concret.
+    // Aquesta consulta permet mostrar l’historial personal dins del detall del cim.
     async findAllByUserAndPeak(userId, peakId) {
         const sql = `
         SELECT
@@ -63,8 +62,8 @@ const AscentModel = {
         return rows;
     },
 
-    // Aquest mètode retorna una ascensió concreta només si pertany a l'usuari indicat.
-    // També inclou la verificació i accepta una connexió opcional per treballar dins d'una transacció.
+    // Retorna una ascensió concreta només si pertany a l’usuari indicat.
+    // La connexió opcional permet reutilitzar aquest mètode dins d’una transacció.
     async findByIdAndUserId(userId, ascentId, connection) {
         const executor = connection || pool;
         const sql = `
@@ -93,8 +92,8 @@ const AscentModel = {
         return rows[0] || null;
     },
 
-    // Aquest mètode crea una nova ascensió.
-    // El camp isDateLocked permet bloquejar la data quan l'ascensió prové d'una verificació.
+    // Crea una nova ascensió per a un usuari i un cim.
+    // El bloqueig de data s’utilitza quan l’ascensió prové d’un procés de verificació.
     async create(
         { userId, peakId, ascentDate = null, notes = null, isDateLocked = 0 },
         connection
@@ -125,8 +124,8 @@ const AscentModel = {
         }
     },
 
-    // Aquest mètode actualitza els camps indicats d'una ascensió existent.
-    // No modifica la data si l'ascensió està bloquejada per haver estat verificada.
+    // Actualitza els camps indicats d’una ascensió existent.
+    // La data no es modifica si l’ascensió està bloquejada per una verificació.
     async updateByIdAndUserId(userId, ascentId, { peakId, ascentDate, notes } = {}) {
         const fields = [];
         const params = [];
@@ -172,8 +171,8 @@ const AscentModel = {
         }
     },
 
-    // Aquest mètode compta quantes ascensions conserva un usuari sobre un cim.
-    // Serveix per decidir si el cim ha de continuar marcat com a completat.
+    // Compta les ascensions d’un usuari sobre un cim concret.
+    // Aquest resultat ajuda a decidir si el cim ha de continuar marcat com a completat.
     async countByUserAndPeak(userId, peakId) {
         const sql = `
         SELECT COUNT(*) AS total
@@ -185,8 +184,8 @@ const AscentModel = {
         return Number(rows[0].total);
     },
 
-    // Aquest mètode elimina una ascensió només si pertany a l'usuari indicat.
-    // Si no s'elimina cap fila, el servei podrà respondre com a registre inexistent.
+    // Elimina una ascensió només si pertany a l’usuari indicat.
+    // Retorna el nombre de registres eliminats perquè el servei pugui interpretar el resultat.
     async deleteByIdAndUserId(userId, ascentId) {
         const sql = `
         DELETE FROM ascents

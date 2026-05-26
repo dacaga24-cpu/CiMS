@@ -7,18 +7,16 @@ const { buildUserPathPattern } = require('./storageService');
 const AscentVerificationService = require('./ascentVerificationService');
 const pool = require('../config/db');
 
-// Aquest servei manté coherent l'estat personal dels cims.
+// Aquest servei manté coherent l’estat personal dels cims.
 // Quan es registra una ascensió, el cim també queda marcat com a assolit.
 const PeakStatusService = require('./peakStatusService');
 
-// Aquest servei actualitza el repte mensual després de canvis en ascensions.
-// Es crida com a efecte secundari perquè el progrés del dashboard continuï
-// reflectint l'activitat real de l'usuari.
+// Aquest servei actualitza el repte mensual quan canvien les ascensions.
+// Això permet que el dashboard reflecteixi el progrés real de l’usuari.
 const MonthlyChallengeService = require('./monthlyChallengeService');
 
-// Aquest helper executa accions derivades sense bloquejar l'operació principal.
-// Si una sincronització falla, l'ascensió ja creada, editada o eliminada no es
-// desfà, i l'error queda registrat als logs per poder revisar-lo.
+// Aquest helper executa accions secundàries sense bloquejar l’operació principal.
+// Si una sincronització falla, l’error queda registrat però no es desfà l’ascensió.
 async function safeSideEffect(label, promise) {
   try {
     await promise;
@@ -33,19 +31,16 @@ const {
   parseOptionalIsoDate,
 } = require('../utils/validation');
 
-// Defineix la longitud màxima de les notes d'una ascensió.
-// Tot i que la base de dades permet textos més llargs, aquest límit manté
-// les respostes controlades i evita usos excessius del camp.
+// Defineix la longitud màxima de les notes d’una ascensió.
+// Manté el contingut controlat i evita textos excessivament grans.
 const MAX_NOTES_LENGTH = 2000;
 
-// Defineix el nombre màxim de fotos que pot tenir una mateixa ascensió.
-// El frontend també treballa amb aquest límit, de manera que el comportament
-// queda alineat entre client i servidor.
+// Defineix el nombre màxim de fotos per ascensió.
+// Manté el mateix límit funcional entre frontend i backend.
 const MAX_PHOTOS_PER_ASCENT = 8;
 
-// Aquesta funció valida les fotos rebudes en crear una ascensió.
-// Només accepta imatges pujades dins l'espai del mateix usuari i impedeix
-// superar el límit establert o marcar més d'una foto com a principal.
+// Aquesta funció valida les fotos rebudes en una ascensió.
+// Comprova que pertanyin a l’usuari i que respectin els límits establerts.
 function ensureValidPhotosPayload(userId, photos) {
   if (photos === undefined || photos === null) {
     return [];
@@ -104,8 +99,8 @@ function ensureValidPhotosPayload(userId, photos) {
   return normalized;
 }
 
-// Aquesta funció prepara les fotos d'una ascensió verificada.
-// Garanteix que hi hagi una imatge principal marcada com a evidència de verificació.
+// Aquesta funció prepara les fotos d’una ascensió verificada.
+// Garanteix que hi hagi una imatge principal marcada com a evidència.
 function ensureVerificationPhotosPayload(userId, photos) {
   const normalized = ensureValidPhotosPayload(userId, photos);
 
@@ -131,10 +126,8 @@ function ensureVerificationPhotosPayload(userId, photos) {
   }));
 }
 
-// Aquesta funció prepara fotos afegides des de l'edició d'una ascensió.
-// Les fotos noves són imatges normals: no poden convertir-se en evidència
-// de verificació. Si l'ascensió encara no tenia cap foto, la primera nova
-// queda marcada com a principal perquè el resum de l'ascensió tingui miniatura.
+// Aquesta funció prepara les fotos afegides des de l’edició d’una ascensió.
+// Les noves fotos no poden convertir-se en evidència de verificació.
 function normalizeAdditionalPhotosPayload(existingPhotos, photos) {
   if (photos.length === 0) {
     throw badRequest('Invalid photos: at least one photo is required');
@@ -161,8 +154,8 @@ function normalizeAdditionalPhotosPayload(existingPhotos, photos) {
   });
 }
 
-// Aquesta funció comprova que les fotos declarades existeixen realment al bucket.
-// Això evita guardar a la base de dades rutes d'imatges que no s'han arribat a pujar.
+// Aquesta funció comprova que les fotos declarades existeixin al bucket.
+// Evita guardar referències a imatges que no s’han pujat realment.
 async function ensurePhotosExistInBucket(photos) {
   if (photos.length === 0) {
     return;
@@ -181,9 +174,8 @@ async function ensurePhotosExistInBucket(photos) {
   }
 }
 
-// Aquesta funció elimina del bucket les imatges associades a una ascensió.
-// Si alguna imatge no es pot eliminar, l'ascensió no es restaura: l'error queda
-// registrat i la neteja es podrà revisar posteriorment.
+// Aquesta funció intenta eliminar del bucket les imatges d’una ascensió.
+// Si alguna eliminació falla, l’error queda registrat per revisar possibles fitxers orfes.
 async function safeDeletePhotoBlobs(storagePaths, context = {}) {
   if (storagePaths.length === 0) {
     return;
@@ -203,8 +195,8 @@ async function safeDeletePhotoBlobs(storagePaths, context = {}) {
   );
 }
 
-// Aquesta funció transforma les dades de verificació al format que espera el frontend.
-// Permet mostrar l'estat d'una ascensió sense exposar els noms interns de la base de dades.
+// Aquesta funció adapta la verificació d’una ascensió al format del frontend.
+// Permet mostrar l’estat de validació sense exposar noms interns de la base de dades.
 function attachVerificationToAscent(ascent) {
   ascent.verification = ascent.verification_id
     ? {
@@ -227,8 +219,8 @@ function attachVerificationToAscent(ascent) {
   return ascent;
 }
 
-// Aquesta funció adapta una verificació creada directament pel model.
-// S'utilitza quan el servei acaba de crear una ascensió verificada i retorna la resposta.
+// Aquesta funció adapta una verificació acabada de crear.
+// S’utilitza per retornar la resposta d’una ascensió verificada amb el format esperat.
 function formatVerificationRow(verification) {
   if (!verification) {
     return null;
@@ -244,9 +236,8 @@ function formatVerificationRow(verification) {
   };
 }
 
-// Aquesta funció afegeix a cada ascensió la seva foto principal i la seva verificació.
-// S'utilitza en llistats perquè la interfície pugui mostrar una imatge resum
-// i l'estat de validació sense carregar dades addicionals.
+// Aquesta funció afegeix a cada ascensió la seva foto principal i la verificació.
+// Permet mostrar llistats amb imatge resum i estat de validació.
 async function attachPrimaryPhotoToAscents(ascents) {
   if (ascents.length === 0) {
     return ascents;
@@ -294,9 +285,8 @@ async function attachPrimaryPhotoToAscents(ascents) {
   return ascents;
 }
 
-// Aquesta funció valida les notes opcionals d'una ascensió.
-// Permet deixar-les buides, però si s'envia text comprova que sigui vàlid
-// i que no superi la longitud màxima acceptada.
+// Aquesta funció valida les notes opcionals d’una ascensió.
+// Permet deixar-les buides i limita la longitud quan s’envia text.
 function ensureValidNotes(value) {
   if (value === undefined || value === null) {
     return value;
@@ -314,27 +304,26 @@ function ensureValidNotes(value) {
 }
 
 // Aquest servei centralitza la gestió de les ascensions.
-// Valida les dades rebudes, comprova la propietat de cada recurs i delega
-// l'accés a base de dades als models corresponents.
+// Valida les dades, comprova la propietat dels recursos i coordina models relacionats.
 const AscentService = {
 
-  // Retorna totes les ascensions de l'usuari autenticat.
-  // Cada ascensió inclou, si existeix, la seva foto principal amb URL temporal.
+  // Retorna totes les ascensions de l’usuari autenticat.
+  // Cada registre inclou la foto principal i la informació de verificació si existeixen.
   async getByUser(userId) {
     const ascents = await AscentModel.findAllByUserId(userId);
     return attachPrimaryPhotoToAscents(ascents);
   },
 
-  // Retorna les ascensions de l'usuari sobre un cim concret.
-  // El resultat també inclou la foto principal de cada ascensió, si n'hi ha.
+  // Retorna les ascensions de l’usuari sobre un cim concret.
+  // Aquesta informació permet mostrar l’historial personal dins del detall del cim.
   async getByUserAndPeak(userId, peakId) {
     const parsedPeakId = requireInteger(peakId, 'peakId');
     const ascents = await AscentModel.findAllByUserAndPeak(userId, parsedPeakId);
     return attachPrimaryPhotoToAscents(ascents);
   },
 
-  // Retorna totes les fotos d'una ascensió concreta.
-  // Abans de consultar les imatges comprova que l'ascensió pertanyi a l'usuari.
+  // Retorna totes les fotos d’una ascensió concreta.
+  // Abans de consultar-les, comprova que l’ascensió pertanyi a l’usuari.
   async getPhotosForAscent(userId, ascentId) {
     const parsedAscentId = requireInteger(ascentId, 'ascentId');
 
@@ -377,8 +366,7 @@ const AscentService = {
   },
 
   // Afegeix fotos normals a una ascensió existent.
-  // Reutilitza les mateixes validacions del registre: propietat, límit de fotos,
-  // espai de l'usuari al bucket i existència real de cada fitxer pujat.
+  // Valida propietat, límit d’imatges i existència real dels fitxers pujats.
   async addPhotosToAscent(userId, ascentId, photos) {
     const parsedAscentId = requireInteger(ascentId, 'ascentId');
 
@@ -438,8 +426,8 @@ const AscentService = {
     );
   },
 
-  // Crea una nova ascensió per a l'usuari autenticat.
-  // També pot associar-hi fotos ja pujades al bucket i marca el cim com a assolit.
+  // Crea una nova ascensió per a l’usuari autenticat.
+  // També pot associar fotos i marcar el cim com a assolit.
   async create(userId, { peakId, ascentDate, notes, photos } = {}) {
     const parsedPeakId = requireInteger(peakId, 'peakId');
     const parsedDate = parseOptionalIsoDate(ascentDate, 'ascentDate') ?? null;
@@ -504,7 +492,7 @@ const AscentService = {
   },
 
   // Crea una ascensió verificada amb la ubicació capturada pel dispositiu.
-  // La data queda bloquejada perquè prové del moment real de captura de l'evidència.
+  // La data queda bloquejada perquè forma part de la prova de verificació.
   async createVerifiedFromDeviceLocation(
     userId,
     {
@@ -538,12 +526,8 @@ const AscentService = {
       throw badRequest(`Verification rejected: ${verification.reason}`);
     }
 
-    // La data oficial de l'ascensió la posa el servidor amb el seu rellotge
-    // (sincronitzat per NTP a Cloud Run) en lloc d'utilitzar verification.capturedAt,
-    // que prové del rellotge del dispositiu. Així evitem que un rellotge desfasat
-    // del client (NTP fluix, hora manual) acabi assignant l'ascensió a un dia
-    // incorrecte i descalibri estadístiques o el repte mensual. El capturedAt
-    // del client es conserva a ascent_verifications.captured_at com a auditoria.
+    // La data oficial de l’ascensió la fixa el servidor.
+    // Això evita que una hora incorrecta del dispositiu alteri estadístiques o reptes.
     const ascentDate = new Date().toISOString().slice(0, 10);
 
     const connection = await pool.getConnection();
@@ -615,9 +599,8 @@ const AscentService = {
     };
   },
 
-  // Actualitza una ascensió existent de l'usuari autenticat.
-  // Només modifica els camps enviats i manté ocult si l'ascensió no existeix
-  // o pertany a un altre usuari.
+  // Actualitza una ascensió existent de l’usuari autenticat.
+  // Només modifica els camps enviats i manté protegides les ascensions alienes.
   async update(userId, ascentId, { peakId, ascentDate, notes } = {}) {
     const parsedAscentId = requireInteger(ascentId, 'ascentId');
 
@@ -678,8 +661,8 @@ const AscentService = {
     return attachVerificationToAscent(updated);
   },
 
-  // Elimina una ascensió de l'usuari autenticat.
-  // També intenta eliminar les fotos del bucket i actualitza el repte mensual.
+  // Elimina una ascensió de l’usuari autenticat.
+  // També intenta netejar les fotos associades i recalcular els estats afectats.
   async remove(userId, ascentId) {
     const parsedAscentId = requireInteger(ascentId, 'ascentId');
 

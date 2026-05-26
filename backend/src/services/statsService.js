@@ -3,34 +3,28 @@ const AscentModel = require('../models/ascentModel');
 const StatsModel = require('../models/statsModel');
 const { fillMissingMonths } = require('../utils/statsHelpers');
 
-// Defineix quants mesos inclou la sèrie mensual d'ascensions.
-// Aquest valor forma part del contracte que consumeix el frontend.
+// Defineix quants mesos inclou la sèrie mensual d’ascensions.
+// Aquest valor manté estable el contracte que consumeix el frontend.
 const MONTHLY_ASCENTS_WINDOW = 12;
 
-// Defineix quantes ascensions recents es retornen per compatibilitat.
-// La pantalla d'estadístiques ja no les mostra, però altres fluxos encara
-// poden aprofitar aquest camp mentre el contracte evoluciona.
+// Defineix quantes ascensions recents es retornen.
+// Manté compatibilitat amb altres fluxos que encara poden utilitzar aquest camp.
 const RECENT_ASCENTS_LIMIT = 5;
 
-// Defineix quants cims formen el rànquing principal de cims més coronats.
+// Defineix quants cims formen el rànquing principal.
+// Permet mostrar els cims més repetits sense carregar dades innecessàries.
 const TOP_ASCENDED_PEAKS_LIMIT = 3;
 
 // Defineix el rang temporal per defecte de les mètriques variables.
-// L'últim any dona una lectura equilibrada entre progrés recent i històric.
+// L’últim any dona una lectura equilibrada entre activitat recent i progrés acumulat.
 const DEFAULT_STATS_RANGE = 'year';
 
-// Aquest servei centralitza el càlcul de les estadístiques personals de l'usuari.
-// Combina estats de cims, ascensions i consultes agregades per retornar
-// un únic resum funcional preparat per al frontend.
-//
-// Les ascensions sense data només serveixen per justificar que un cim està completat.
-// No formen part de les mètriques cronològiques, totals d'ascensions,
-// metres acumulats, gràfiques mensuals ni activitat recent.
+// Aquest servei centralitza el càlcul de les estadístiques personals.
+// Combina estats, ascensions i dades agregades per retornar un resum preparat per al frontend.
 const StatsService = {
 
-  // Retorna el resum complet de progrés de l'usuari autenticat.
-  // Inclou comptadors d'estat, mètriques d'ascensions datades, rànquing de cims,
-  // gràfic mensual, repte, ratxes mensuals i dades compatibles amb versions anteriors.
+  // Retorna el resum complet de progrés de l’usuari autenticat.
+  // Inclou comptadors, metres acumulats, rànquings, gràfiques, repte i ratxes mensuals.
   async getUserStats(userId, range = DEFAULT_STATS_RANGE) {
     const selectedRange = normalizeStatsRange(range);
 
@@ -58,8 +52,8 @@ const StatsService = {
       StatsModel.getRecentAscentsRaw(userId, RECENT_ASCENTS_LIMIT),
     ]);
 
-    // Aquesta consulta batch recupera les comarques dels cims destacats
-    // sense fer una petició individual per cada cim.
+    // Aquesta consulta recupera les comarques dels cims destacats en una sola operació.
+    // Evita fer una petició individual per cada cim.
     const peakIdsNeedingRegions = collectPeakIdsForRegions(
       topAscendedPeaksRaw,
       recentAscentsRaw,
@@ -95,8 +89,8 @@ const StatsService = {
   },
 };
 
-// Calcula els tres comptadors principals a partir dels estats personals.
-// El completat es basa en peak_status, que es manté sincronitzat amb les ascensions.
+// Calcula els comptadors principals a partir dels estats personals.
+// Resumeix quants cims estan completats, marcats com a objectiu o guardats com a favorits.
 function computeProgressSummary(statuses) {
   let completedPeaks = 0;
   let activeTargets = 0;
@@ -119,7 +113,7 @@ function computeProgressSummary(statuses) {
   return { completedPeaks, activeTargets, favorites };
 }
 
-// Calcula les mètriques bàsiques de l'historial d'ascensions.
+// Calcula les mètriques bàsiques de l’historial d’ascensions.
 // Només compta ascensions amb data perquè representen activitat cronològica real.
 function computeAscentMetrics(ascents) {
   const datedAscents = ascents.filter((ascent) => ascent.ascent_date !== null);
@@ -141,8 +135,7 @@ function computeAscentMetrics(ascents) {
 }
 
 // Recull els identificadors dels cims que necessiten comarques.
-// Centralitza aquesta preparació perquè el servei pugui enriquir diferents blocs
-// sense repetir lògica.
+// Centralitza aquesta preparació per enriquir diferents blocs de la resposta.
 function collectPeakIdsForRegions(topAscendedPeaks, recentAscents) {
   const peakIds = new Set();
 
@@ -171,7 +164,7 @@ function enrichWithRegions(peakObject, regionsByPeakId) {
 }
 
 // Calcula la ratxa mensual actual i la millor ratxa històrica.
-// Una ratxa mensual compta mesos consecutius amb almenys una ascensió datada.
+// Una ratxa compta mesos consecutius amb almenys una ascensió datada.
 function computeMonthlyStreak(monthlyActivityRaw) {
   if (!Array.isArray(monthlyActivityRaw) || monthlyActivityRaw.length === 0) {
     return {
@@ -229,7 +222,7 @@ function monthKey(year, month) {
 }
 
 // Normalitza el rang temporal rebut pel servei.
-// Si arriba un valor desconegut, s'aplica el rang per defecte.
+// Si arriba un valor desconegut, s’aplica el rang per defecte.
 function normalizeStatsRange(range) {
   const allowedRanges = ['month', 'quarter', 'six_months', 'year', 'total'];
 

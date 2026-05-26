@@ -1,13 +1,11 @@
 const RegionModel = require('../models/regionModel');
 
-// Aquest servei centralitza la lògica de les comarques.
-// Aquí es consulten les dades a través del model i es deixa preparat
-// el punt d'extensió per si més endavant cal afegir-hi validacions o regles.
+// Aquest servei centralitza la gestió de les comarques.
+// Manté separada la consulta de dades perquè el controlador no accedeixi directament al model.
 const RegionService = {
 
-    // Aquest mètode retorna totes les comarques del sistema.
-    // És rellevant perquè alimenta els filtres del catàleg de cims
-    // i qualsevol altre lloc on calgui mostrar la divisió territorial.
+    // Retorna totes les comarques disponibles al sistema.
+    // Aquesta informació alimenta els filtres del catàleg i altres vistes amb criteri territorial.
     async getAll() {
         return RegionModel.findAll();
     },

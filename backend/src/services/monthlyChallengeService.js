@@ -7,12 +7,8 @@ const {
   getPreviousYearMonth,
 } = require('../utils/madridTime');
 
-// Catàleg dels tipus de repte disponibles. Cada entrada ha d'exposar
-// exactament tres targets creixents perquè recomputeProgress assumeix
-// tres nivells fixos i una entrada amb un nombre diferent de targets
-// trencaria el càlcul de current_level i dels segells level_X_completed_at.
-// El "counter" rep les fronteres del mes ja calculades pel servei i ha de
-// retornar un nombre enter amb el progrés actual de l'usuari.
+// Aquest catàleg defineix els tipus de repte mensual disponibles.
+// Cada tipus indica els objectius i la manera de calcular el progrés de l’usuari.
 const CHALLENGE_TYPES = {
   peaks_completed: {
     targets: [2, 4, 6],
@@ -28,22 +24,12 @@ const CHALLENGE_TYPES = {
 
 const ALL_TYPES = Object.keys(CHALLENGE_TYPES);
 
-// Aquest servei centralitza la lògica del repte mensual. Exposa la lectura
-// del repte actiu de l'usuari i ofereix dos punts d'entrada de recompute
-// (per data concreta o per mes en curs sencer) que ascentService crida
-// després de cada modificació d'ascensions.
-//
-// El recompute es fa des de zero comptant la taula ascents, no incrementant
-// un comptador existent. Així el progrés sempre reflecteix la realitat
-// encara que es modifiquin ascensions antigues, i no calen migracions si
-// algun dia s'arregla un bug que hagi deixat el cache desincronitzat.
+// Aquest servei centralitza la lògica del repte mensual.
+// Permet consultar el repte actiu i recalcular el progrés quan canvien les ascensions.
 const MonthlyChallengeService = {
 
-  // Retorna el repte actiu del mes en curs amb el progrés de l'usuari.
-  // Si la plantilla encara no s'ha generat, es crea aquí (creació "lazy").
-  // Si l'usuari encara no té cap fila de progrés, es retorna progrés zero
-  // sense crear cap registre — només es crea quan l'usuari realment
-  // contribueix al repte amb una ascensió.
+  // Retorna el repte actiu del mes en curs per a un usuari.
+  // Si encara no existeix la plantilla mensual, es crea abans de retornar la resposta.
   async getCurrentChallengeForUser(userId) {
     const { year, month } = getCurrentMadridYearMonth();
     const challenge = await ensureMonthlyChallenge(year, month);
@@ -51,15 +37,8 @@ const MonthlyChallengeService = {
     return composeChallengeResponse(challenge, progress);
   },
 
-  // Recalcula el progrés d'un usuari per al mes que correspongui a una
-  // ascent_date. S'invoca des d'ascentService cada vegada que es crea,
-  // s'edita o s'esborra una ascensió. Si la data no pertany al mes en curs
-  // (Madrid) la crida no fa res, perquè els reptes de mesos passats estan
-  // tancats i les ascensions futures no afecten cap repte vigent.
-  //
-  // Es passa l'ascentDate com a string 'YYYY-MM-DD' (és el format que
-  // utilitza el model d'ascents). Acceptem null/undefined per simplificar
-  // les crides des d'ascentService.update quan no es modifica la data.
+  // Recalcula el progrés de l’usuari a partir de la data d’una ascensió.
+  // Només afecta el repte vigent si la data pertany al mes actual.
   async recomputeForUser(userId, ascentDate) {
     if (!ascentDate) {
       return;
@@ -72,23 +51,16 @@ const MonthlyChallengeService = {
     await recomputeProgress(userId, year, month);
   },
 
-  // Variant que recalcula el progrés de l'usuari per al mes en curs sense
-  // necessitat de saber cap data concreta. S'utilitza des d'ascentService
-  // quan es modifica una ascensió i la data antiga o la nova podrien estar
-  // dins del mes actual: és més senzill demanar un recompute global del
-  // mes en curs que no pas comprovar dues dates per separat.
+  // Recalcula el progrés de l’usuari per al mes actual.
+  // S’utilitza quan no cal dependre d’una data concreta per actualitzar el repte.
   async recomputeCurrentMonthForUser(userId) {
     const { year, month } = getCurrentMadridYearMonth();
     await recomputeProgress(userId, year, month);
   },
 };
 
-// Garanteix que la plantilla del mes existeix. Si encara no s'ha creat,
-// se selecciona aleatòriament un tipus (evitant repetir el del mes anterior
-// si hi ha més d'un tipus disponible) i s'insereix. Una carrera entre dues
-// peticions concurrents que intentin crear la mateixa plantilla es resol
-// amb el UNIQUE de l'schema: la segona rebrà ER_DUP_ENTRY i farà un SELECT
-// del registre que ja ha guanyat la cursa.
+// Garanteix que existeixi la plantilla del repte mensual.
+// Si no existeix, selecciona un tipus de repte i crea el registre corresponent.
 async function ensureMonthlyChallenge(year, month) {
   const existing = await MonthlyChallengeModel.findByPeriod(year, month);
   if (existing) {
@@ -111,17 +83,11 @@ async function ensureMonthlyChallenge(year, month) {
     if (!err || err.code !== 'ER_DUP_ENTRY') {
       throw err;
     }
-    // Una altra petició concurrent ha creat la plantilla. Continuem i la
-    // recuperem amb el SELECT de sota perquè el resultat sigui consistent.
+    // Si una altra petició ha creat la plantilla al mateix temps, es recupera després amb normalitat.
   }
 
   const stored = await MonthlyChallengeModel.findByPeriod(year, month);
   if (!stored) {
-    // Defensiu: arribar aquí significaria que el create ha vist ER_DUP_ENTRY
-    // (una altra petició havia inserit la plantilla) però el SELECT posterior
-    // no la troba. Pot indicar un rollback de la transacció rival o un
-    // problema de replicació; en tots dos casos és un estat inconsistent
-    // que requereix logs per diagnosticar.
     const error = new Error('Could not create monthly challenge template');
     error.statusCode = 500;
     throw error;
@@ -129,9 +95,8 @@ async function ensureMonthlyChallenge(year, month) {
   return stored;
 }
 
-// Tria un tipus de repte aleatori. Si el mes anterior ja existia una
-// plantilla i hi ha més d'un tipus disponible, exclou aquell tipus per
-// donar variació entre mesos consecutius.
+// Tria el tipus de repte del mes.
+// Si és possible, evita repetir el mateix tipus utilitzat el mes anterior.
 async function pickChallengeType(year, month) {
   const previous = getPreviousYearMonth(year, month);
   const previousChallenge = await MonthlyChallengeModel.findByPeriod(
@@ -144,16 +109,8 @@ async function pickChallengeType(year, month) {
   return candidates[index];
 }
 
-// Recalcula el progrés d'un usuari per a la plantilla del mes indicat.
-// La plantilla es garanteix dins d'aquesta mateixa funció perquè el flux
-// des d'ascentService no requereixi haver-ho fet abans, i així una primera
-// ascensió en un mes nou genera plantilla i progrés en una sola crida.
-//
-// El càlcul dels segells level_X_completed_at segueix la decisió de
-// producte: si el progrés actual supera el llindar, es manté el segell
-// existent o s'estampa "ara" si encara no n'hi havia; si el progrés cau
-// per sota del llindar (perquè s'ha eliminat alguna ascensió), el segell
-// es torna a NULL i el nivell es desbloqueja.
+// Recalcula el progrés d’un usuari per a un mes concret.
+// El càlcul es fa a partir de les ascensions reals per mantenir el repte sincronitzat.
 async function recomputeProgress(userId, year, month) {
   const challenge = await ensureMonthlyChallenge(year, month);
   const counter = CHALLENGE_TYPES[challenge.type].counter;
@@ -162,11 +119,8 @@ async function recomputeProgress(userId, year, month) {
 
   const targets = [challenge.target_1, challenge.target_2, challenge.target_3];
 
-  // El progrés es capa al llindar màxim del repte. Sense aquest cap, un
-  // usuari que faci més cims dels necessaris veuria valors com "8 de 6" a
-  // la UI, que no aporten res un cop el repte ja està completat. La info
-  // "real" (8 cims aquell mes) segueix sent derivable de la taula ascents
-  // si algun dia es vol mostrar de manera separada.
+  // Aquest límit evita que el progrés mostrat superi l’objectiu màxim del repte.
+  // Així la interfície manté una lectura clara quan el repte ja està completat.
   const currentProgress = Math.min(realProgress, targets[targets.length - 1]);
 
   const existing = await MonthlyChallengeModel.findProgress(userId, challenge.id);
@@ -199,10 +153,8 @@ async function recomputeProgress(userId, year, month) {
   });
 }
 
-// Composa la resposta JSON que rebrà el client. Sempre torna tots els
-// camps amb un valor coherent encara que l'usuari no tingui fila de
-// progrés (cas d'usuari que encara no ha pujat res aquest mes), perquè
-// el frontend no hagi de fer comprovacions defensives sobre absències.
+// Composa la resposta del repte mensual per al frontend.
+// Sempre retorna una estructura completa encara que l’usuari no tingui progrés registrat.
 function composeChallengeResponse(challenge, progress) {
   const targets = [challenge.target_1, challenge.target_2, challenge.target_3];
   const currentProgress = progress?.current_progress ?? 0;
@@ -226,11 +178,8 @@ function composeChallengeResponse(challenge, progress) {
   };
 }
 
-// Extreu any i mes a partir d'una cadena 'YYYY-MM-DD'. El format l'han
-// validat prèviament els helpers requireIsoDate / parseOptionalIsoDate al
-// servei cridant, així que un split senzill és suficient i evita instanciar
-// un Date. Si en el futur s'invoca aquest servei des d'un nou camí, la
-// validació de format ha de quedar garantida abans d'arribar aquí.
+// Extreu l’any i el mes a partir d’una data d’ascensió.
+// Permet saber quin repte mensual s’ha d’actualitzar.
 function parseYearMonth(ascentDate) {
   const [yearStr, monthStr] = String(ascentDate).split('-');
   return [Number(yearStr), Number(monthStr)];

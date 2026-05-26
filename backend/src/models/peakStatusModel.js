@@ -1,17 +1,17 @@
 const pool = require('../config/db');
 
-// Aquest mètode adapta valors booleans al format que guarda MySQL.
-// Centralitza la conversió perquè els estats es desin sempre de forma coherent.
+// Aquest mètode adapta valors booleans al format utilitzat per MySQL.
+// Centralitza la conversió perquè els estats es guardin sempre de manera coherent.
 function coerceBool(value) {
   return value ? 1 : 0;
 }
 
 // Aquest model gestiona l’estat personal dels cims per usuari.
-// També retorna si aquell cim té alguna ascensió verificada associada.
+// Permet consultar, crear, actualitzar i eliminar les marques associades a cada cim.
 const PeakStatusModel = {
 
     // Retorna l’estat d’un cim concret per a un usuari.
-    // Inclou si el cim té una ascensió verificada per poder mostrar-ho a la UI.
+    // Inclou si existeix una ascensió verificada per mostrar aquesta informació al frontend.
     async findByUserAndPeak(userId, peakId) {
         const sql = `
         SELECT
@@ -43,7 +43,7 @@ const PeakStatusModel = {
     },
 
     // Retorna tots els estats personals d’un usuari.
-    // Aquesta consulta alimenta catàleg, mapa i detall amb les marques de progrés.
+    // Aquesta informació permet sincronitzar les marques de progrés al catàleg, el mapa i el detall del cim.
     async findAllByUserId(userId) {
         const sql = `
         SELECT
@@ -75,7 +75,7 @@ const PeakStatusModel = {
     },
 
     // Crea un nou estat personal per a un cim.
-    // S’utilitza quan l’usuari marca per primera vegada un cim com a objectiu, preferit o completat.
+    // S’utilitza quan l’usuari marca per primera vegada un cim dins del seu seguiment.
     async create({ userId, peakId, isCompleted = 0, isTarget = 0, isFavorite = 0 }) {
         const sql = `
         INSERT INTO peak_status (user_id, peak_id, is_completed, is_target, is_favorite)
@@ -117,8 +117,8 @@ const PeakStatusModel = {
         }
     },
 
-    // Actualitza els estats manuals d’un cim.
-    // Només modifica els camps rebuts per no sobreescriure valors que no han canviat.
+    // Actualitza les marques personals d’un cim.
+    // Només modifica els camps rebuts per conservar la resta de l’estat sense canvis.
     async updateByUserAndPeak(userId, peakId, { isCompleted, isTarget, isFavorite } = {}) {
         const fields = [];
         const params = [];
@@ -165,7 +165,7 @@ const PeakStatusModel = {
     },
 
     // Elimina l’estat personal d’un cim.
-    // S’utilitza quan el registre ja no té cap marca activa.
+    // Aquesta acció s’utilitza quan ja no queda cap marca activa per a aquell usuari i cim.
     async deleteByUserAndPeak(userId, peakId) {
         const sql = `
         DELETE FROM peak_status

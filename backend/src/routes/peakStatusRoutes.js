@@ -1,22 +1,17 @@
-// Aquest fitxer defineix les rutes de l'estat personal dels cims per usuari.
-// Totes les rutes estan protegides pel middleware d'autenticació,
-// de manera que només els usuaris amb un token vàlid hi poden accedir.
+// Aquest fitxer defineix les rutes de l’estat personal dels cims.
+// Totes requereixen autenticació perquè cada usuari només pugui gestionar les seves pròpies marques.
 const express = require('express');
 const router = express.Router();
 
 const authMiddleware = require('../middleware/authMiddleware');
 const PeakStatusController = require('../controllers/peakStatusController');
 
-// Aquest bloc aplica el middleware d'autenticació a totes les rutes d'aquest router.
-// Qualsevol petició sense token vàlid rep un 401 abans d'arribar al controlador.
+// Aquest middleware protegeix totes les rutes d’aquest recurs.
+// Les peticions sense token vàlid no arriben als controladors.
 router.use(authMiddleware);
 
-// Aquest bloc agrupa les rutes de l'estat personal dels cims.
-// La ruta arrel retorna tots els estats de l'usuari autenticat.
-// Les rutes amb identificador de cim operen sobre un estat concret:
-//   GET    recupera l'estat actual d'un cim per a l'usuari
-//   PUT    crea o actualitza l'estat d'un cim per a l'usuari (upsert)
-//   DELETE elimina l'estat d'un cim per a l'usuari
+// Aquestes rutes permeten consultar, crear, actualitzar i eliminar l’estat personal dels cims.
+// La ruta arrel retorna tots els estats de l’usuari i les rutes amb peakId actuen sobre un cim concret.
 router.get('/', PeakStatusController.getStatusByUser);
 router.get('/:peakId', PeakStatusController.getByUserAndPeak);
 router.put('/:peakId', PeakStatusController.upsertPeakStatus);
