@@ -4,14 +4,16 @@ import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/user.dart';
 
 // Aquest cas d’ús encapsula la pujada d’una foto de perfil.
-// Primer demana una URL temporal, després puja la imatge i finalment confirma el canvi al backend.
+// Coordina la URL temporal, la pujada de la imatge i la confirmació final al backend.
 class UploadProfilePhotoUseCase {
   const UploadProfilePhotoUseCase(this._apiClient);
 
+  // Aquest client permet preparar la pujada i actualitzar el perfil al backend.
+  // Això manté la pantalla desacoblada dels detalls d’emmagatzematge.
   final ApiClient _apiClient;
 
-  // Aquest mètode rep la imatge ja preparada pel frontend.
-  // Retorna l’usuari actualitzat amb la nova foto de perfil.
+  // Rep la imatge ja preparada pel frontend i completa el canvi de foto.
+  // Retorna l’usuari actualitzat perquè la pantalla pugui refrescar el perfil.
   Future<User> call({
     required Uint8List bytes,
     required String mimeType,
@@ -20,8 +22,8 @@ class UploadProfilePhotoUseCase {
       mimeType: mimeType,
     );
 
-    // Els headers s’envien exactament tal com els retorna el backend.
-    // Formen part de la signatura temporal i han de coincidir perquè GCS accepti la pujada.
+    // Els headers formen part de la pujada autoritzada.
+    // S’envien tal com els retorna el backend perquè l’emmagatzematge accepti la imatge.
     await _apiClient.uploadProfilePhotoBytes(
       uploadUrl: signedUpload.uploadUrl,
       bytes: bytes,

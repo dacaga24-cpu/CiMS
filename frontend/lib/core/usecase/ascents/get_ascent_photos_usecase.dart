@@ -6,9 +6,12 @@ import 'package:cims/core/entity/ascent_photo.dart';
 class GetAscentPhotosUseCase {
   const GetAscentPhotosUseCase(this._apiClient);
 
+  // Aquest client permet obtenir les fotos a través del backend.
+  // Això manté la pantalla separada dels detalls de la petició.
   final ApiClient _apiClient;
 
-  // Aquest mètode demana al backend totes les fotos d’una ascensió concreta.
+  // Recupera totes les fotos d’una ascensió concreta.
+  // Retorna la llista preparada perquè la interfície pugui mostrar-la.
   Future<List<AscentPhoto>> call(int ascentId) {
     return _apiClient.getAscentPhotos(ascentId);
   }

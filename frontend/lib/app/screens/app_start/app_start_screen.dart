@@ -113,8 +113,6 @@ class _AppStartScreenState extends State<AppStartScreen>
             child: ScaleTransition(
               scale: scaleAnimation,
               child: Transform.translate(
-                // Aquest desplaçament ajusta lleugerament la posició del logotip
-                // per equilibrar millor la composició visual de la pantalla.
                 offset: const Offset(0, -70),
                 child: const CimsLogo(
                   width: 110,

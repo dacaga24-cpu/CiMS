@@ -1,6 +1,5 @@
 // Aquesta classe representa un usuari dins de l’aplicació.
-// Agrupa les dades principals del compte i permet treballar amb aquesta informació
-// de manera clara i consistent a diferents parts del sistema.
+// Agrupa les dades principals del compte per utilitzar-les de manera coherent.
 class User {
   const User({
     required this.id,
@@ -13,8 +12,8 @@ class User {
     this.profilePhotoUrl,
   });
 
-  // Aquest bloc recull les dades bàsiques que identifiquen l’usuari,
-  // l’estat general del compte i la seva imatge de perfil si existeix.
+  // Aquestes dades identifiquen l’usuari i l’estat del seu compte.
+  // També inclouen la foto de perfil quan està disponible.
   final int id;
   final String firstName;
   final String lastName;
@@ -24,9 +23,8 @@ class User {
   final DateTime updatedAt;
   final String? profilePhotoUrl;
 
-  // Aquest constructor crea un objecte User a partir d’un conjunt de dades en format JSON.
-  // És rellevant perquè permet convertir la resposta rebuda del backend
-  // en un objecte que l’aplicació pugui utilitzar fàcilment.
+  // Aquest constructor transforma la resposta del backend en un objecte User.
+  // Accepta camps en diferents formats per adaptar-se al contracte de l’API.
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: _parseInt(json['id']),
@@ -62,9 +60,8 @@ class User {
     );
   }
 
-  // Aquest mètode transforma l’usuari en un format JSON.
-  // Això és útil quan les dades s’han d’enviar, guardar o reutilitzar
-  // en un format compatible amb altres parts del sistema.
+  // Aquest mètode transforma l’usuari en format JSON.
+  // Permet reutilitzar les dades en altres parts del sistema.
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -78,9 +75,8 @@ class User {
     };
   }
 
-  // Aquest mètode crea una nova còpia de l’usuari permetent canviar només alguns valors.
-  // És rellevant quan es vol actualitzar una part de la informació
-  // sense haver de reconstruir manualment tot l’objecte.
+  // Aquest mètode crea una còpia de l’usuari canviant només els camps indicats.
+  // És útil quan s’actualitza una part del perfil sense reconstruir tot l’objecte.
   User copyWith({
     int? id,
     String? firstName,
@@ -103,16 +99,16 @@ class User {
     );
   }
 
-  // Aquest mètode converteix el valor rebut de l’estat del compte en un booleà clar per a l’aplicació.
-  // Això ajuda a interpretar correctament la informació encara que arribi en formats diferents.
+  // Aquest mètode interpreta l’estat del compte com un booleà.
+  // Permet llegir el valor encara que arribi amb formats diferents.
   static bool _parseIsActive(dynamic value) {
     if (value is bool) return value;
     if (value is int) return value == 1;
     return false;
   }
 
-  // Aquest mètode llegeix un camp de text acceptant tant el nom en camelCase
-  // com en snake_case, per adaptar-se millor a diferents respostes del backend.
+  // Aquest mètode llegeix un camp de text obligatori.
+  // Accepta noms en camelCase i snake_case segons la resposta del backend.
   static String _readString(
     Map<String, dynamic> json, {
     required String camelKey,
@@ -129,8 +125,8 @@ class User {
     );
   }
 
-  // Aquest mètode llegeix camps opcionals de text.
-  // Es fa servir per dades que poden no existir encara, com la foto de perfil.
+  // Aquest mètode llegeix un camp de text opcional.
+  // S’utilitza per dades que poden no existir encara, com la foto de perfil.
   static String? _readOptionalString(
     Map<String, dynamic> json, {
     required String camelKey,
@@ -145,8 +141,8 @@ class User {
     return null;
   }
 
-  // Aquest mètode intenta convertir un valor rebut a enter
-  // per assegurar que l’identificador de l’usuari tingui un format vàlid.
+  // Aquest mètode converteix l’identificador rebut en un enter vàlid.
+  // Si el valor no és correcte, evita crear un usuari amb dades inconsistents.
   static int _parseInt(dynamic value) {
     if (value is int) return value;
     if (value is num) return value.toInt();
@@ -158,8 +154,8 @@ class User {
     throw const FormatException('L\'identificador d\'usuari no és vàlid');
   }
 
-  // Aquest mètode transforma el valor rebut en una data usable per l’aplicació.
-  // És important perquè les dades temporals del backend acostumen a arribar en format text.
+  // Aquest mètode transforma una data rebuda del backend en un DateTime.
+  // Permet treballar amb dates de creació i actualització dins de l’aplicació.
   static DateTime _parseDateTime(dynamic value) {
     if (value is String) {
       return DateTime.parse(value);

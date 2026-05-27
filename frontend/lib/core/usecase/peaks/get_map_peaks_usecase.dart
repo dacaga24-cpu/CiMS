@@ -8,11 +8,12 @@ class GetMapPeaksUseCase {
     required ApiClient apiClient,
   }) : _apiClient = apiClient;
 
+  // Aquest client permet obtenir els cims del mapa a través del backend.
+  // Això manté la pantalla separada dels detalls de la petició.
   final ApiClient _apiClient;
 
   // Aquest mètode demana al backend la llista de cims preparada per al mapa.
-  // Els filtres principals s’envien al backend perquè comarca, cerca, altitud
-  // i estat personal es resolguin amb les dades completes del servidor.
+  // Els filtres principals s’envien perquè la resposta sigui coherent amb la vista del catàleg.
   Future<List<Peak>> execute({
     String? search,
     int? regionId,

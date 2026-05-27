@@ -1,7 +1,7 @@
 import 'package:cims/core/entity/peak.dart';
 
 // Aquesta entitat representa una pàgina del catàleg de cims.
-// Permet separar els cims carregats de la informació de paginació retornada pel backend.
+// Separa els cims carregats de la informació necessària per continuar la paginació.
 class PeaksPage {
   const PeaksPage({
     required this.items,
@@ -12,10 +12,11 @@ class PeaksPage {
     required this.hasMore,
   });
 
-  // Cims inclosos dins de la pàgina actual.
+  // Aquestes dades defineixen el contingut de la pàgina actual.
   final List<Peak> items;
 
-  // Informació de paginació necessària per carregar més resultats.
+  // Aquestes dades indiquen l’estat de la paginació.
+  // Permeten saber quants resultats hi ha i si es poden carregar més pàgines.
   final int page;
   final int pageSize;
   final int totalItems;
@@ -23,7 +24,7 @@ class PeaksPage {
   final bool hasMore;
 
   // Aquest constructor transforma la resposta paginada del backend en una entitat del frontend.
-  // El backend retorna els cims dins d’items i les dades de paginació dins de pagination.
+  // Llegeix els cims i la informació de paginació aplicant valors segurs si algun camp no arriba.
   factory PeaksPage.fromJson(Map<String, dynamic> json) {
     final rawItems = json['items'];
     final rawPagination = json['pagination'];
@@ -49,7 +50,8 @@ class PeaksPage {
     );
   }
 
-  // Aquest suport evita errors si algun valor numèric arriba amb un format inesperat.
+  // Aquesta funció converteix valors numèrics del JSON a enters.
+  // Si el valor no és vàlid, aplica el valor de reserva indicat.
   static int _readInt(dynamic value, {required int fallback}) {
     if (value is int) {
       return value;

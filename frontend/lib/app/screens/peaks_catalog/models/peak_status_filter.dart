@@ -1,6 +1,5 @@
 // Aquest enum defineix els filtres disponibles segons l’estat personal del cim.
-// S’utilitza des del catàleg, el mapa i el panell de filtres per mantenir
-// les opcions d’estat separades dels controllers.
+// S’utilitza al catàleg, al mapa i al panell de filtres.
 enum PeakStatusFilter {
   none,
   pending,
@@ -9,10 +8,11 @@ enum PeakStatusFilter {
   favorite,
 }
 
-// Aquesta extensió centralitza el text visible i la comparació dels filtres d’estat.
-// Així el catàleg i el mapa no han de duplicar el mateix switch.
+// Aquesta extensió centralitza el text visible i el valor tècnic de cada filtre.
+// Evita duplicar la mateixa conversió en diferents pantalles.
 extension PeakStatusFilterX on PeakStatusFilter {
-  // Retorna el nom que es mostra a la interfície per al filtre seleccionat.
+  // Aquest getter retorna el nom que es mostra a la interfície.
+  // El filtre sense selecció no mostra cap etiqueta específica.
   String? get displayName {
     switch (this) {
       case PeakStatusFilter.none:
@@ -28,9 +28,8 @@ extension PeakStatusFilterX on PeakStatusFilter {
     }
   }
 
-  // Retorna el valor que cal enviar al backend com a query param `status`.
-  // L'enum guarda noms en català per al display, però l'API espera els
-  // mateixos identificadors que el camp de la taula `peak_status`.
+  // Aquest mètode retorna el valor que espera el backend com a paràmetre de consulta.
+  // Manté el mapeig centralitzat perquè catàleg i mapa utilitzin el mateix criteri.
   String? toQueryParam() {
     switch (this) {
       case PeakStatusFilter.none:

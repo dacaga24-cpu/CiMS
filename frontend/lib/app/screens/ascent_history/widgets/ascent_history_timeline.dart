@@ -3,7 +3,7 @@ import 'package:cims/app/widgets/layout/app_responsive.dart';
 import 'package:cims/core/entity/ascent.dart';
 import 'package:flutter/material.dart';
 
-// Aquest widget representa les ascensions del cim en format de línia temporal.
+// Aquest widget mostra les ascensions d’un cim en format de línia temporal.
 // Ajuda a visualitzar l’historial personal mantenint només els registres amb data.
 class AscentHistoryTimeline extends StatelessWidget {
   const AscentHistoryTimeline({
@@ -12,6 +12,7 @@ class AscentHistoryTimeline extends StatelessWidget {
     required this.onAscentTap,
   });
 
+  // Aquestes dades defineixen les ascensions visibles i l’acció en seleccionar-ne una.
   final List<Ascent> ascents;
   final ValueChanged<Ascent> onAscentTap;
 
@@ -44,6 +45,7 @@ class _TimelineItem extends StatelessWidget {
     required this.onTap,
   });
 
+  // Aquestes dades defineixen el contingut de l’element i la seva posició dins la línia temporal.
   final Ascent ascent;
   final bool isFirst;
   final bool isLast;
@@ -198,6 +200,8 @@ class _TimelineItem extends StatelessWidget {
     );
   }
 
+  // Aquest mètode dona format llegible a la data de l’ascensió.
+  // Permet mostrar el dia, el mes abreujat i l’any dins la línia temporal.
   String _formatDate(DateTime date) {
     const months = [
       'gen',
@@ -223,22 +227,19 @@ class _TimelineItem extends StatelessWidget {
 }
 
 // Aquest widget mostra una vista prèvia de la foto principal de l’ascensió.
-// Si la imatge és l’evidència de verificació, ho indica amb una etiqueta visual.
+// Si la imatge és evidència de verificació, ho indica amb una etiqueta visual.
 class _AscentPhotoPreview extends StatelessWidget {
   const _AscentPhotoPreview({
     required this.photoUrl,
     required this.isEvidence,
   });
 
+  // Aquestes dades defineixen la imatge que es mostrarà i si forma part d’una verificació.
   final String photoUrl;
   final bool isEvidence;
 
   @override
   Widget build(BuildContext context) {
-    // A mòbil deixem que la imatge ocupi tota l'amplada disponible perquè
-    // el contingut ja és prou estret. A tablet/desktop, en canvi, una foto
-    // que ocupa tot el card crida massa l'atenció, així que la limitem
-    // perquè quedi proporcionada respecte al text.
     final isCompact = AppResponsive.isCompact(context);
     final maxWidth = isCompact ? double.infinity : 360.0;
 
@@ -309,9 +310,8 @@ class _AscentPhotoPreview extends StatelessWidget {
       ),
     );
 
-    // A mòbil la imatge ja ocupa tota l'amplada del card pare; evitem
-    // afegir capes extra de `Align` + `ConstrainedBox` que no aportarien
-    // res visualment.
+    // En pantalles compactes, la imatge utilitza tota l’amplada disponible.
+    // En pantalles més grans, es limita l’amplada per mantenir una proporció equilibrada.
     if (isCompact) return preview;
 
     return Align(

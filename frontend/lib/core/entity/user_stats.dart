@@ -1,6 +1,5 @@
 // Aquesta entitat agrupa les estadístiques personals de l’usuari.
-// La pantalla d’estadístiques la farà servir per mostrar el resum de progrés,
-// el rànquing de cims, el repte, l’historial mensual, els metres i les ratxes.
+// Permet mostrar progrés, rànquings, historial mensual, metres acumulats i ratxes.
 class UserStats {
   const UserStats({
     required this.completedPeaks,
@@ -20,8 +19,8 @@ class UserStats {
     this.challengeProgress,
   });
 
-  // Aquest bloc recull les mètriques principals que defineixen el progrés de l’usuari.
-  // Combina comptadors generals, dades acumulades i resums específics per alimentar la pantalla.
+  // Aquestes dades defineixen el resum principal del progrés de l’usuari.
+  // Combinen comptadors generals, activitat recent, rànquings i dades temporals.
   final int completedPeaks;
   final int activeTargets;
   final int favorites;
@@ -38,8 +37,8 @@ class UserStats {
   final MostAscendedPeakStats? mostAscendedPeak;
   final ChallengeProgressStats? challengeProgress;
 
-  // Aquest constructor transforma la resposta de l’endpoint /api/stats
-  // en un objecte preparat per ser utilitzat pel controller i la pantalla.
+  // Aquest constructor transforma la resposta del backend en estadístiques d’usuari.
+  // Aplica valors segurs perquè la pantalla pugui carregar encara que falti algun camp.
   factory UserStats.fromJson(Map<String, dynamic> json) {
     final totalAltitudeMeters = _parseInt(json['totalAltitudeMeters']);
     final topAscendedPeaks = _parseTopAscendedPeaks(json['topAscendedPeaks']);
@@ -78,11 +77,11 @@ class UserStats {
   }
 
   // Aquest getter indica si l’usuari encara no té activitat registrada.
-  // Serà útil per mostrar un estat buit més clar a la pantalla.
+  // Permet mostrar un estat buit més clar a la pantalla.
   bool get hasNoActivity => totalAscents == 0 && completedPeaks == 0;
 
-  // Aquest mètode transforma la llista mensual rebuda del backend en objectes del domini.
-  // Si la resposta no té el format esperat, retorna una llista buida per evitar errors a la UI.
+  // Aquest mètode transforma la llista mensual rebuda del backend.
+  // Si la resposta no té el format esperat, retorna una llista buida.
   static List<MonthlyAscentsStats> _parseMonthlyAscents(dynamic value) {
     if (value is! List) {
       return const [];
@@ -96,8 +95,8 @@ class UserStats {
         .toList();
   }
 
-  // Aquest mètode transforma el top de cims més coronats en objectes preparats.
-  // Permet mostrar el rànquing sense dependre directament del JSON del backend.
+  // Aquest mètode transforma el rànquing de cims més repetits.
+  // Permet mostrar el top de cims sense dependre directament del JSON.
   static List<MostAscendedPeakStats> _parseTopAscendedPeaks(dynamic value) {
     if (value is! List) {
       return const [];
@@ -111,8 +110,8 @@ class UserStats {
         .toList();
   }
 
-  // Aquest mètode transforma les ascensions recents rebudes del backend en objectes preparats.
-  // Es manté per compatibilitat amb altres pantalles o fluxos que encara puguin consumir-les.
+  // Aquest mètode transforma les ascensions recents rebudes del backend.
+  // Es manté per alimentar fluxos que encara mostren activitat recent.
   static List<RecentAscentStats> _parseRecentAscents(dynamic value) {
     if (value is! List) {
       return const [];
@@ -134,8 +133,8 @@ class UserStats {
     return <String, dynamic>{};
   }
 
-  // Aquest mètode converteix diferents formats numèrics en enters.
-  // Dona robustesa davant possibles variacions en la resposta del backend.
+  // Aquestes funcions converteixen valors simples del JSON a tipus segurs.
+  // Permeten aplicar valors per defecte quan algun camp no arriba informat.
   static int _parseInt(dynamic value, {int defaultValue = 0}) {
     if (value is int) return value;
     if (value is num) return value.toInt();
@@ -143,8 +142,6 @@ class UserStats {
     return defaultValue;
   }
 
-  // Aquest mètode converteix valors opcionals en enters quan existeixen.
-  // Manté el valor nul quan la dada no arriba informada pel backend.
   static int? _parseNullableInt(dynamic value) {
     if (value == null) return null;
     if (value is int) return value;
@@ -153,8 +150,6 @@ class UserStats {
     return null;
   }
 
-  // Aquest mètode transforma qualsevol valor simple en text segur.
-  // Permet aplicar valors per defecte quan el backend no envia un camp.
   static String _parseString(dynamic value, {String defaultValue = ''}) {
     if (value == null) return defaultValue;
     final text = value.toString().trim();
@@ -163,20 +158,20 @@ class UserStats {
 }
 
 // Aquesta entitat representa les ascensions agrupades per mes.
-// Servirà per alimentar el gràfic visual de progrés de la pantalla.
+// Serveix per alimentar el gràfic d’evolució de la pantalla d’estadístiques.
 class MonthlyAscentsStats {
   const MonthlyAscentsStats({
     required this.month,
     required this.total,
   });
 
-  // El backend pot enviar any i mes separats o una etiqueta ja preparada.
-  // El model normalitza aquesta informació perquè la UI treballi sempre igual.
+  // Aquestes dades representen un resum mensual d’activitat.
+  // El model normalitza el mes perquè la UI treballi sempre amb el mateix format.
   final String month;
   final int total;
 
-  // Aquest constructor transforma cada resum mensual del backend en una entitat tipada.
-  // Accepta tant total com count per adaptar-se a possibles variants del backend.
+  // Aquest constructor transforma cada resum mensual en una entitat tipada.
+  // Accepta variants de nom com total o count segons la resposta del backend.
   factory MonthlyAscentsStats.fromJson(Map<String, dynamic> json) {
     return MonthlyAscentsStats(
       month: _composeMonthLabel(
@@ -187,8 +182,8 @@ class MonthlyAscentsStats {
     );
   }
 
-  // Aquest getter retorna l’abreviatura del mes en català per al gràfic.
-  // Permet mostrar GEN, FEB, MAR... sota cada barra.
+  // Aquest getter retorna l’abreviatura del mes en català.
+  // Permet mostrar una etiqueta curta sota cada barra del gràfic.
   String get shortMonthLabel {
     final monthNumber = _monthNumberFromLabel(month);
 
@@ -214,8 +209,8 @@ class MonthlyAscentsStats {
     return labels[monthNumber - 1];
   }
 
-  // Aquest mètode combina any i mes en l'etiqueta "YYYY-MM".
-  // Si ja arriba una cadena mensual, es retorna tal com arriba.
+  // Aquest mètode combina any i mes en l’etiqueta YYYY-MM.
+  // Si ja arriba una cadena mensual, es conserva el valor rebut.
   static String _composeMonthLabel(dynamic year, dynamic month) {
     if (year == null && month is String) {
       return month;
@@ -232,14 +227,14 @@ class MonthlyAscentsStats {
     return '$parsedYear-$monthLabel';
   }
 
-  // Aquest mètode extreu el número de mes d'una etiqueta "YYYY-MM".
-  // Si el format no és vàlid, retorna zero perquè la UI pugui mostrar buit.
+  // Aquest mètode extreu el número de mes d’una etiqueta YYYY-MM.
+  // Si el format no és vàlid, retorna zero perquè la UI pugui mostrar un buit.
   static int _monthNumberFromLabel(String value) {
     if (value.length < 7) return 0;
     return int.tryParse(value.substring(5, 7)) ?? 0;
   }
 
-  // Aquest mètode assegura que el total mensual sempre sigui un enter vàlid.
+  // Aquest mètode assegura que el total mensual sigui un enter vàlid.
   static int _parseInt(dynamic value) {
     if (value is int) return value;
     if (value is num) return value.toInt();
@@ -248,8 +243,8 @@ class MonthlyAscentsStats {
   }
 }
 
-// Aquesta entitat representa el cim que l’usuari ha coronat més vegades.
-// També s’utilitza per formar el top 3 de cims més coronats.
+// Aquesta entitat representa un cim que l’usuari ha coronat diverses vegades.
+// També s’utilitza per construir el rànquing de cims més repetits.
 class MostAscendedPeakStats {
   const MostAscendedPeakStats({
     required this.peakId,
@@ -260,8 +255,8 @@ class MostAscendedPeakStats {
     this.imageUrl,
   });
 
-  // Aquest bloc conté la informació necessària per destacar cims repetits.
-  // La imatge és opcional i es mostra només quan el backend retorna una URL pública del cim.
+  // Aquestes dades permeten destacar cims repetits dins de les estadístiques.
+  // Inclouen identificació, nombre d’ascensions, altitud, regions i imatge opcional.
   final int peakId;
   final String peakName;
   final int totalAscents;
@@ -283,7 +278,7 @@ class MostAscendedPeakStats {
     );
   }
 
-  // Aquest mètode evita crear la targeta de cim repetit quan el backend no envia informació.
+  // Aquest mètode evita crear el model quan el backend no envia informació.
   static MostAscendedPeakStats? fromNullableJson(dynamic value) {
     if (value is Map<String, dynamic>) {
       return MostAscendedPeakStats.fromJson(value);
@@ -298,10 +293,11 @@ class MostAscendedPeakStats {
     return null;
   }
 
-  // Aquest getter prepara les comarques en un format senzill per a la UI.
+  // Aquest getter prepara les comarques en un format llegible per a la UI.
   String get formattedRegions => regions.join(', ');
 
-  // Aquest mètode converteix els valors numèrics del cim més repetit a enters segurs.
+  // Aquestes funcions adapten valors del JSON a tipus segurs.
+  // Permeten llegir identificadors, altituds, regions i textos opcionals.
   static int _parseInt(dynamic value) {
     if (value is int) return value;
     if (value is num) return value.toInt();
@@ -309,7 +305,6 @@ class MostAscendedPeakStats {
     return 0;
   }
 
-  // Aquest mètode interpreta valors numèrics opcionals com l'altitud del cim.
   static int? _parseNullableInt(dynamic value) {
     if (value == null) return null;
     if (value is int) return value;
@@ -318,7 +313,6 @@ class MostAscendedPeakStats {
     return null;
   }
 
-  // Aquest mètode normalitza la llista de comarques retornada pel backend.
   static List<String> _parseRegions(dynamic value) {
     if (value is! List) {
       return const [];
@@ -330,7 +324,6 @@ class MostAscendedPeakStats {
         .toList();
   }
 
-  // Aquest mètode valida textos opcionals com la URL de la imatge.
   static String? _parseNullableString(dynamic value) {
     final text = value?.toString().trim();
 
@@ -350,8 +343,7 @@ class MonthlyStreakStats {
     required this.best,
   });
 
-  // current representa la ratxa mensual activa.
-  // best representa la millor ratxa mensual registrada històricament.
+  // Aquestes dades indiquen la ratxa actual i la millor ratxa registrada.
   final int current;
   final int best;
 
@@ -373,8 +365,8 @@ class MonthlyStreakStats {
   }
 }
 
-// Aquesta entitat representa el progrés d'un repte concret.
-// En el disseny actual encaixa amb el repte rolling dels 100 cims.
+// Aquesta entitat representa el progrés d’un repte concret.
+// En el disseny actual encaixa amb el repte dels 100 cims.
 class ChallengeProgressStats {
   const ChallengeProgressStats({
     required this.current,
@@ -384,8 +376,7 @@ class ChallengeProgressStats {
     this.windowEnd,
   });
 
-  // current és el nombre de cims únics dins la finestra rolling.
-  // windowStart i windowEnd delimiten la finestra temporal del repte.
+  // Aquestes dades indiquen el progrés del repte i la seva finestra temporal.
   final int current;
   final int target;
   final int? percentage;
@@ -393,7 +384,7 @@ class ChallengeProgressStats {
   final String? windowEnd;
 
   // Aquest constructor transforma la informació del repte rebuda del backend.
-  // Accepta "completed" i "current" per tolerar variacions de contracte.
+  // Accepta current o completed per tolerar variants del contracte.
   factory ChallengeProgressStats.fromJson(Map<String, dynamic> json) {
     return ChallengeProgressStats(
       current: _parseInt(json['completed'] ?? json['current']),
@@ -419,7 +410,8 @@ class ChallengeProgressStats {
     return null;
   }
 
-  // Aquest mètode assegura que els valors del repte sempre siguin enters.
+  // Aquestes funcions adapten valors del JSON a tipus segurs.
+  // Permeten llegir el progrés i les dates opcionals de la finestra del repte.
   static int _parseInt(dynamic value) {
     if (value is int) return value;
     if (value is num) return value.toInt();
@@ -427,7 +419,6 @@ class ChallengeProgressStats {
     return 0;
   }
 
-  // Aquest mètode interpreta valors numèrics opcionals sense perdre null.
   static int? _parseNullableInt(dynamic value) {
     if (value == null) return null;
     if (value is int) return value;
@@ -436,7 +427,6 @@ class ChallengeProgressStats {
     return null;
   }
 
-  // Aquest mètode normalitza les dates ISO de la finestra del repte.
   static String? _parseNullableString(dynamic value) {
     final text = value?.toString().trim();
 
@@ -448,8 +438,8 @@ class ChallengeProgressStats {
   }
 }
 
-// Aquesta entitat representa una ascensió recent amb la informació necessària.
-// Es manté per compatibilitat amb fluxos que encara puguin consultar activitat recent.
+// Aquesta entitat representa una ascensió recent amb informació resumida.
+// Es manté per mostrar activitat recent en estadístiques o altres pantalles.
 class RecentAscentStats {
   const RecentAscentStats({
     required this.id,
@@ -461,8 +451,8 @@ class RecentAscentStats {
     this.imageUrl,
   });
 
-  // Aquest bloc conté identificadors, informació del cim, data i classificació territorial.
-  // La imatge és opcional i permet mostrar la foto pública del cim quan està disponible.
+  // Aquestes dades descriuen una ascensió recent i el cim associat.
+  // La imatge és opcional i es mostra només quan el backend retorna una URL pública.
   final int id;
   final int peakId;
   final String peakName;
@@ -486,10 +476,11 @@ class RecentAscentStats {
     );
   }
 
-  // Aquest getter prepara les comarques en un format senzill per a la UI.
+  // Aquest getter prepara les comarques en un format llegible per a la UI.
   String get formattedRegions => regions.join(', ');
 
-  // Aquest mètode transforma la llista de regions del backend en textos nets.
+  // Aquestes funcions adapten valors del JSON a tipus segurs.
+  // Permeten llegir regions, identificadors, altituds, dates i textos opcionals.
   static List<String> _parseRegions(dynamic value) {
     if (value is! List) {
       return const [];
@@ -501,7 +492,6 @@ class RecentAscentStats {
         .toList();
   }
 
-  // Aquest mètode converteix identificadors i altituds a enters segurs.
   static int _parseInt(dynamic value) {
     if (value is int) return value;
     if (value is num) return value.toInt();
@@ -509,7 +499,6 @@ class RecentAscentStats {
     return 0;
   }
 
-  // Aquest mètode transforma la data de l’ascensió en una data simple sense hora.
   static DateTime _parseDateOnly(dynamic value) {
     if (value is String) {
       final datePart = value.length >= 10 ? value.substring(0, 10) : value;
@@ -529,7 +518,6 @@ class RecentAscentStats {
     return DateTime.now();
   }
 
-  // Aquest mètode valida textos opcionals com la URL de la imatge.
   static String? _parseNullableString(dynamic value) {
     final text = value?.toString().trim();
 

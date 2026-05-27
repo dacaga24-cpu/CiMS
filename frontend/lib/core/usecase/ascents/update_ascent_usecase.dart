@@ -6,8 +6,12 @@ import 'package:cims/core/entity/ascent.dart';
 class UpdateAscentUseCase {
   const UpdateAscentUseCase(this._apiClient);
 
+  // Aquest client permet actualitzar l’ascensió a través del backend.
+  // Això manté la pantalla separada dels detalls de la petició.
   final ApiClient _apiClient;
 
+  // Envia les dades modificades d’una ascensió concreta.
+  // El paràmetre includeAscentDate permet evitar canvis de data quan el registre la té bloquejada.
   Future<Ascent> call({
     required int ascentId,
     required DateTime? ascentDate,

@@ -4,8 +4,8 @@ import 'package:cims/app/widgets/buttons/secondary_pill_button.dart';
 import 'package:cims/app/widgets/forms/password_text_field.dart';
 import 'package:flutter/material.dart';
 
-// Aquest formulari demana la contrasenya actual abans de desactivar el compte.
-// Serveix per confirmar una acció sensible i evitar desactivacions accidentals.
+// Aquest formulari confirma la desactivació del compte.
+// Demana la contrasenya actual perquè és una acció sensible.
 class ProfileDeleteAccountForm extends StatelessWidget {
   const ProfileDeleteAccountForm({
     super.key,
@@ -17,6 +17,7 @@ class ProfileDeleteAccountForm extends StatelessWidget {
     required this.onDelete,
   });
 
+  // Aquestes dades controlen el camp de contrasenya, la validació i les accions del formulari.
   final TextEditingController passwordController;
   final bool showValidation;
   final bool isLoading;
@@ -45,10 +46,8 @@ class ProfileDeleteAccountForm extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          // Aquest avís remarca el caràcter delicat de l'acció. El missatge
-          // queda voluntàriament conservador: el backend pot canviar entre
-          // "desactivar" i "eliminar" i preferim no prometre comportaments
-          // que després no es compleixin.
+          // Aquest avís explica la conseqüència principal de l’acció.
+          // Ajuda l’usuari a confirmar la decisió abans d’introduir la contrasenya.
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(

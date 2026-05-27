@@ -1,6 +1,5 @@
 // Aquesta entitat representa l’estat de verificació d’una ascensió.
-// Permet saber si una ascensió ha estat validada amb ubicació, si queda pendent
-// o si ha estat rebutjada pel backend.
+// Permet saber si una ascensió ha estat validada, queda pendent o ha estat rebutjada.
 class AscentVerification {
   const AscentVerification({
     required this.id,
@@ -11,6 +10,8 @@ class AscentVerification {
     this.reason,
   });
 
+  // Aquestes dades descriuen el resultat de la verificació.
+  // Inclouen el mètode utilitzat, l’estat final i informació útil per mostrar el motiu.
   final int id;
   final String method;
   final String status;
@@ -18,6 +19,8 @@ class AscentVerification {
   final DateTime? checkedAt;
   final String? reason;
 
+  // Aquest constructor transforma la resposta del backend en una verificació d’ascensió.
+  // Accepta diferents noms de camp per mantenir compatibilitat amb el format rebut.
   factory AscentVerification.fromJson(Map<String, dynamic> json) {
     return AscentVerification(
       id: _parseInt(json['id'], 'id'),
@@ -33,10 +36,13 @@ class AscentVerification {
     );
   }
 
+  // Aquests accessors faciliten consultar l’estat de la verificació des de la interfície.
   bool get isVerified => status == 'verified';
   bool get isPending => status == 'pending';
   bool get isRejected => status == 'rejected';
 
+  // Aquestes funcions adapten valors del JSON a tipus segurs.
+  // Permeten validar camps obligatoris i tolerar valors opcionals absents.
   static int _parseInt(dynamic value, String fieldName) {
     if (value is int) return value;
     if (value is num) return value.toInt();

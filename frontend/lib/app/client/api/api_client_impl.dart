@@ -24,7 +24,7 @@ import 'package:cims/core/entity/peak_hourly_weather.dart';
 import 'package:http/http.dart' as http;
 
 // Aquests fitxers separen les peticions de l’API per àmbits funcionals.
-// Això permet mantenir aquest arxiu com a punt central sense acumular tota la lògica en un sol lloc.
+// Això manté el client principal ordenat i facilita la lectura del projecte.
 part 'api_client_impl_auth.dart';
 part 'api_client_impl_peaks.dart';
 part 'api_client_impl_profile.dart';
@@ -36,28 +36,25 @@ part 'api_client_impl_monthly_challenge.dart';
 part 'api_client_impl_weather.dart';
 
 // Aquesta classe base centralitza la infraestructura comuna del client d’API.
-// Les operacions funcionals es reparteixen en fitxers separats per àmbit
-// per mantenir el codi més ordenat i fàcil de seguir.
+// Les operacions funcionals es reparteixen en fitxers separats per àmbit.
 abstract class _ApiClientBase {
-  // Aquest constructor permet crear el client d’API amb la configuració habitual
-  // de l’aplicació, però també deixa oberta la possibilitat d’injectar dependències
-  // concretes en proves o en altres entorns.
+  // Aquest constructor permet crear el client amb la configuració habitual.
+  // També facilita injectar dependències concretes en proves o altres entorns.
   _ApiClientBase({
     http.Client? client,
     String? baseUrl,
   })  : _client = client ?? http.Client(),
         _baseUrl = baseUrl ?? ApiConfig.baseUrl;
 
-  // Aquest bloc guarda els elements bàsics necessaris per fer peticions:
-  // el client HTTP real i l’adreça base del backend.
+  // Aquest bloc guarda els elements bàsics per fer peticions al backend.
   final http.Client _client;
 
-  // Aquesta variable guarda l’adreça base del servidor per construir
-  // totes les URLs de l’API de manera centralitzada.
+  // Aquesta variable guarda l’adreça base del servidor.
+  // S’utilitza per construir totes les URLs de l’API de manera centralitzada.
   final String _baseUrl;
 
-  // Aquest mètode permet fer peticions POST JSON tant públiques com autenticades.
-  // Si l’endpoint és protegit, afegeix automàticament el token guardat a la sessió.
+  // Aquest mètode permet fer peticions POST amb cos JSON.
+  // Si l’endpoint és protegit, afegeix automàticament el token de sessió.
   Future<http.Response> _postJson(
     String endpoint, {
     required Map<String, dynamic> body,
@@ -79,8 +76,8 @@ abstract class _ApiClientBase {
     return response;
   }
 
-  // Aquest mètode permet fer peticions PUT JSON sobre endpoints autenticats.
-  // S’utilitzarà quan calgui modificar dades ja existents, com l’estat personal d’un cim.
+  // Aquest mètode permet fer peticions PUT amb cos JSON.
+  // S’utilitza per modificar dades existents al backend.
   Future<http.Response> _putJson(
     String endpoint, {
     required Map<String, dynamic> body,
@@ -102,14 +99,8 @@ abstract class _ApiClientBase {
     return response;
   }
 
-  // Aquest mètode encapsula les peticions GET de l’aplicació
-  // per reutilitzar la mateixa construcció d’headers i el mateix control d’errors d’autenticació.
-  //
-  // `attachTokenIfAvailable` és un mode diferent de `requiresAuth`: si hi
-  // ha token, l'afegim a la petició perquè el backend pugui aplicar
-  // funcionalitat enriquida (per exemple, filtres per estat d'usuari al
-  // catàleg públic). Si no n'hi ha, NO forcem logout: la petició surt sense
-  // header i el backend tracta el client com a anònim.
+  // Aquest mètode encapsula les peticions GET de l’aplicació.
+  // Pot enviar el token quan és obligatori o només quan existeix per enriquir rutes públiques.
   Future<http.Response> _getJson(
     String endpoint, {
     Map<String, String>? queryParameters,
@@ -141,14 +132,7 @@ abstract class _ApiClientBase {
   }
 
   // Aquest mètode construeix els headers comuns de les peticions.
-  // - `requiresAuth: true` exigeix token vàlid: si manca o és invàlid,
-  //   l'aplicació força logout i llança ApiUnauthorizedException.
-  // - `attachTokenIfAvailable: true` és més permissiu: si hi ha token,
-  //   l'afegim; si no, retornem els headers sense Authorization i la
-  //   petició surt com a anònima. NO força logout. Pensat per a rutes
-  //   públiques que enriqueixen la resposta amb dades de l'usuari quan
-  //   l'usuari està connectat (filtre `?status=` al catàleg).
-  // Si tots dos flags són false (default), no s'envia mai token.
+  // Gestiona quan cal exigir token i quan només s’ha d’afegir si ja existeix.
   Future<Map<String, String>> _buildHeaders({
     bool requiresAuth = false,
     bool attachTokenIfAvailable = false,
@@ -160,8 +144,8 @@ abstract class _ApiClientBase {
     if (requiresAuth) {
       final token = await AppSession.storage.readToken();
 
-      // Si no hi ha token disponible, l’aplicació tracta aquesta situació
-      // com una sessió no vàlida i força la sortida de l’usuari.
+      // Si no hi ha token, la sessió es considera no vàlida.
+      // L’aplicació neteja la sessió local i força el retorn al login.
       if (token == null || token.isEmpty) {
         await AppSession.handleUnauthorized();
         throw const ApiUnauthorizedException();
@@ -181,8 +165,8 @@ abstract class _ApiClientBase {
     return headers;
   }
 
-  // Aquest bloc centralitza el comportament davant d’un 401 en endpoints protegits.
-  // A curt termini, és suficient: es neteja la sessió local i es redirigeix l’usuari a login.
+  // Aquest mètode centralitza el comportament davant d’un 401 en rutes protegides.
+  // Quan el token ja no és vàlid, neteja la sessió i informa l’aplicació.
   Future<void> _handleUnauthorizedIfNeeded(
     http.Response response, {
     required bool requiresAuth,
@@ -195,7 +179,7 @@ abstract class _ApiClientBase {
   }
 
   // Aquest mètode intenta convertir el cos de la resposta en un mapa JSON.
-  // Si el servidor no retorna un format vàlid, es retorna null per poder gestionar-ho sense trencar l’app.
+  // Si el format no és vàlid, retorna null perquè el servei pugui gestionar l’error.
   Map<String, dynamic>? _tryParseJson(String body) {
     if (body.isEmpty) return null;
 
@@ -211,7 +195,7 @@ abstract class _ApiClientBase {
   }
 
   // Aquest mètode intenta convertir el cos de la resposta en una llista JSON.
-  // És útil per processar col·leccions com el catàleg de cims sense barrejar aquesta lògica amb la UI.
+  // És útil per processar col·leccions rebudes del backend.
   List<dynamic>? _tryParseJsonList(String body) {
     if (body.isEmpty) return null;
 
@@ -227,12 +211,11 @@ abstract class _ApiClientBase {
   }
 
   // Aquest mètode elimina una ascensió concreta de l’usuari autenticat.
-  // El backend comprova la propietat del registre i actualitza l’estat completat del cim si cal.
+  // El backend comprova la propietat i actualitza els estats relacionats.
   Future<void> deleteAscent(int ascentId);
 
-  // Aquest mètode permet fer peticions DELETE JSON sobre endpoints autenticats.
+  // Aquest mètode permet fer peticions DELETE amb cos JSON opcional.
   // S’utilitza per accions destructives com eliminar fotos, ascensions o el compte.
-  // El body és opcional perquè alguns endpoints DELETE només necessiten l’identificador a la URL.
   Future<http.Response> _deleteJson(
     String endpoint, {
     Map<String, dynamic>? body,
@@ -255,8 +238,8 @@ abstract class _ApiClientBase {
   }
 }
 
-// Aquesta classe exposa un únic punt d’entrada cap al client d’API,
-// però delega cada bloc funcional a fitxers separats.
+// Aquesta classe exposa un únic punt d’entrada cap al client d’API.
+// Cada bloc funcional es delega als mixins corresponents.
 class ApiClientImpl extends _ApiClientBase
     with
         _AuthApiClientImplMixin,
@@ -269,7 +252,7 @@ class ApiClientImpl extends _ApiClientBase
         _MonthlyChallengeApiClientImplMixin,
         _WeatherApiClientImplMixin
     implements ApiClient {
-  // Aquest constructor permet crear el client final de l’API.
+  // Aquest constructor crea el client final de l’API.
   // Reutilitza la configuració comuna definida a la classe base.
   ApiClientImpl({
     super.client,

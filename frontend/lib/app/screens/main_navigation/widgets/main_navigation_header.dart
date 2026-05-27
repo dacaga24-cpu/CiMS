@@ -1,8 +1,8 @@
 import 'package:cims/app/widgets/profile/profile_avatar.dart';
 import 'package:flutter/material.dart';
 
-// Aquesta capçalera forma part de la navegació principal compartida.
-// Mostra l’accés al perfil i delega l’acció de navegació a la pantalla pare.
+// Aquesta capçalera forma part de la navegació principal.
+// Mostra l’accés al perfil i delega l’acció a la pantalla pare.
 class MainNavigationHeader extends StatelessWidget {
   const MainNavigationHeader({
     super.key,
@@ -10,6 +10,7 @@ class MainNavigationHeader extends StatelessWidget {
     this.profilePhotoUrl,
   });
 
+  // Aquestes dades defineixen l’acció del perfil i la imatge que s’ha de mostrar.
   final VoidCallback onProfileTap;
   final String? profilePhotoUrl;
 
@@ -18,9 +19,6 @@ class MainNavigationHeader extends StatelessWidget {
     return Row(
       children: [
         const Spacer(),
-        // Semantics + Tooltip per fer evident que aquest avatar és el botó
-        // d'accés al perfil. Abans no tenia cap label exposat al lector de
-        // pantalla i tampoc no donava cap pista visual del seu propòsit.
         Semantics(
           label: 'Perfil i configuració',
           button: true,

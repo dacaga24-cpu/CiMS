@@ -15,8 +15,8 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 
-// Aquest enum indica si la pantalla ha de navegar després de crear l’ascensió.
-// Permet separar la decisió del controller de la navegació real de la pantalla.
+// Aquest enum indica la navegació pendent després de crear una ascensió verificada.
+// La pantalla resol l’acció sense barrejar navegació i lògica del controller.
 enum AscentVerificationDestination {
   none,
   editAscent,
@@ -24,41 +24,32 @@ enum AscentVerificationDestination {
 }
 
 // Aquest enum identifica el tipus d’error que ha aturat el flux de verificació.
-// La pantalla l’utilitza per oferir l’acció correcta (reintentar, obrir ajustos…).
-// Quan no hi ha error actiu, el controller exposa errorKind = null (per això
-// no hi ha cap valor "none" aquí: representem l’absència d’error amb null).
+// Permet que la pantalla mostri el missatge i l’acció més adequada.
 enum AscentVerificationErrorKind {
-  // Errors del flux de captura d’ubicació.
   locationServiceDisabled,
   locationPermissionDenied,
   locationPermissionDeniedForever,
   locationTimeout,
   locationUnknown,
-
-  // Errors del flux de la càmera.
   cameraPermissionDenied,
   cameraCancelled,
   cameraFailed,
-
-  // Errors de l’enviament final al backend. Es desglossen perquè la pantalla
-  // pugui oferir l’acció correcta (reintentar, tornar al login, etc.).
   submitNetwork,
   submitRejected,
   submitSessionExpired,
   submitUnknown,
 }
 
-// Aquesta excepció interna porta el tipus d’error fins al catch del controller
-// sense barrejar-se amb altres excepcions del sistema.
+// Aquesta excepció interna transporta el tipus d’error d’ubicació.
+// Permet tractar el flux de captura amb missatges específics.
 class _LocationCaptureFailure implements Exception {
   const _LocationCaptureFailure(this.kind);
 
   final AscentVerificationErrorKind kind;
 }
 
-// Parell d’ús intern que retorna _translateSubmitError per propagar alhora
-// el tipus i el missatge ja traduït a català, sense exposar-los com a tuples
-// (els records requeririen Dart 3+ i ara la SDK mínima del projecte és 2.19).
+// Aquesta classe agrupa el tipus i el missatge d’un error d’enviament.
+// Facilita mostrar textos clars sense exposar detalls tècnics del backend.
 class _SubmitErrorTranslation {
   const _SubmitErrorTranslation(this.kind, this.message);
 
@@ -66,9 +57,8 @@ class _SubmitErrorTranslation {
   final String message;
 }
 
-// Aquest controller gestiona el flux de verificació ràpida.
-// Primer captura ubicació i data, després proposa cims propers
-// i finalment obre la càmera quan l’usuari ja ha triat el cim.
+// Aquest controller gestiona el flux de verificació ràpida d’una ascensió.
+// Captura ubicació, proposa cims propers, gestiona la foto i crea el registre verificat.
 class AscentVerificationController extends ChangeNotifier {
   AscentVerificationController({
     ImagePicker? imagePicker,
@@ -88,16 +78,11 @@ class AscentVerificationController extends ChangeNotifier {
         _userStatsRefreshStore =
             userStatsRefreshStore ?? AppSession.userStatsRefreshStore;
 
-  // Aquest temps màxim evita que la captura de GPS quedi penjada
-  // quan el dispositiu no aconsegueix una posició fiable.
+  // Aquest temps màxim evita que la captura d’ubicació quedi bloquejada.
   static const Duration _locationTimeout = Duration(seconds: 20);
 
-  // Aquesta configuració redueix el pes de la foto de verificació abans de pujar-la.
-  // FlutterImageCompress interpreta minWidth/minHeight com a dimensions mínimes
-  // del costat resultant; manté la imatge dins d’una caixa de 1920px sense
-  // ampliar-la si ja és més petita. Els valors coincideixen amb el registre
-  // normal d’ascensions (vegeu AscentRegisterController) i amb el límit de
-  // 8 MB del bucket configurat al backend.
+  // Aquesta configuració redueix el pes de la foto abans de pujar-la.
+  // Manté qualitat suficient per usar-la com a evidència dins de l’aplicació.
   static const int _minPhotoWidth = 1920;
   static const int _minPhotoHeight = 1920;
   static const int _photoJpegQuality = 82;
@@ -108,11 +93,13 @@ class AscentVerificationController extends ChangeNotifier {
   final UploadAscentPhotoUseCase _uploadAscentPhotoUseCase;
   final CreateVerifiedAscentUseCase _createVerifiedAscentUseCase;
 
-  // Aquests stores compartits permeten reflectir el canvi a la resta de pantalles.
-  // Quan es crea una ascensió verificada, el cim passa a completat i verificat.
+  // Aquests stores permeten reflectir el canvi a la resta de pantalles.
+  // Quan es crea una ascensió verificada, el cim queda completat i verificat.
   final PeakStatusStore _peakStatusStore;
   final UserStatsRefreshStore _userStatsRefreshStore;
 
+  // Aquestes dades mantenen l’estat intern del flux de verificació.
+  // Inclouen càrrega, missatges, error actiu, ubicació, foto, cim seleccionat i navegació.
   bool _disposed = false;
   bool _isPreparingCapture = false;
   bool _isLoadingNearbyPeaks = false;
@@ -146,33 +133,27 @@ class AscentVerificationController extends ChangeNotifier {
   bool get hasEvidence => _position != null && _photoBytes != null;
   bool get hasSelectedPeak => _selectedNearbyPeakCandidate != null;
 
-  // Aquest getter indica si l’error actual es resol obrint la configuració del
-  // sistema (servei d’ubicació desactivat). A web no s’ofereix perquè el botó
-  // natiu d’ubicació del sistema no aplica al navegador. La pantalla l’utilitza
-  // per decidir si mostra el botó corresponent.
+  // Aquest getter indica si l’error es pot resoldre obrint la configuració d’ubicació.
+  // A web no s’ofereix perquè els permisos es gestionen des del navegador.
   bool get errorNeedsLocationSettings =>
       !kIsWeb &&
       _errorKind == AscentVerificationErrorKind.locationServiceDisabled;
 
-  // Aquest getter indica si l’error actual es resol obrint la configuració de
-  // l’app (permís denegat per sempre o denegat per la càmera). A web tampoc
-  // s’ofereix perquè els permisos del navegador es gestionen des de la
-  // mateixa pestanya, no des d’una pantalla d’ajustos de l’aplicació.
+  // Aquest getter indica si l’error es pot resoldre obrint la configuració de l’app.
+  // S’utilitza per permisos bloquejats de càmera o ubicació en dispositius natius.
   bool get errorNeedsAppSettings =>
       !kIsWeb &&
       (_errorKind ==
               AscentVerificationErrorKind.locationPermissionDeniedForever ||
           _errorKind == AscentVerificationErrorKind.cameraPermissionDenied);
 
-  // Aquest mètode neteja la navegació pendent després que la pantalla l’hagi consumit.
-  // Evita repetir la mateixa navegació en futures notificacions del controller.
+  // Aquest mètode neteja la navegació pendent després que la pantalla l’hagi resolt.
   void consumeNavigation() {
     _destination = AscentVerificationDestination.none;
   }
 
-  // Aquest helper garanteix que _errorKind i _errorMessage es mantenen
-  // sempre coherents: tots dos s’actualitzen alhora i no hi ha cap branca
-  // que oblidi cap dels dos camps. Passar kind=null neteja l’error.
+  // Aquest mètode actualitza el tipus i el missatge d’error alhora.
+  // Manté l’estat d’error coherent per a la pantalla.
   void _setError({
     required AscentVerificationErrorKind? kind,
     required String? message,
@@ -185,8 +166,8 @@ class AscentVerificationController extends ChangeNotifier {
     _setError(kind: null, message: null);
   }
 
-  // Aquest mètode inicia la verificació capturant ubicació i data.
-  // Després carrega els cims propers perquè l’usuari triï el cim abans de fer la foto.
+  // Aquest mètode inicia el flux capturant ubicació i data.
+  // Després carrega els cims propers perquè l’usuari seleccioni quin vol verificar.
   Future<void> prepareCapture() async {
     if (_isPreparingCapture) {
       return;
@@ -226,7 +207,7 @@ class AscentVerificationController extends ChangeNotifier {
   }
 
   // Aquest mètode selecciona el cim que l’usuari vol verificar.
-  // El backend rebrà aquest cim juntament amb la foto i la ubicació capturada.
+  // El cim triat s’enviarà al backend amb la foto i la ubicació capturada.
   void selectNearbyPeakCandidate(NearbyPeakCandidate candidate) {
     _selectedNearbyPeakCandidate = candidate;
     _message = 'Cim seleccionat: ${candidate.peak.name}.';
@@ -250,20 +231,18 @@ class AscentVerificationController extends ChangeNotifier {
     await prepareCapture();
   }
 
-  // Aquest mètode obre la configuració del sistema per activar el servei d’ubicació.
-  // Es fa servir quan la captura ha fallat perquè el GPS estava desactivat.
+  // Aquest mètode obre la configuració del sistema per activar la ubicació.
   Future<void> openLocationSystemSettings() async {
     await Geolocator.openLocationSettings();
   }
 
-  // Aquest mètode obre la pantalla de permisos de l’app dins de la configuració.
-  // Permet recuperar permisos denegats per sempre per a càmera o ubicació.
+  // Aquest mètode obre la configuració de permisos de l’aplicació.
   Future<void> openAppSystemSettings() async {
     await Geolocator.openAppSettings();
   }
 
-  // Aquest mètode obre la càmera quan ja hi ha un cim seleccionat.
-  // La foto capturada serà l’evidència visual associada a l’ascensió verificada.
+  // Aquest mètode obre la càmera quan ja hi ha ubicació i cim seleccionat.
+  // La foto capturada serà l’evidència visual de l’ascensió verificada.
   Future<void> _capturePhoto() async {
     if (_isPreparingCapture) {
       return;
@@ -280,8 +259,6 @@ class AscentVerificationController extends ChangeNotifier {
     }
 
     if (_selectedNearbyPeakCandidate == null) {
-      // Aquest avís és una pista de validació de formulari, no un estat
-      // d’error del flux: per això no s’associa cap kind concret.
       _setError(
         kind: null,
         message: 'Selecciona quin cim vols verificar abans de fer la foto.',
@@ -313,10 +290,8 @@ class AscentVerificationController extends ChangeNotifier {
 
       final originalBytes = await pickedImage.readAsBytes();
 
-      // La foto es comprimeix abans de pujar-la perquè les càmeres dels mòbils
-      // generen fitxers de diversos megabytes que poden superar el temps màxim
-      // d’espera en xarxes mòbils. La compressió i la conversió a JPEG mantenen
-      // l’evidència visible amb un pes molt inferior i compatible amb el bucket.
+      // Aquesta compressió prepara la foto abans de pujar-la.
+      // Redueix el pes de la imatge sense perdre la funció d’evidència visual.
       final compressedBytes = await FlutterImageCompress.compressWithList(
         originalBytes,
         minWidth: _minPhotoWidth,
@@ -325,10 +300,6 @@ class AscentVerificationController extends ChangeNotifier {
         format: CompressFormat.jpeg,
       );
 
-      // Si el plugin nadiu no pot processar la imatge (formats poc habituals,
-      // memòria insuficient, errors interns) retorna una llista buida sense
-      // llançar excepció. Si ho deixem passar, intentaríem pujar 0 bytes i
-      // l’error apareixeria molt més tard amb un missatge poc útil.
       if (compressedBytes.isEmpty) {
         debugPrint(
           '[AscentVerificationController] Photo compression returned empty bytes',
@@ -369,7 +340,7 @@ class AscentVerificationController extends ChangeNotifier {
   }
 
   // Aquest mètode puja la foto i crea l’ascensió verificada al backend.
-  // Serveix tant per completar-la al moment com per deixar-la creada i editar-la més endavant.
+  // Serveix tant per completar-la al moment com per deixar-la per editar més endavant.
   Future<void> _submitVerifiedAscent({
     required bool completeNow,
   }) async {
@@ -381,9 +352,6 @@ class AscentVerificationController extends ChangeNotifier {
     if (currentPosition == null ||
         currentCapturedAt == null ||
         currentPhotoBytes == null) {
-      // Aquests dos missatges són pistes de validació de formulari (estat
-      // incomplet abans de submit), no errors d’un flux iniciat. Per això
-      // s’associen sense kind concret.
       _setError(
         kind: null,
         message:
@@ -438,9 +406,6 @@ class AscentVerificationController extends ChangeNotifier {
           ? AscentVerificationDestination.editAscent
           : AscentVerificationDestination.back;
     } on ApiException catch (error) {
-      // Loguem el missatge cru del backend per facilitar el diagnòstic, però
-      // a l’usuari li mostrem un text traduït i sense fragments tècnics com
-      // paths del bucket o codis interns (vegeu _humanReadableSubmitError).
       debugPrint(
         '[AscentVerificationController] Submit ApiException '
         '(status=${error.statusCode}): ${error.message}',
@@ -464,7 +429,7 @@ class AscentVerificationController extends ChangeNotifier {
   }
 
   // Aquest mètode actualitza l’estat compartit després de crear una ascensió verificada.
-  // Així el catàleg, el mapa, el detall, el dashboard i les estadístiques poden refrescar-se.
+  // Permet refrescar catàleg, mapa, detall, dashboard i estadístiques.
   void _syncVerifiedAscentSideEffects(int peakId) {
     _peakStatusStore.markCompletedAndVerified(peakId);
     _userStatsRefreshStore.notifyStatsChanged();
@@ -494,8 +459,6 @@ class AscentVerificationController extends ChangeNotifier {
           candidates.isNotEmpty ? candidates.first : null;
 
       if (candidates.isEmpty) {
-        // "No hi ha cims propers" és un avís d’estat (no ha fallat cap petició),
-        // per això no es marca cap kind del flux: la UI només mostra el missatge.
         _setError(
           kind: null,
           message: 'No s\'ha trobat cap cim proper per verificar.',
@@ -517,7 +480,7 @@ class AscentVerificationController extends ChangeNotifier {
   }
 
   // Aquest mètode obté la posició actual del dispositiu.
-  // En web es deixa que el navegador gestioni el permís quan l’usuari inicia el flux.
+  // En web, el navegador gestiona directament el permís d’ubicació.
   Future<Position> _captureCurrentLocation() async {
     if (kIsWeb) {
       try {
@@ -574,10 +537,8 @@ class AscentVerificationController extends ChangeNotifier {
     }
   }
 
-  // Aquest mètode tradueix el tipus d’error d’ubicació en un missatge clar
-  // i marca el tipus perquè la pantalla mostri l’acció més útil. Els missatges
-  // canvien en web perquè a l’app les opcions de “configuració del sistema”
-  // no apliquen de la mateixa manera que al navegador.
+  // Aquest mètode tradueix errors d’ubicació en missatges clars.
+  // També marca el tipus perquè la pantalla pugui oferir l’acció adequada.
   void _applyLocationFailure(AscentVerificationErrorKind kind) {
     final String message;
     switch (kind) {
@@ -607,10 +568,8 @@ class AscentVerificationController extends ChangeNotifier {
     _setError(kind: kind, message: message);
   }
 
-  // Aquest mètode tradueix els errors del backend a un tipus + missatge en
-  // català sense exposar detalls interns (paths del bucket, codis com
-  // DEVICE_LOCATION_*…). El missatge cru es manté als logs per al diagnòstic,
-  // però no arriba a la UI.
+  // Aquest mètode transforma errors del backend en missatges adequats per a la UI.
+  // Evita mostrar codis interns o detalls tècnics a l’usuari.
   _SubmitErrorTranslation _translateSubmitError(ApiException error) {
     final lower = error.message.toLowerCase();
 
@@ -706,8 +665,8 @@ class AscentVerificationController extends ChangeNotifier {
     );
   }
 
-  // Aquest mètode centralitza la notificació de canvis
-  // i evita intentar actualitzar la vista quan el controller ja s’ha tancat.
+  // Aquest mètode centralitza la notificació de canvis.
+  // Evita actualitzar la vista quan el controller ja s’ha tancat.
   void _safeNotifyListeners() {
     if (!_disposed) {
       notifyListeners();

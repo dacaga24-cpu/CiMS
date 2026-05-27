@@ -12,6 +12,8 @@ import 'package:cims/app/widgets/layout/app_responsive.dart';
 import 'package:cims/core/entity/user_stats.dart';
 import 'package:flutter/material.dart';
 
+// Aquesta pantalla mostra les estadístiques personals de l’usuari.
+// Permet consultar el progrés, refrescar les dades i obrir el detall d’un cim.
 @RoutePage()
 class UserStatsScreen extends StatefulWidget {
   const UserStatsScreen({super.key});
@@ -20,6 +22,8 @@ class UserStatsScreen extends StatefulWidget {
   State<UserStatsScreen> createState() => _UserStatsScreenState();
 }
 
+// Aquest estat connecta la pantalla amb el controller d’estadístiques.
+// També resol la navegació cap al detall dels cims seleccionats.
 class _UserStatsScreenState extends State<UserStatsScreen> {
   late final UserStatsController controller;
 
@@ -30,12 +34,15 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
     controller.initialize();
   }
 
+  // Aquest mètode allibera el controller quan la pantalla es tanca.
   @override
   void dispose() {
     controller.dispose();
     super.dispose();
   }
 
+  // Aquest mètode construeix la pantalla segons l’estat de càrrega.
+  // Mostra càrrega inicial, error o el contingut estadístic quan hi ha dades disponibles.
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -80,14 +87,15 @@ class _UserStatsScreenState extends State<UserStatsScreen> {
     );
   }
 
-  // Obre el detall del cim demanat. Aquesta navegació es comparteix
-  // entre les diferents fileres de cims clickables (per exemple, el
-  // top 3 de cims més coronats).
+  // Aquest mètode obre el detall del cim seleccionat.
+  // Es reutilitza des de les targetes que mostren cims dins de les estadístiques.
   void _openPeakDetail(int peakId) {
     context.router.root.push(PeakDetailRoute(peakId: peakId));
   }
 }
 
+// Aquest widget agrupa el contingut principal de les estadístiques.
+// Adapta la distribució segons la mida de pantalla.
 class _UserStatsContent extends StatelessWidget {
   const _UserStatsContent({
     required this.stats,
@@ -95,6 +103,7 @@ class _UserStatsContent extends StatelessWidget {
     required this.onPeakTap,
   });
 
+  // Aquestes dades permeten pintar les mètriques i executar accions del controller.
   final UserStats stats;
   final UserStatsController controller;
   final ValueChanged<int> onPeakTap;
@@ -201,13 +210,8 @@ class _UserStatsContent extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
-            // `IntrinsicHeight` + `CrossAxisAlignment.stretch` força que les
-            // dues targetes d'una mateixa fila comparteixin l'altura del
-            // contingut més alt, en lloc d'alinear-se cadascuna a la seva
-            // altura natural (que provocava un escaló visual quan la card
-            // de Ratxa mensual era més baixa que Top 3). Cada `Expanded`
-            // pren la meitat de l'ample disponible amb el `SizedBox`
-            // intermedi com a separador.
+            // Aquesta fila iguala l’alçada de les dues targetes superiors.
+            // Manté una composició visual equilibrada en pantalles amples.
             IntrinsicHeight(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -262,6 +266,8 @@ class _UserStatsContent extends StatelessWidget {
     );
   }
 
+  // Aquest mètode afegeix separació vertical entre blocs.
+  // Permet reutilitzar la mateixa composició en formats compactes i mitjans.
   List<Widget> _withVerticalGaps(
     List<Widget> children, {
     required double firstGap,
@@ -283,6 +289,8 @@ class _UserStatsContent extends StatelessWidget {
   }
 }
 
+// Aquesta capçalera identifica la pantalla d’estadístiques.
+// Dona context sobre el tipus de progrés que es mostra.
 class _StatsHeader extends StatelessWidget {
   const _StatsHeader();
 
@@ -314,12 +322,15 @@ class _StatsHeader extends StatelessWidget {
   }
 }
 
+// Aquesta targeta mostra la ratxa mensual d’ascensions.
+// Compara la ratxa actual amb la millor ratxa registrada.
 class _StatsMonthlyStreakCard extends StatelessWidget {
   const _StatsMonthlyStreakCard({
     required this.current,
     required this.best,
   });
 
+  // Aquests valors representen la ratxa actual i la millor ratxa històrica.
   final int current;
   final int best;
 

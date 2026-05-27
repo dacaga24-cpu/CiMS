@@ -1,5 +1,5 @@
 // Aquest model representa la resposta paginada de la galeria de fotos.
-// Permet carregar les imatges de l'usuari progressivament sense demanar-les totes de cop.
+// Permet carregar les imatges de l’usuari progressivament sense demanar-les totes de cop.
 class AscentPhotoGalleryPage {
   const AscentPhotoGalleryPage({
     required this.items,
@@ -34,7 +34,7 @@ class AscentPhotoGalleryPage {
 }
 
 // Aquest model representa una foto dins de la galeria completa.
-// Manté la relació amb l'ascensió i el cim per poder donar context a cada imatge.
+// Manté la relació amb l’ascensió i el cim per donar context a cada imatge.
 class AscentPhotoGalleryItem {
   const AscentPhotoGalleryItem({
     required this.id,
@@ -48,8 +48,8 @@ class AscentPhotoGalleryItem {
     this.createdAt,
   });
 
-  // Aquestes dades permeten mostrar la imatge i identificar d'on prové.
-  // La data pot ser nul·la si l'ascensió es va registrar sense dia concret.
+  // Aquestes dades permeten mostrar la imatge i identificar d’on prové.
+  // La data pot ser nul·la si l’ascensió es va registrar sense dia concret.
   final int id;
   final int ascentId;
   final int peakId;
@@ -65,7 +65,7 @@ class AscentPhotoGalleryItem {
   String get displayAscentDate => ascentDate ?? 'Sense data';
 
   // Aquest constructor adapta el JSON de cada foto al format que consumeix la pantalla.
-  // Accepta noms en camelCase i snake_case per mantenir compatibilitat amb el backend.
+  // Accepta diferents noms de camp per mantenir compatibilitat amb el backend.
   factory AscentPhotoGalleryItem.fromJson(Map<String, dynamic> json) {
     return AscentPhotoGalleryItem(
       id: _asInt(json['id']),

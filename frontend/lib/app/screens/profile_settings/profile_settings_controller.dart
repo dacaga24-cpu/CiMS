@@ -14,21 +14,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 
-// Aquest enum representa les possibles navegacions que la pantalla pot executar.
-// La vista les consumeix i fa la navegació real des de fora del controller.
+// Aquest enum representa les navegacions que pot demanar la pantalla de perfil.
+// La vista les consumeix i executa la navegació real fora del controller.
 enum ProfileSettingsDestination {
   none,
   back,
   login,
 }
 
-// Aquest controller gestiona la càrrega del perfil, l’edició de dades personals,
-// el canvi de contrasenya, la foto de perfil i el tancament de sessió.
-// La pantalla només consumeix aquest estat i resol la part visual.
+// Aquest controller gestiona la pantalla de configuració del perfil.
+// Carrega el perfil, edita dades personals, canvia contrasenya, gestiona la foto,
+// desactiva el compte i controla el tancament de sessió.
 class ProfileSettingsController extends ChangeNotifier {
-  // FlutterImageCompress interpreta minWidth/minHeight com a dimensions mínimes
-  // del costat resultant. La foto de perfil es limita a una caixa de 768 px
-  // perquè sigui prou nítida als avatars i carregui ràpid.
+  // Aquestes constants defineixen com es prepara la foto de perfil abans de pujar-la.
+  // Redueixen el pes de la imatge mantenint una qualitat adequada per als avatars.
   static const int _profilePhotoMinWidth = 768;
   static const int _profilePhotoMinHeight = 768;
   static const int _profilePhotoJpegQuality = 82;
@@ -63,8 +62,8 @@ class ProfileSettingsController extends ChangeNotifier {
             DeleteProfilePhotoUseCase(ApiClientImpl()),
         _imagePicker = imagePicker ?? ImagePicker();
 
-  // Aquest bloc agrupa les dependències principals del controller.
-  // Permet consultar i modificar el perfil real de l’usuari autenticat.
+  // Aquestes dependències executen les accions principals del compte.
+  // Permeten separar la pantalla de la comunicació amb el backend i de la sessió local.
   final Future<void> Function()? _logoutAction;
   final ClearSessionUseCase _clearSessionUseCase;
   final GetUserProfileUseCase _getUserProfileUseCase;
@@ -72,32 +71,30 @@ class ProfileSettingsController extends ChangeNotifier {
   final ChangePasswordUseCase _changePasswordUseCase;
   final DeleteAccountUseCase _deleteAccountUseCase;
 
-  // Aquestes dependències gestionen la selecció, pujada i eliminació
-  // de la foto de perfil de l’usuari autenticat.
+  // Aquestes dependències gestionen la foto de perfil.
+  // Permeten seleccionar una imatge, pujar-la i eliminar-la sense posar aquesta lògica a la pantalla.
   final UploadProfilePhotoUseCase _uploadProfilePhotoUseCase;
   final DeleteProfilePhotoUseCase _deleteProfilePhotoUseCase;
   final ImagePicker _imagePicker;
 
-  // Aquests controladors guarden temporalment les dades del formulari de perfil.
-  // La pantalla els utilitza per editar el nom i cognoms sense gestionar lògica.
+  // Aquests controladors mantenen temporalment les dades del formulari de perfil.
   final TextEditingController firstNameController = TextEditingController();
   final TextEditingController lastNameController = TextEditingController();
 
-  // Aquests controladors guarden temporalment les dades del formulari de contrasenya.
-  // Permeten validar i enviar el canvi de contrasenya des del controller.
+  // Aquests controladors mantenen temporalment les dades del canvi de contrasenya.
+  // S’utilitzen per validar i enviar l’operació des del controller.
   final TextEditingController currentPasswordController =
       TextEditingController();
   final TextEditingController newPasswordController = TextEditingController();
   final TextEditingController confirmPasswordController =
       TextEditingController();
 
-  // Aquest controlador guarda temporalment la contrasenya actual.
-  // Es fa servir només per confirmar la desactivació del compte.
+  // Aquest controlador guarda la contrasenya necessària per confirmar la desactivació del compte.
   final TextEditingController deleteAccountPasswordController =
       TextEditingController();
 
-  // Aquest bloc manté l’estat principal de la pantalla:
-  // les dades del perfil, els estats de càrrega, els errors i el destí de navegació.
+  // Aquest bloc manté l’estat principal de la pantalla.
+  // Inclou perfil carregat, càrregues, validacions, missatges i navegació pendent.
   User? _user;
   User? get user => _user;
 
@@ -139,11 +136,8 @@ class ProfileSettingsController extends ChangeNotifier {
   ProfileSettingsDestination _destination = ProfileSettingsDestination.none;
   ProfileSettingsDestination get destination => _destination;
 
-  // Aquest getter construeix el nom que es mostrarà a la pantalla.
-  // Si encara no s’ha pogut carregar el perfil, retorna un text genèric.
-  // Normalitzem cada paraula a "Title Case" perquè el nom es vegi sempre
-  // amb la primera lletra en majúscula i la resta en minúscula, sense
-  // dependre de com l'hagi escrit l'usuari al registre.
+  // Aquest getter construeix el nom visible de l’usuari.
+  // Si el perfil encara no està carregat, retorna un text genèric.
   String get displayName {
     final currentUser = _user;
     if (currentUser == null) {
@@ -156,31 +150,32 @@ class ProfileSettingsController extends ChangeNotifier {
   }
 
   // Aquest getter retorna el correu del perfil carregat.
-  // És útil per mostrar informació bàsica del compte sense duplicar lògica a la pantalla.
+  // Permet mostrar informació bàsica del compte sense duplicar lògica a la pantalla.
   String get displayEmail {
     return _user?.email ?? '';
   }
 
-  // Aquest getter retorna la foto de perfil carregada.
-  // Permet que la pantalla mostri la imatge de l’usuari si existeix.
+  // Aquest getter retorna la foto de perfil actual.
+  // La pantalla l’utilitza per mostrar l’avatar de l’usuari.
   String? get profilePhotoUrl {
     return _user?.profilePhotoUrl;
   }
 
-  // Aquest getter indica si l’usuari té una foto de perfil associada.
-  // Permet decidir si cal mostrar opcions com eliminar la foto actual.
+  // Aquest getter indica si el perfil té una foto associada.
+  // Permet decidir si s’ha de mostrar l’opció d’eliminar la imatge actual.
   bool get hasProfilePhoto {
     final url = profilePhotoUrl;
     return url != null && url.isNotEmpty;
   }
 
-  // Aquest getter indica si el formulari de perfil té les dades mínimes necessàries.
+  // Aquest getter comprova si el formulari de perfil té les dades obligatòries.
   bool get isProfileFormValid {
     return firstNameController.text.trim().isNotEmpty &&
         lastNameController.text.trim().isNotEmpty;
   }
 
-  // Aquest getter indica si el formulari de contrasenya pot enviar-se al backend.
+  // Aquest getter comprova si el formulari de contrasenya és vàlid.
+  // Exigeix contrasenya actual, nova contrasenya mínima i confirmació coincident.
   bool get isPasswordFormValid {
     final currentPassword = currentPasswordController.text.trim();
     final newPassword = newPasswordController.text.trim();
@@ -191,13 +186,13 @@ class ProfileSettingsController extends ChangeNotifier {
         newPassword == confirmPassword;
   }
 
-  // Aquest getter comprova si el formulari de desactivació té la contrasenya necessària.
+  // Aquest getter comprova si la desactivació del compte té la contrasenya necessària.
   bool get isDeleteAccountFormValid {
     return deleteAccountPasswordController.text.trim().isNotEmpty;
   }
 
   // Aquest mètode carrega les dades del perfil autenticat.
-  // També actualitza l’estat visual perquè la pantalla pugui mostrar càrrega o errors.
+  // També actualitza el store compartit perquè la resta de la interfície tingui el mateix perfil.
   Future<void> loadProfile() async {
     if (_isLoadingProfile) return;
 
@@ -243,7 +238,7 @@ class ProfileSettingsController extends ChangeNotifier {
   }
 
   // Aquest mètode notifica canvis en el formulari de perfil.
-  // Permet que la pantalla actualitzi possibles validacions mentre l’usuari escriu.
+  // Permet actualitzar validacions i estat visual mentre l’usuari escriu.
   void onProfileFieldChanged() {
     if (!_disposed) {
       notifyListeners();
@@ -251,15 +246,15 @@ class ProfileSettingsController extends ChangeNotifier {
   }
 
   // Aquest mètode notifica canvis en el formulari de contrasenya.
-  // Permet validar coincidència i longitud abans d’enviar les dades.
+  // Permet actualitzar la validació de longitud i coincidència.
   void onPasswordFieldChanged() {
     if (!_disposed) {
       notifyListeners();
     }
   }
 
-  // Aquest mètode notifica canvis al formulari de desactivació.
-  // Permet mostrar la validació mentre l’usuari escriu la contrasenya.
+  // Aquest mètode notifica canvis en el formulari de desactivació.
+  // Permet mostrar la validació quan falta la contrasenya de confirmació.
   void onDeleteAccountFieldChanged() {
     if (!_disposed) {
       notifyListeners();
@@ -267,7 +262,7 @@ class ProfileSettingsController extends ChangeNotifier {
   }
 
   // Aquest mètode permet seleccionar una nova foto de perfil.
-  // La imatge es prepara en format JPEG, es puja al backend i actualitza el perfil compartit.
+  // Prepara la imatge, la puja al backend i actualitza el perfil compartit.
   Future<void> changeProfilePhoto() async {
     if (_isUpdatingProfilePhoto || _isLoadingProfile) {
       return;
@@ -332,7 +327,7 @@ class ProfileSettingsController extends ChangeNotifier {
   }
 
   // Aquest mètode elimina la foto de perfil actual.
-  // Després actualitza el perfil local i el store compartit perquè tota la interfície canviï alhora.
+  // Després actualitza el perfil local i el store compartit.
   Future<void> deleteProfilePhoto() async {
     if (_isUpdatingProfilePhoto || _isLoadingProfile) {
       return;
@@ -372,7 +367,7 @@ class ProfileSettingsController extends ChangeNotifier {
   }
 
   // Aquest mètode envia al backend les dades actualitzades del perfil.
-  // Si l’operació és correcta, actualitza l’usuari local i mostra un missatge de confirmació.
+  // Si l’operació és correcta, actualitza l’usuari local i el perfil compartit.
   Future<bool> saveProfileChanges() async {
     if (_isSavingProfile) return false;
 
@@ -423,7 +418,7 @@ class ProfileSettingsController extends ChangeNotifier {
   }
 
   // Aquest mètode envia al backend el canvi de contrasenya.
-  // Després d’una resposta correcta, neteja el formulari per evitar conservar dades sensibles.
+  // Després d’una resposta correcta, neteja el formulari per no conservar dades sensibles.
   Future<bool> changePassword() async {
     if (_isChangingPassword) return false;
 
@@ -452,18 +447,14 @@ class ProfileSettingsController extends ChangeNotifier {
       _successMessage = 'Contrasenya actualitzada correctament';
       return true;
     } on ApiUnauthorizedException {
-      // Aquí només arribem si el middleware d'autenticació rebutja el token
-      // (sessió caducada/inexistent), no quan la contrasenya actual és
-      // incorrecta — el backend retorna 400 per a aquest cas perquè el
-      // tractem com a validació del payload.
+      // Aquest cas indica que la sessió ja no és vàlida.
+      // Per seguretat es neteja la sessió local i es força el retorn al login.
       await _clearSessionUseCase.execute();
       AppSession.userProfileStore.clear();
       _destination = ProfileSettingsDestination.login;
       return false;
     } on ApiException catch (error) {
-      // El backend retorna 400 amb "Current password is incorrect" quan la
-      // contrasenya actual no coincideix. Ho traduïm a català perquè la
-      // resposta del backend no és localitzada.
+      // Aquest cas adapta l’error de contrasenya actual incorrecta a un missatge entenedor.
       if (error.statusCode == 400 &&
           error.message.toLowerCase().contains('current password')) {
         _errorMessage = 'La contrasenya actual no és correcta';
@@ -515,16 +506,14 @@ class ProfileSettingsController extends ChangeNotifier {
       _destination = ProfileSettingsDestination.login;
       return true;
     } on ApiUnauthorizedException {
-      // Igual que a `changePassword`: aquí només arribem per sessió
-      // caducada del middleware, no per contrasenya incorrecta (que el
-      // backend retorna com a 400).
+      // Aquest cas indica que la sessió ja no és vàlida.
+      // Es netegen les dades locals abans de tornar al login.
       await _clearSessionUseCase.execute();
       AppSession.userProfileStore.clear();
       _destination = ProfileSettingsDestination.login;
       return false;
     } on ApiException catch (error) {
-      // El backend retorna 400 amb "Password is incorrect" quan la
-      // contrasenya no coincideix. Ho traduïm a català.
+      // Aquest cas adapta l’error de contrasenya incorrecta a un missatge entenedor.
       if (error.statusCode == 400 &&
           error.message.toLowerCase().contains('password is incorrect')) {
         _errorMessage = 'La contrasenya no és correcta';
@@ -545,7 +534,7 @@ class ProfileSettingsController extends ChangeNotifier {
   }
 
   // Aquest mètode neteja els camps del formulari de contrasenya.
-  // És important per no mantenir dades sensibles a la pantalla després de l’operació.
+  // Evita conservar dades sensibles després de completar o tancar l’operació.
   void clearPasswordForm() {
     currentPasswordController.clear();
     newPasswordController.clear();
@@ -553,8 +542,8 @@ class ProfileSettingsController extends ChangeNotifier {
     _showPasswordValidation = false;
   }
 
-  // Aquest mètode neteja el formulari de desactivació.
-  // Evita conservar la contrasenya després de tancar el formulari.
+  // Aquest mètode neteja el formulari de desactivació del compte.
+  // Evita conservar la contrasenya després de completar o tancar l’operació.
   void clearDeleteAccountForm() {
     deleteAccountPasswordController.clear();
     _showDeleteAccountValidation = false;
@@ -566,9 +555,8 @@ class ProfileSettingsController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Aquest mètode gestiona el procés de tancar sessió.
-  // Primer executa l’acció de logout si existeix, després neteja la sessió local
-  // i finalment indica a la vista que ha de navegar al login.
+  // Aquest mètode gestiona el tancament de sessió.
+  // Neteja la sessió local, buida el perfil compartit i prepara la navegació al login.
   Future<void> onLogoutTap() async {
     if (_isLoggingOut) return;
 
@@ -598,24 +586,25 @@ class ProfileSettingsController extends ChangeNotifier {
     }
   }
 
-  // Aquest mètode reinicia el destí de navegació
-  // després que la vista ja l’hagi consumit.
+  // Aquest mètode reinicia la navegació pendent.
+  // Es crida després que la vista ja hagi resolt el destí indicat.
   void consumeNavigation() {
     _destination = ProfileSettingsDestination.none;
   }
 
-  // Aquest mètode permet netejar el missatge d’error actual
-  // quan la vista ja l’ha mostrat o ja no és necessari.
+  // Aquest mètode neteja el missatge d’error actual.
+  // Permet evitar que la vista mostri el mateix error més d’una vegada.
   void consumeErrorMessage() {
     _errorMessage = null;
   }
 
-  // Aquest mètode permet netejar el missatge de confirmació
-  // després que la vista ja l’hagi mostrat a l’usuari.
+  // Aquest mètode neteja el missatge de confirmació actual.
+  // Permet evitar que la vista mostri el mateix avís més d’una vegada.
   void consumeSuccessMessage() {
     _successMessage = null;
   }
 
+  // Aquest mètode allibera els controladors del formulari quan es tanca la pantalla.
   @override
   void dispose() {
     _disposed = true;

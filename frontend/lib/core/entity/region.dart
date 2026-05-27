@@ -1,20 +1,18 @@
 // Aquesta classe representa una comarca dins del sistema.
-// Agrupa la informació bàsica que l'aplicació necessita per mostrar
-// a quines regions pertany un cim i per alimentar els filtres del catàleg.
+// S’utilitza per mostrar les regions dels cims i alimentar els filtres del catàleg.
 class Region {
   const Region({
     required this.id,
     required this.name,
   });
 
-  // Aquest bloc recull les dades principals que identifiquen una comarca
-  // dins de les respostes que arriben del backend.
+  // Aquestes dades identifiquen una comarca dins de l’aplicació.
+  // Permeten mostrar-la i relacionar-la amb els cims del catàleg.
   final int id;
   final String name;
 
-  // Aquest constructor crea un objecte Region a partir d'un conjunt de dades JSON.
-  // És rellevant perquè permet convertir directament les respostes del backend
-  // en objectes que l'aplicació pot utilitzar sense duplicar lògica a cada pantalla.
+  // Aquest constructor transforma la resposta del backend en una comarca.
+  // Valida que l’identificador i el nom siguin correctes abans de crear l’objecte.
   factory Region.fromJson(Map<String, dynamic> json) {
     final idRaw = json['id'];
     int? parsedId;

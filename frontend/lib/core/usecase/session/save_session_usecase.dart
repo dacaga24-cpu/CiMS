@@ -1,19 +1,18 @@
 import 'package:cims/core/client/session_storage.dart';
 
-// Aquest cas d’ús encapsula el guardat de la sessió després d’un login correcte.
-// Serveix per separar aquesta responsabilitat de la pantalla i reutilitzar-la
-// des de qualsevol punt on calgui conservar l’accés de l’usuari.
+// Aquest cas d’ús desa la sessió després d’un login correcte.
+// Permet conservar l’accés de l’usuari i restaurar-lo més endavant.
 class SaveSessionUseCase {
   const SaveSessionUseCase({
     required SessionStorage sessionStorage,
   }) : _sessionStorage = sessionStorage;
 
-  // Aquest bloc guarda la dependència necessària per persistir
-  // les dades de la sessió actual.
+  // Aquest servei permet guardar les dades de sessió de manera persistent.
+  // Això manté el cas d’ús separat del sistema concret d’emmagatzematge.
   final SessionStorage _sessionStorage;
 
-  // Aquest mètode desa el token i l’identificador de l’usuari
-  // perquè l’aplicació pugui restaurar la sessió més endavant.
+  // Desa el token i l’identificador de l’usuari.
+  // Aquestes dades permeten mantenir la sessió activa entre usos de l’aplicació.
   Future<void> execute({
     required String token,
     required int userId,

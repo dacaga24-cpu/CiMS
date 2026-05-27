@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-// Aquest component reutilitzable representa un camp de text amb el mateix estil visual.
-// Serveix per mantenir coherència entre els camps del formulari i evitar repetir codi.
+// Aquest component reutilitzable representa un camp de text amb estil de píndola.
+// Serveix per mantenir coherència visual entre formularis i evitar repetir codi.
 class AppInputField extends StatelessWidget {
   const AppInputField({
     super.key,
@@ -16,9 +16,8 @@ class AppInputField extends StatelessWidget {
     this.maxLength,
   });
 
-  // Aquest bloc defineix la informació necessària per configurar el camp:
-  // el text introduït, l’ajuda visual, el tipus d’entrada,
-  // si el contingut s’ha d’ocultar i l’acció a executar quan canvia.
+  // Aquestes dades configuren el contingut i el comportament del camp.
+  // Permeten adaptar-lo a text normal, contrasenyes o entrades específiques.
   final TextEditingController controller;
   final String hintText;
   final TextInputType keyboardType;
@@ -28,12 +27,12 @@ class AppInputField extends StatelessWidget {
   final Widget? suffixIcon;
   final bool enabled;
 
-  // Límit dur de caràcters que pot escriure l'usuari. Per defecte és null
-  // (sense límit). Quan s'indica, ocultem el comptador integrat de
-  // Material per no contaminar visualment el camp arrodonit.
+  // Aquest valor limita els caràcters que pot escriure l’usuari.
+  // Quan existeix, el límit s’aplica sense mostrar el comptador visual.
   final int? maxLength;
 
-  // Aquest mètode construeix visualment el camp de text amb l’estil comú del formulari.
+  // Aquest mètode construeix el camp amb l’estil comú dels formularis.
+  // Manté el format arrodonit i la configuració visual compartida.
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -58,9 +57,6 @@ class AppInputField extends StatelessWidget {
             fontSize: 18,
           ),
           suffixIcon: suffixIcon,
-          // Amaguem el comptador automàtic perquè el camp de píndola no té
-          // espai per al text inferior i el límit ja es respecta a nivell
-          // d'input.
           counterText: '',
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 20,

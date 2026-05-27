@@ -3,19 +3,22 @@ import 'dart:math';
 import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/nearby_peak_candidate.dart';
 
-// Aquest cas d’ús calcula quins cims són realment propers a una ubicació capturada.
-// Només retorna candidats dins d’un radi raonable perquè la verificació sigui coherent.
+// Aquest cas d’ús calcula quins cims són propers a una ubicació capturada.
+// S’utilitza en la verificació d’ascensions per oferir només candidats coherents amb la posició de l’usuari.
 class FindNearbyPeaksUseCase {
   const FindNearbyPeaksUseCase(this._apiClient);
 
+  // Aquest client permet obtenir els cims amb coordenades des del backend.
+  // Això manté el càlcul de proximitat separat de la capa visual.
   final ApiClient _apiClient;
 
+  // Aquestes constants defineixen els valors base del càlcul de distància.
+  // El radi màxim limita els candidats a cims realment propers.
   static const double _earthRadiusMeters = 6371000;
   static const double _defaultMaxDistanceMeters = 500;
 
   // Aquest mètode carrega els cims amb coordenades i retorna els més propers.
-  // Si només hi ha un cim dins del radi, només es mostra aquell; si n’hi ha més,
-  // es retornen com a màxim els candidats més propers.
+  // Només inclou candidats dins del radi definit i els ordena per proximitat.
   Future<List<NearbyPeakCandidate>> call({
     required double latitude,
     required double longitude,
@@ -67,6 +70,8 @@ class FindNearbyPeaksUseCase {
     return _earthRadiusMeters * c;
   }
 
+  // Aquest mètode transforma graus a radians.
+  // És necessari per aplicar el càlcul de distància entre coordenades.
   double _toRadians(double value) {
     return value * pi / 180;
   }

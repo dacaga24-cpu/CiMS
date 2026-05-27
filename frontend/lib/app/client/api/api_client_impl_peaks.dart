@@ -1,21 +1,13 @@
 part of 'api_client_impl.dart';
 
-// Aquest mixin agrupa les operacions relacionades amb el catàleg
-// i el detall dels cims dins del client d’API.
+// Aquest mixin agrupa les operacions relacionades amb el catàleg i el detall dels cims.
+// Manté separada la comunicació amb el backend de les pantalles que consumeixen aquestes dades.
 mixin _PeaksApiClientImplMixin on _ApiClientBase {
-  // Aquest helper centralitza el tractament del catch genèric dels 4
-  // mètodes peaks (`getPeaks`, `getPeaksPage`, `getMapPeaks`,
-  // `getPeakById`). Sense això cada mètode tenia 8 línies idèntiques
-  // de log + rethrow ApiException + throw connexió. Marcat com a
-  // `Never` perquè sempre llança i el caller no necessita un return.
+  // Aquest helper transforma errors inesperats en una resposta controlada per l’aplicació.
+  // També deixa un registre útil per diagnosticar problemes de comunicació o format.
   Never _throwUnexpectedPeaksError(Object error, StackTrace stack) {
     if (error is ApiException) throw error;
 
-    // Loguem el tipus i la traça abans de transformar a missatge
-    // genèric. Sense això, problemes com canvis de contracte al
-    // backend, errors de parse o problemes de TLS queden emmascarats
-    // per "No s'ha pogut connectar amb el servidor" i no es poden
-    // diagnosticar des del client.
     debugPrint(
       '[ApiClientImpl peaks] unexpected (${error.runtimeType}): $error\n$stack',
     );
@@ -25,10 +17,8 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
     );
   }
 
-  // Aquest mètode centralitza la construcció dels query params del
-  // catàleg (paginat i mapa). Manté la traducció dels filtres a
-  // strings en un únic lloc perquè els dos endpoints comparteixin
-  // exactament la mateixa serialització.
+  // Aquest mètode construeix els paràmetres de consulta del catàleg.
+  // Permet reutilitzar els mateixos filtres al llistat paginat i al mapa.
   Map<String, String> _peaksQueryParameters({
     String? search,
     int? regionId,
@@ -53,8 +43,8 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
     };
   }
 
-  // Aquest mètode recupera el catàleg de cims i permet aplicar criteris
-  // de cerca o filtratge per retornar només els resultats que interessen a l’usuari.
+  // Aquest mètode recupera el catàleg de cims.
+  // Permet aplicar filtres bàsics per retornar només els resultats que interessen a l’usuari.
   Future<List<Peak>> getPeaks({
     String? search,
     int? regionId,
@@ -73,8 +63,8 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
         },
       );
 
-      // Si la resposta és correcta, es valida el format rebut.
-      // El backend pot retornar una llista directa o una resposta paginada amb "items".
+      // Aquesta validació accepta els formats previstos de resposta del catàleg.
+      // Això permet transformar les dades rebudes en entitats de l’aplicació.
       if (response.statusCode == 200) {
         final directList = _tryParseJsonList(response.body);
 
@@ -125,10 +115,7 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
   }
 
   // Aquest mètode recupera una pàgina concreta del catàleg de cims.
-  // Manté la informació de paginació perquè la pantalla pugui carregar més resultats en fer scroll.
-  // El paràmetre `status` filtra per estat personal i requereix sessió:
-  // el client envia el token JWT si està disponible (`attachTokenIfAvailable`)
-  // i el backend ignora `status` quan no n'hi ha cap.
+  // Manté la paginació i els filtres perquè la pantalla pugui carregar més resultats progressivament.
   Future<PeaksPage> getPeaksPage({
     String? search,
     int? regionId,
@@ -191,8 +178,7 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
   }
 
   // Aquest mètode recupera els cims destinats al mapa.
-  // Utilitza l’endpoint específic del backend i envia els filtres principals
-  // perquè comarca, cerca, altitud, estat i clima es resolguin amb dades completes.
+  // Envia els filtres principals perquè la vista pugui mostrar marcadors coherents amb el catàleg.
   Future<List<Peak>> getMapPeaks({
     String? search,
     int? regionId,
@@ -262,9 +248,8 @@ mixin _PeaksApiClientImplMixin on _ApiClientBase {
     }
   }
 
-  // Aquest mètode recupera el detall d’un cim concret a partir del seu identificador.
-  // És útil per carregar la pantalla de detall i admet tant una resposta directa
-  // com una resposta on el cim arribi dins del camp "peak".
+  // Aquest mètode recupera el detall d’un cim concret.
+  // Accepta els formats de resposta previstos i retorna una entitat preparada per a la pantalla de detall.
   Future<Peak> getPeakById(int peakId) async {
     try {
       final response = await _getJson(

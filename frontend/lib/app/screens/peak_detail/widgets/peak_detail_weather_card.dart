@@ -5,12 +5,8 @@ import 'package:cims/core/entity/weather_condition.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
-// Aquest widget mostra la previsió meteorològica del cim en forma de
-// targeta. Combina un carrusel de fins a 7 dies i un panell horari que
-// es desplega quan l'usuari toca una de les píldores. La pantalla de
-// detall passa l'estat i les accions perquè la card pugui pintar tots
-// els casos (càrrega, error, dades) sense conèixer cap controller.
-
+// Aquest widget mostra la previsió meteorològica del cim.
+// Combina la previsió diària amb un panell horari desplegable per a cada dia.
 class PeakDetailWeatherCard extends StatelessWidget {
   const PeakDetailWeatherCard({
     super.key,
@@ -26,54 +22,20 @@ class PeakDetailWeatherCard extends StatelessWidget {
     required this.onHourlyRetryTap,
   });
 
-  // Aquesta propietat rep la previsió ja descodificada o null mentre
-  // encara s'està carregant per primera vegada.
+  // Aquestes dades defineixen l’estat principal de la previsió diària.
+  // Permeten mostrar càrrega, error, dades disponibles o estat buit.
   final PeakWeather? forecast;
-
-  // Aquesta propietat indica si la càrrega està en curs. La card mostra un
-  // estat esquelet (skeleton) quan és true i no hi ha encara previsió en
-  // memòria, per evitar parpellejos durant els reintentaments.
   final bool isLoading;
-
-  // Aquesta propietat porta el missatge d'error quan la càrrega falla.
-  // Quan està informat i no hi ha previsió, la card mostra un missatge
-  // d'error específic amb un botó per tornar-ho a provar.
   final String? errorMessage;
-
-  // Aquesta acció es dispara quan l'usuari prem el botó de reintentar
-  // la previsió diària.
   final Future<void> Function() onRetryTap;
 
-  // Aquesta propietat indica quina data té el panell horari obert (o
-  // null si no n'hi ha cap). Permet pintar la píldora corresponent amb
-  // accent ressaltat sense haver de comparar dates al widget.
+  // Aquestes dades controlen el panell horari del dia seleccionat.
+  // Permeten carregar, mostrar o reintentar la previsió per hores d’un dia concret.
   final String? expandedDay;
-
-  // Aquesta propietat porta la previsió horària del dia expandit. Si
-  // arriba null vol dir que encara no hi ha dades cachejades per a
-  // aquest dia; el panell decideix entre mostrar skeleton, error o
-  // contingut a partir dels altres paràmetres.
   final PeakHourlyWeather? expandedHourly;
-
-  // Indica si el panell horari del dia expandit està descarregant
-  // dades en aquest moment. Es manté independent de isLoading perquè
-  // l'usuari pot demanar hores d'un dia mentre la previsió diària ja
-  // està carregada.
   final bool isExpandedHourlyLoading;
-
-  // Missatge d'error específic del panell horari obert. Si està
-  // informat i no hi ha hores cachejades, el panell mostra el missatge
-  // amb un botó per reintentar el dia concret.
   final String? expandedHourlyError;
-
-  // Aquesta acció es dispara quan l'usuari toca una píldora del
-  // carrusel diari. El controller decideix si expandir, col·lapsar o
-  // canviar el dia obert.
   final void Function(String date) onDayTap;
-
-  // Aquesta acció es dispara des del botó de reintentar del panell
-  // horari del dia expandit. Es passa la data perquè el controller
-  // pugui reintentar només aquell dia sense afectar la resta.
   final Future<void> Function(String date) onHourlyRetryTap;
 
   @override
@@ -102,9 +64,8 @@ class PeakDetailWeatherCard extends StatelessWidget {
     );
   }
 
-  // Aquest mètode pinta la capçalera de la card amb el títol principal i
-  // un subtítol que indica l'horitzó de la previsió. Es manté separat per
-  // si en el futur cal afegir-hi accions secundàries (canviar dies, etc.).
+  // Aquest mètode construeix la capçalera de la targeta.
+  // Mostra el títol i el nombre de dies disponibles quan ja hi ha previsió carregada.
   Widget _buildHeader() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -133,10 +94,7 @@ class PeakDetailWeatherCard extends StatelessWidget {
     );
   }
 
-  // Aquest getter compon el subtítol amb el nombre real de dies
-  // retornats pel backend. Durant la càrrega inicial es retorna null
-  // perquè la card no prometi un horitzó (per exemple "7 dies") que el
-  // backend potser no acaba retornant.
+  // Aquest getter genera el subtítol amb el nombre real de dies retornats.
   String? get _subtitle {
     final days = forecast?.days.length;
     if (days == null) {
@@ -145,11 +103,8 @@ class PeakDetailWeatherCard extends StatelessWidget {
     return days == 1 ? '1 dia' : '$days dies';
   }
 
-  // Aquest mètode tria el cos de la card segons l'estat actual.
-  // L'ordre de prioritat és: error sense dades > càrrega inicial > dades
-  // disponibles. Si hi ha previsió cachejada, es prefereix mostrar-la
-  // encara que s'estigui recarregant en segon pla, per evitar que la
-  // pantalla "parpellegi" cada vegada que es fa pull-to-refresh.
+  // Aquest mètode decideix quin contingut mostrar segons l’estat actual.
+  // Prioritza errors sense dades, càrrega inicial, estat buit i previsió disponible.
   Widget _buildBody() {
     final currentForecast = forecast;
 
@@ -192,11 +147,8 @@ class PeakDetailWeatherCard extends StatelessWidget {
             },
           ),
         ),
-        // L'AnimatedSize anima l'aparició i la desaparició del panell
-        // horari per donar una sensació de continuïtat amb la fila de
-        // píldores en lloc d'un salt brusc. Quan no hi ha cap dia
-        // expandit, el SizedBox.shrink redueix l'altura a zero i
-        // l'animació transiciona suaument.
+        // Aquesta animació mostra o amaga el panell horari de manera suau.
+        // Evita salts visuals quan l’usuari obre o tanca un dia del carrusel.
         AnimatedSize(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeInOut,
@@ -220,11 +172,8 @@ class PeakDetailWeatherCard extends StatelessWidget {
   }
 }
 
-// Aquest widget representa la píldora d'un dia dins del carrusel.
-// Combina etiqueta diària, icona de la condició dominant i temperatures
-// mínima i màxima. La píldora es ressalta quan és el dia actual o quan
-// està expandida, perquè l'usuari identifiqui ràpidament a quin dia
-// pertany el panell horari obert.
+// Aquest widget representa un dia dins del carrusel meteorològic.
+// Mostra etiqueta, número del dia, condició dominant, temperatures i avís de vent.
 class _DayPill extends StatelessWidget {
   const _DayPill({
     required this.day,
@@ -243,10 +192,7 @@ class _DayPill extends StatelessWidget {
     final type =
         day.dominantCondition?.normalized ?? WeatherConditionType.unknown;
     final accent = weatherAccentColorFor(type);
-    // El ressaltat per expansió té prioritat sobre el d'avui: quan un dia
-    // qualsevol està obert, és l'únic que mostra el fons reforçat. El
-    // dia actual sense expandir manté un to més suau perquè es noti la
-    // diferència entre "estic mirant aquest dia" i "aquest és avui".
+
     final background = isExpanded
         ? accent.withValues(alpha: 0.22)
         : isToday
@@ -258,11 +204,6 @@ class _DayPill extends StatelessWidget {
             ? accent.withValues(alpha: 0.4)
             : null;
 
-    // Es valora la severitat del vent del bloc diürn (o nocturn com a
-    // fallback) per pintar una etiqueta destacada quan supera el
-    // llindar moderat. Quan el vent és tranquil, la línia inferior
-    // queda buida però es reserva l'espai perquè totes les pílules
-    // mantinguin la mateixa altura i el carrusel no quedi irregular.
     final windBlock = day.daytime ?? day.nighttime;
     final windSeverity = windSeverityFor(
       speedKmh: windBlock?.windSpeedKmh,
@@ -347,10 +288,8 @@ class _DayPill extends StatelessWidget {
   }
 }
 
-// Aquest widget pinta la línia inferior amb l'indicador de vent del
-// dia. Quan el vent és calm, retorna un espai reservat de la mateixa
-// altura: així totes les pílules del carrusel mantenen la mateixa
-// dimensió, encara que només algunes mostrin badge.
+// Aquest widget mostra l’indicador de vent dins del dia.
+// Reserva l’espai encara que no hi hagi vent destacable per mantenir el carrusel uniforme.
 class _DayWindLine extends StatelessWidget {
   const _DayWindLine({required this.severity});
 
@@ -367,10 +306,6 @@ class _DayWindLine extends StatelessWidget {
         color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
       ),
-      // Padding reduït (4 px horitzontal en lloc de 6) i icona-text amb
-      // separació mínima per encabir "Molt fort" dins dels 62 px d'amplada
-      // útil de la pílula diària. La separació prèvia provocava 5-6 px
-      // d'overflow horitzontal amb "Vent fort".
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -381,9 +316,6 @@ class _DayWindLine extends StatelessWidget {
             color: color,
           ),
           const SizedBox(width: 2),
-          // Flexible amb FittedBox actua de xarxa de seguretat per a
-          // fonts del dispositiu lleugerament més amples del calculat.
-          // En el cas normal, el text es pinta sense escalat.
           Flexible(
             child: FittedBox(
               fit: BoxFit.scaleDown,
@@ -404,10 +336,8 @@ class _DayWindLine extends StatelessWidget {
   }
 }
 
-// Aquest widget mostra el panell horari del dia expandit. Es comporta
-// igual que la card sencera respecte als estats: si hi ha hores
-// cachejades, es pinten encara que es recarreguin en segon pla; només
-// es mostra error o esquelet quan no hi ha res en memòria.
+// Aquest widget mostra la previsió horària del dia seleccionat.
+// Pot representar càrrega, error, estat buit o hores disponibles.
 class _HourlyPanel extends StatelessWidget {
   const _HourlyPanel({
     required this.date,
@@ -419,9 +349,8 @@ class _HourlyPanel extends StatelessWidget {
   });
 
   final String date;
-  // Etiqueta natural ("Avui", "Demà", "Dilluns 13") del dia desplegat.
-  // Es passa des del pare ja calculada perquè el panell no hagi
-  // d'accedir a la data actual ni a la llista de noms en català.
+
+  // Aquesta etiqueta identifica el dia desplegat de manera llegible.
   final String dayLabel;
   final PeakHourlyWeather? hourly;
   final bool isLoading;
@@ -474,12 +403,8 @@ class _HourlyPanel extends StatelessWidget {
     );
   }
 
-  // L'ordre de prioritat dels estats és anàleg al de la card principal:
-  // error sense dades > càrrega sense dades > buit > contingut. Si
-  // arriba un error mentre ja hi havia hores cachejades, es prefereix
-  // continuar mostrant les hores en lloc d'una pantalla d'error: una
-  // recàrrega que falla intermitentment no ha de buidar dades vàlides
-  // que l'usuari ja estava veient.
+  // Aquest mètode decideix el contingut del panell horari.
+  // Si ja hi ha hores carregades, les conserva encara que un reintent falli.
   Widget _buildBody() {
     final currentHourly = hourly;
 
@@ -524,10 +449,8 @@ class _HourlyPanel extends StatelessWidget {
   }
 }
 
-// Aquest widget representa una única hora dins del panell horari.
-// Es manté compacte perquè 24 hores càpiguen còmodament en una fila
-// scrollable sense forçar el dispositiu a renderitzar elements grans
-// fora de pantalla.
+// Aquest widget representa una hora concreta dins del panell horari.
+// Resumeix hora, condició, temperatura, precipitació i vent en un espai compacte.
 class _HourlyPill extends StatelessWidget {
   const _HourlyPill({required this.hour});
 
@@ -565,10 +488,6 @@ class _HourlyPill extends StatelessWidget {
             type,
             size: 22,
             color: accent,
-            // Quan Google ens diu que aquesta hora és nocturna, sunny i
-            // partlyCloudy canvien automàticament a lluna en lloc de
-            // sol. Si el camp arriba null, es manté el comportament de
-            // dia per defecte.
             isDaytime: hour.isDaytime ?? true,
           ),
           Text(
@@ -579,14 +498,6 @@ class _HourlyPill extends StatelessWidget {
               color: Color(0xFF17212B),
             ),
           ),
-          // La línia inferior compon precipitació i vent en un únic
-          // espai. Si una hora té tots dos, pinta el percentatge de
-          // pluja al costat d'una petita icona de vent per no obligar
-          // a triar només una dada. Si només hi ha pluja o només
-          // vent, pinta el que correspongui. En hores calmes i seques
-          // es manté un espai buit perquè totes les píldores
-          // conservin la mateixa altura i el carrusel no quedi
-          // dentat.
           _HourlyFooter(
             precipPct: precipPct,
             windSeverity: windSeverity,
@@ -598,10 +509,8 @@ class _HourlyPill extends StatelessWidget {
   }
 }
 
-// Aquest widget pinta la línia inferior d'una píldora horària amb
-// l'estat combinat de precipitació i vent. Cobreix els quatre casos
-// (només pluja, només vent, ambdós, cap) amb un únic component per
-// evitar que els crides hagin de duplicar la lògica de prioritat.
+// Aquest widget mostra la informació inferior d’una hora.
+// Combina precipitació i vent sense duplicar aquesta lògica dins de cada element horari.
 class _HourlyFooter extends StatelessWidget {
   const _HourlyFooter({
     required this.precipPct,
@@ -650,9 +559,6 @@ class _HourlyFooter extends StatelessWidget {
           color: windColor,
         ),
       );
-      // Quan no plou, hi ha espai per pintar la velocitat real del
-      // vent al costat de la icona. Si plou, mantenim només la
-      // icona per no atapeir la línia.
       if (!hasPrecip && windSpeedKmh != null) {
         children.add(const SizedBox(width: 2));
         children.add(
@@ -676,9 +582,8 @@ class _HourlyFooter extends StatelessWidget {
   }
 }
 
-// Aquest widget representa l'estat de càrrega del panell horari.
-// Mostra 12 caixes (mitja jornada) per donar una sensació coherent de
-// llargada respecte al carrusel real sense haver de pintar les 24.
+// Aquest widget representa l’estat de càrrega del panell horari.
+// Mostra elements de reserva perquè la mida del panell es mantingui estable.
 class _HourlySkeleton extends StatelessWidget {
   const _HourlySkeleton();
 
@@ -704,8 +609,8 @@ class _HourlySkeleton extends StatelessWidget {
   }
 }
 
-// Aquest widget mostra l'estat d'error del panell horari amb un botó
-// per reintentar només la càrrega del dia expandit.
+// Aquest widget mostra un error del panell horari.
+// Permet reintentar només la càrrega del dia seleccionat.
 class _HourlyErrorState extends StatelessWidget {
   const _HourlyErrorState({
     required this.message,
@@ -746,9 +651,8 @@ class _HourlyErrorState extends StatelessWidget {
   }
 }
 
-// Aquest widget representa l'estat de càrrega inicial mentre encara no
-// hi ha cap previsió descarregada. Mostra set caixes en gris perquè la
-// card mantingui la mida i no salti quan arribin les dades.
+// Aquest widget representa la càrrega inicial de la previsió diària.
+// Manté la mida de la targeta mentre encara no hi ha dades.
 class _WeatherSkeleton extends StatelessWidget {
   const _WeatherSkeleton();
 
@@ -774,9 +678,8 @@ class _WeatherSkeleton extends StatelessWidget {
   }
 }
 
-// Aquest widget mostra el missatge quan Google retorna previsió buida.
-// És diferent de l'estat d'error perquè aquí la petició ha funcionat,
-// simplement no hi ha dades a l'horitzó sol·licitat.
+// Aquest widget mostra un estat sense dades meteorològiques.
+// S’utilitza quan la petició funciona però el backend no retorna previsió disponible.
 class _WeatherEmptyState extends StatelessWidget {
   const _WeatherEmptyState();
 
@@ -795,10 +698,8 @@ class _WeatherEmptyState extends StatelessWidget {
   }
 }
 
-// Aquest widget mostra el missatge d'error i el botó de reintentar quan
-// la càrrega ha fallat. Es manté minimalista per no quedar massa
-// agressiu visualment quan apareix en una pantalla amb la resta de
-// dades correctes.
+// Aquest widget mostra l’error de càrrega de la previsió diària.
+// Inclou una acció per tornar a intentar la consulta.
 class _WeatherErrorState extends StatelessWidget {
   const _WeatherErrorState({
     required this.message,
@@ -841,9 +742,8 @@ class _WeatherErrorState extends StatelessWidget {
   }
 }
 
-// Aquest mètode tradueix la data ISO en una etiqueta curta del dia en
-// català. El primer dia es marca com "Avui" perquè l'usuari el reconegui
-// immediatament sense haver de comparar amb la data actual.
+// Aquest mètode transforma una data ISO en una etiqueta curta en català.
+// Marca el primer dia com a avui perquè sigui fàcil d’identificar.
 String _dayLabelFor(String date, bool isToday) {
   if (isToday) {
     return 'AVUI';
@@ -852,8 +752,6 @@ String _dayLabelFor(String date, bool isToday) {
   if (parsed == null) {
     return '';
   }
-  // weekday: Dilluns=1, Dimarts=2, Dimecres=3, Dijous=4, Divendres=5,
-  // Dissabte=6, Diumenge=7. Es manté la convenció Dart estàndard.
   const labels = ['DL', 'DM', 'DX', 'DJ', 'DV', 'DS', 'DG'];
   final index = parsed.weekday - 1;
   if (index < 0 || index >= labels.length) {
@@ -862,11 +760,8 @@ String _dayLabelFor(String date, bool isToday) {
   return labels[index];
 }
 
-// Aquest mètode composa l'etiqueta natural d'un dia per a la cabecera
-// del panell horari: "Avui" si és la data actual, "Demà" si és el dia
-// següent, o el nom del dia amb el número de mes ("Dilluns 13") per a
-// dates més enllà. Si la data no es pot parsejar, retorna la cadena
-// original perquè la UI no quedi en blanc sense pista.
+// Aquest mètode crea una etiqueta natural per al dia del panell horari.
+// Retorna Avui, Demà o el nom del dia amb el número corresponent.
 String _fullDayLabelFor(String date) {
   final parsed = DateTime.tryParse(date);
   if (parsed == null) {
@@ -894,9 +789,8 @@ String _fullDayLabelFor(String date) {
   return '${labels[index]} ${parsed.day}';
 }
 
-// Aquest mètode extreu el dia del mes d'una data ISO YYYY-MM-DD.
-// Es retorna com a String per evitar mostrar un zero quan la data no
-// es pot parsejar (per exemple, si arriba un format inesperat).
+// Aquest mètode extreu el dia del mes d’una data ISO.
+// Si la data no és vàlida, retorna una cadena buida.
 String _dayNumberFor(String date) {
   final parsed = DateTime.tryParse(date);
   if (parsed == null) {
@@ -905,9 +799,8 @@ String _dayNumberFor(String date) {
   return parsed.day.toString();
 }
 
-// Aquest mètode formata una temperatura per a la píldora del dia. Quan
-// no hi ha dada disponible es retorna un guió per mantenir la mida del
-// component constant i evitar saltets visuals entre dies.
+// Aquest mètode formata una temperatura en graus.
+// Si no hi ha dada, retorna un guió per mantenir estable el component.
 String _formatTemp(double? celsius) {
   if (celsius == null) {
     return '—';
@@ -915,9 +808,8 @@ String _formatTemp(double? celsius) {
   return '${celsius.round()}°';
 }
 
-// Aquest mètode formata l'etiqueta horària a partir del camp local.
-// Quan no es pot determinar l'hora, retorna una cadena buida en lloc
-// de "00" per evitar mostrar mitjanits enganyoses.
+// Aquest mètode formata l’hora local d’una previsió horària.
+// Si no es pot determinar l’hora, retorna una cadena buida.
 String _formatHour(HourlyForecast hour) {
   final h = hour.hourOfDay;
   if (h == null) {

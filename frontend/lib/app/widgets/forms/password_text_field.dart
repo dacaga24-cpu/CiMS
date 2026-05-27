@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
 
-// Aquest widget encapsula un camp de contrasenya amb el toggle d'ull
-// "mostrar/amagar". Pensat per als formularis dins de modals/diàlegs que
-// fan servir l'estil estàndard de Material (labelText flotant, errorText).
-//
-// Per als formularis amb estil de píndola (login/register) ja existeix
-// `AppInputField`, que cada pantalla configura amb el seu propi botó d'ull
-// connectat al controlador.
+// Aquest widget mostra un camp de contrasenya amb opció de mostrar o amagar el text.
+// S’utilitza en formularis que necessiten el comportament estàndard de Material.
 class PasswordTextField extends StatefulWidget {
   const PasswordTextField({
     super.key,
@@ -19,10 +14,8 @@ class PasswordTextField extends StatefulWidget {
     this.onSubmitted,
   });
 
-  // Aquestes propietats configuren el camp: el controlador, l'etiqueta
-  // flotant, el missatge d'error opcional i si està habilitat. Mantenen la
-  // mateixa interfície que `TextField` per facilitar substituir-lo allà on
-  // calgui.
+  // Aquestes propietats configuren el comportament i el contingut del camp.
+  // Permeten reutilitzar-lo en diferents formularis de contrasenya.
   final TextEditingController controller;
   final String labelText;
   final String? errorText;
@@ -36,10 +29,12 @@ class PasswordTextField extends StatefulWidget {
 }
 
 class _PasswordTextFieldState extends State<PasswordTextField> {
-  // Per defecte la contrasenya queda amagada; l'usuari pot revelar-la
-  // manualment per evitar errors d'escriptura.
+  // Aquest estat indica si la contrasenya es mostra o es manté amagada.
+  // Per defecte queda oculta per protegir la privacitat de l’usuari.
   bool _obscured = true;
 
+  // Aquest mètode alterna la visibilitat de la contrasenya.
+  // Permet revisar el text escrit abans d’enviar el formulari.
   void _toggleObscured() {
     setState(() {
       _obscured = !_obscured;

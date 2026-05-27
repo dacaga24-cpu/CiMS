@@ -15,19 +15,18 @@ import 'package:cims/core/usecase/peak_status/update_peak_status_usecase.dart';
 import 'package:cims/core/usecase/peaks/get_map_peaks_usecase.dart';
 import 'package:flutter/material.dart';
 
-// Aquest enum defineix les navegacions possibles des de la pantalla del mapa.
-// La vista les consumeix i executa la navegació real.
+// Aquest enum defineix les navegacions que pot demanar la pantalla del mapa.
+// La vista les consumeix i executa la ruta corresponent.
 enum PeaksMapDestination {
   none,
   peakDetail,
 }
 
-// Aquest controller gestiona l’estat de la pantalla de mapa de cims.
-// Carrega els cims del backend, aplica cerca i filtres, controla la selecció
-// d’un cim i prepara la navegació cap al detall sense dependre de la UI.
+// Aquest controller gestiona la pantalla del mapa de cims.
+// Carrega dades, aplica cerca i filtres, controla la selecció i prepara la navegació al detall.
 class PeaksMapController extends ChangeNotifier {
-  // Aquest constructor prepara les dependències necessàries per carregar el mapa.
-  // També permet rebre un cim inicial quan la pantalla s’obre des del detall.
+  // Aquest constructor prepara les dependències i escolta els estats compartits.
+  // També permet obrir el mapa amb un cim inicial ja seleccionat.
   PeaksMapController({
     this.initialPeakId,
     GetMapPeaksUseCase? getMapPeaksUseCase,
@@ -51,121 +50,82 @@ class PeaksMapController extends ChangeNotifier {
         updatePeakStatusUseCase ?? UpdatePeakStatusUseCase(apiClient);
 
     _peakStatusStore.addListener(_onStoreChanged);
-
-    // S'enganxa al filtre compartit perquè els canvis fets des del catàleg
-    // es reflecteixin també al mapa sense que l'usuari hagi de tornar a
-    // aplicar-los manualment a cada pestanya.
     _filtersState.addListener(_onFiltersChanged);
   }
 
-  // Identificador opcional del cim que s’ha de seleccionar en obrir el mapa.
+  // Aquest identificador permet seleccionar un cim automàticament en obrir el mapa.
   final int? initialPeakId;
 
-  // Aquests casos d’ús concentren les operacions de dades que necessita el mapa.
-  // El controller els utilitza per obtenir cims, regions i estats personals
-  // sense comunicar-se directament amb l’API.
+  // Aquestes dependències permeten obtenir cims, regions, estats personals i actualitzar-los.
   late final GetMapPeaksUseCase _getMapPeaksUseCase;
   late final GetRegionsUseCase _getRegionsUseCase;
   late final GetUserPeakStatusesUseCase _getUserPeakStatusesUseCase;
   late final UpdatePeakStatusUseCase _updatePeakStatusUseCase;
   final PeakStatusStore _peakStatusStore;
 
-  // Notifica a la resta de pantalles (dashboard, stats) que l'usuari ha
-  // modificat algun cim. El mapa el dispara quan canvia objectiu o
-  // preferit perquè el dashboard refresqui els seus comptadors sense
-  // esperar un F5 — el detall ja segueix aquest patró a
-  // `peak_detail_controller`.
+  // Aquest store avisa altres pantalles que les dades de progrés poden haver canviat.
   final UserStatsRefreshStore _userStatsRefreshStore;
 
-  // Aquest controller gestiona el text de cerca introduït per l’usuari.
   final searchController = TextEditingController();
 
-  // Aquest bloc manté l’estat principal de la pantalla.
-  // Inclou la càrrega, els possibles errors, els cims visibles al mapa
-  // i les regions disponibles per aplicar filtres.
+  // Aquestes dades representen l’estat visible del mapa.
+  // La pantalla les utilitza per mostrar càrrega, errors, cims visibles i filtres disponibles.
   bool isLoading = false;
   bool isUpdatingSelectedPeakStatus = false;
   String? errorMessage;
-
-  // peaks conté els cims finals que es poden mostrar al mapa.
-  // _loadedPeaks conserva els cims retornats pel backend abans del filtre
-  // local `hasMapPosition`, que descarta cims amb coordinades absents per
-  // no contaminar els bounds del mapa.
   List<Peak> peaks = const [];
   List<Peak> _loadedPeaks = const [];
   List<Region> availableRegions = const [];
 
-  // Aquest objecte concentra els filtres compartits amb l’altra vista de cims.
-  // S'utilitza la instància global PeaksFilterState.shared perquè el filtre
-  // sigui coherent entre catàleg i mapa: quan un canvia, l'altre es refresca
-  // automàticament gràcies al listener registrat al constructor.
+  // Aquest estat compartit manté els filtres comuns entre catàleg i mapa.
   final PeaksFilterState _filtersState = PeaksFilterState.shared;
 
   // Aquest valor representa el cim seleccionat al mapa.
-  // Serveix per mostrar-ne informació resumida i permetre l’accés al detall.
   Peak? selectedPeak;
 
-  // Aquest bloc controla situacions internes del controller.
-  // Evita actualitzacions després de destruir la pantalla, regula la cerca
-  // i descarta respostes antigues quan hi ha diverses càrregues en curs.
+  // Aquestes dades controlen el cicle intern del controller.
+  // Serveixen per gestionar cerca, selecció inicial, respostes obsoletes i navegació pendent.
   bool _disposed = false;
   bool _hasAppliedInitialPeak = false;
   final _searchDebouncer = PeaksSearchDebouncer();
   int _loadRequestId = 0;
   int? _selectedPeakId;
 
-  // Aquest bloc guarda la navegació pendent cap a una altra pantalla.
-  // La UI consulta aquests valors i després els consumeix per evitar repetir la navegació.
   PeaksMapDestination _destination = PeaksMapDestination.none;
   PeaksMapDestination get destination => _destination;
   int? get selectedPeakId => _selectedPeakId;
 
-  // Retorna el text actual de cerca sense espais sobrants.
+  // Aquest getter retorna el text actual de cerca sense espais sobrants.
   String get currentSearch => searchController.text.trim();
 
-  // Aquest getter exposa la regió seleccionada per mantenir compatible la UI existent.
+  // Aquests getters exposen els filtres actius a la pantalla.
   int? get selectedRegionId => _filtersState.selectedRegionId;
-
-  // Aquest getter exposa l’altitud mínima seleccionada.
   int? get minAltitude => _filtersState.minAltitude;
-
-  // Aquest getter exposa l’altitud màxima seleccionada.
   int? get maxAltitude => _filtersState.maxAltitude;
-
-  // Aquest getter exposa el filtre d’estat seleccionat.
   PeakStatusFilter get selectedStatusFilter =>
       _filtersState.selectedStatusFilter;
 
-  // Indica si hi ha algun filtre actiu.
-  // S’utilitza per mostrar o ocultar el resum de filtres a la pantalla.
+  // Aquest getter indica si hi ha algun filtre aplicat.
   bool get hasActiveFilters => _filtersState.hasActiveFilters;
 
-  // Retorna el nom de la regió seleccionada a partir del seu identificador.
-  // Això permet mostrar un resum entenedor dels filtres aplicats.
+  // Aquest getter retorna el nom de la comarca seleccionada, si existeix.
   String? get selectedRegionName =>
       _filtersState.selectedRegionName(availableRegions);
 
-  // Retorna el text visible del filtre d’estat seleccionat.
-  // Si no hi ha cap estat aplicat, no retorna cap etiqueta.
+  // Aquest getter retorna el nom visible del filtre d’estat seleccionat.
   String? get selectedStatusFilterName => selectedStatusFilter.displayName;
 
-  // Construeix un resum breu dels filtres actius.
-  // Aquest text ajuda l’usuari a entendre ràpidament per què veu uns cims i no uns altres.
+  // Aquest getter construeix el resum visible dels filtres actius.
   String get activeFiltersSummary =>
       _filtersState.activeFiltersSummary(availableRegions);
 
-  // Retorna l’estat personal d’un cim concret.
-  // La pantalla ho pot utilitzar per representar si és assolit, objectiu o favorit.
+  // Aquest mètode retorna l’estat personal d’un cim des del store compartit.
   PeakStatus? statusForPeak(int peakId) {
     return _peakStatusStore.getStatus(peakId);
   }
 
-  // Inicialitza les dades necessàries per mostrar el mapa.
-  // Regions, estats personals i cims es demanen alhora perquè són crides
-  // independents. Així el mapa arriba abans i la pantalla queda llesta més
-  // ràpid. Cada Future captura els seus errors internament; el .catchError
-  // d’aquí és una xarxa de seguretat perquè un error inesperat en una crida
-  // no aborti Future.wait i descarti els resultats de les altres dues.
+  // Aquest mètode carrega les dades inicials del mapa.
+  // Regions, estats personals i cims es demanen en paral·lel perquè són dades independents.
   Future<void> initialize() async {
     await Future.wait([
       _loadRegions().catchError((error, stack) {
@@ -183,8 +143,7 @@ class PeaksMapController extends ChangeNotifier {
     ]);
   }
 
-  // Carrega les regions disponibles per als filtres del mapa.
-  // Si no es poden obtenir, deixa la llista buida perquè la pantalla pugui continuar funcionant.
+  // Aquest mètode carrega les regions disponibles per al filtre del mapa.
   Future<void> _loadRegions() async {
     try {
       final loadedRegions = await _getRegionsUseCase.execute();
@@ -200,8 +159,6 @@ class PeaksMapController extends ChangeNotifier {
         return;
       }
 
-      // Es loga el tipus i la traça perquè un canvi de contracte del backend
-      // (camps renombrats, format invàlid) no quedi enterrat com a llista buida.
       debugPrint(
         '[PeaksMapController] _loadRegions failed '
         '(${error.runtimeType}): $error\n$stack',
@@ -211,9 +168,8 @@ class PeaksMapController extends ChangeNotifier {
     }
   }
 
-  // Carrega els estats personals dels cims de l’usuari.
-  // Aquesta informació és necessària per filtrar i mostrar cims completats,
-  // objectius o preferits dins del mapa.
+  // Aquest mètode carrega els estats personals de l’usuari.
+  // Els desa al store compartit perquè mapa, catàleg i detall utilitzin la mateixa font.
   Future<void> _loadUserPeakStatuses() async {
     try {
       final statuses = await _getUserPeakStatusesUseCase.execute();
@@ -236,8 +192,8 @@ class PeaksMapController extends ChangeNotifier {
     }
   }
 
-  // Gestiona els canvis en el camp de cerca.
-  // Utilitza un debounce compartit per evitar una petició al backend a cada tecla.
+  // Aquest mètode reacciona als canvis del camp de cerca.
+  // Aplica una espera breu per evitar una petició al backend per cada tecla.
   void onSearchChanged(String value) {
     errorMessage = null;
 
@@ -252,8 +208,8 @@ class PeaksMapController extends ChangeNotifier {
     });
   }
 
-  // Aplica els filtres seleccionats per l’usuari.
-  // Després de guardar-los, el listener compartit torna a carregar el mapa.
+  // Aquest mètode aplica els filtres seleccionats.
+  // La recàrrega es resol a través del listener del filtre compartit.
   Future<void> applyFilters({
     int? regionId,
     int? minAltitude,
@@ -268,29 +224,26 @@ class PeaksMapController extends ChangeNotifier {
     );
   }
 
-  // Elimina tots els filtres aplicats al mapa.
-  // La crida a clear() notifica els listeners si hi havia filtres actius.
+  // Aquest mètode elimina tots els filtres actius.
   Future<void> clearFilters() async {
     _filtersState.clear();
   }
 
-  // Torna a intentar carregar els cims quan s’ha produït un error.
-  // Manté la cerca i els filtres actuals per respectar el context de l’usuari.
+  // Aquest mètode reintenta la càrrega dels cims amb la cerca i els filtres actuals.
   Future<void> onRetryTap() {
     return _loadPeaks(
       search: currentSearch.isEmpty ? null : currentSearch,
     );
   }
 
-  // Desa el cim seleccionat per l’usuari dins del mapa.
-  // Aquesta selecció permet mostrar accions o informació associada al cim.
+  // Aquest mètode desa el cim seleccionat al mapa.
+  // La selecció permet mostrar la targeta resum i accions ràpides.
   void onPeakSelected(Peak peak) {
     selectedPeak = peak;
     notifyListeners();
   }
 
-  // Activa o desactiva el flag d’objectiu del cim seleccionat.
-  // El canvi es desa al backend i després s’escriu al store compartit.
+  // Aquest mètode activa o desactiva el cim seleccionat com a objectiu.
   Future<void> onSelectedPeakTargetTap() async {
     final peak = selectedPeak;
 
@@ -307,8 +260,7 @@ class PeaksMapController extends ChangeNotifier {
     );
   }
 
-  // Activa o desactiva el flag de preferit del cim seleccionat.
-  // El completat no es modifica des del mapa perquè deriva de les ascensions.
+  // Aquest mètode activa o desactiva el cim seleccionat com a preferit.
   Future<void> onSelectedPeakFavoriteTap() async {
     final peak = selectedPeak;
 
@@ -325,8 +277,8 @@ class PeaksMapController extends ChangeNotifier {
     );
   }
 
-  // Actualitza un estat manual del cim seleccionat.
-  // Només envia el camp que canvia i deixa la resta d’estats intactes.
+  // Aquest mètode actualitza un estat manual del cim seleccionat.
+  // Quan el backend confirma el canvi, actualitza el store i avisa les estadístiques.
   Future<void> _updateSelectedPeakStatus({
     required int peakId,
     bool? isTarget,
@@ -348,10 +300,6 @@ class PeaksMapController extends ChangeNotifier {
       }
 
       _peakStatusStore.setStatus(updatedStatus);
-      // Avisa el dashboard i stats que un comptador (preferits/objectius)
-      // pot haver canviat. Es notifica només quan el backend ha confirmat
-      // el canvi per no enganyar amb estats optimistes que després
-      // fallin.
       _userStatsRefreshStore.notifyStatsChanged();
     } on ApiException catch (error) {
       if (_disposed) {
@@ -373,8 +321,7 @@ class PeaksMapController extends ChangeNotifier {
     }
   }
 
-  // Prepara la navegació cap al detall del cim seleccionat.
-  // Si no hi ha cap cim seleccionat, no fa cap acció.
+  // Aquest mètode prepara la navegació cap al detall del cim seleccionat.
   void onSelectedPeakDetailTap() {
     final peak = selectedPeak;
     if (peak == null) {
@@ -386,15 +333,14 @@ class PeaksMapController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Neteja la navegació pendent un cop la pantalla ja l’ha executat.
-  // Això evita que la mateixa navegació es repeteixi en reconstruccions posteriors.
+  // Aquest mètode neteja la navegació pendent després que la vista l’hagi resolt.
   void consumeNavigation() {
     _destination = PeaksMapDestination.none;
     _selectedPeakId = null;
   }
 
-  // Carrega els cims pensats per al mapa.
-  // Envia cerca, comarca i altitud al backend perquè aquests filtres es resolguin amb dades completes.
+  // Aquest mètode carrega els cims preparats per al mapa.
+  // Envia cerca i filtres al backend, i després conserva només els cims amb coordenades.
   Future<void> _loadPeaks({
     String? search,
   }) async {
@@ -449,10 +395,8 @@ class PeaksMapController extends ChangeNotifier {
     }
   }
 
-  // Aplica només els filtres locals indispensables per al render del
-  // mapa. Cerca, comarca, altitud i estat ja venen resoltes pel backend;
-  // aquí només descartem cims sense coordinades per no espatllar els
-  // bounds que calcula `peaks_google_map.dart`.
+  // Aquest mètode aplica els filtres locals necessaris per renderitzar el mapa.
+  // La resta de filtres ja arriben resolts des del backend.
   void _applyLocalFilters() {
     final filteredPeaks =
         _loadedPeaks.where((peak) => peak.hasMapPosition).toList();
@@ -461,7 +405,7 @@ class PeaksMapController extends ChangeNotifier {
     _syncSelectedPeak();
   }
 
-  // Aplica la selecció inicial quan la pantalla s’obre des del detall d’un cim.
+  // Aquest mètode aplica la selecció inicial quan el mapa s’obre des del detall.
   // Només s’executa una vegada per evitar reobrir la targeta en cada reconstrucció.
   void _applyInitialPeakSelection() {
     if (_hasAppliedInitialPeak || initialPeakId == null) {
@@ -479,8 +423,7 @@ class PeaksMapController extends ChangeNotifier {
     selectedPeak = peak;
   }
 
-  // Busca un cim dins del llistat carregat.
-  // Es fa servir per connectar la navegació des del detall amb la pantalla de mapa.
+  // Aquest mètode busca un cim dins del llistat visible.
   Peak? _findPeakById(int peakId) {
     for (final peak in peaks) {
       if (peak.id == peakId) {
@@ -491,8 +434,8 @@ class PeaksMapController extends ChangeNotifier {
     return null;
   }
 
-  // Manté la selecció del cim coherent amb la llista filtrada.
-  // Si el cim seleccionat ja no és visible pels filtres actuals, es deselecciona.
+  // Aquest mètode manté coherent la selecció amb els cims visibles.
+  // Si el cim seleccionat ja no entra als filtres, es deselecciona.
   void _syncSelectedPeak() {
     final currentSelectedPeak = selectedPeak;
     if (currentSelectedPeak == null) {
@@ -509,8 +452,7 @@ class PeaksMapController extends ChangeNotifier {
     selectedPeak = null;
   }
 
-  // Aquest mètode neteja el cim seleccionat al mapa.
-  // S'utilitza quan l'usuari toca una zona buida del mapa i vol tancar la targeta flotant.
+  // Aquest mètode tanca la targeta del cim seleccionat.
   void clearSelectedPeak() {
     if (selectedPeak == null) {
       return;
@@ -520,11 +462,8 @@ class PeaksMapController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Reacciona als canvis globals dels estats dels cims. Si hi ha un
-  // filtre d'estat actiu, cal refetch perquè la composició de la llista
-  // pot haver canviat (un cim que abans no entrava ara hi entra, o
-  // viceversa). Si no n'hi ha, només notifiquem perquè les insígnies
-  // dels marcadors o de la targeta seleccionada s'actualitzin.
+  // Aquest mètode reacciona als canvis globals dels estats personals.
+  // Si hi ha un filtre d’estat actiu, recarrega els cims perquè la llista pot haver canviat.
   void _onStoreChanged() {
     if (_disposed) {
       return;
@@ -540,8 +479,8 @@ class PeaksMapController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Quan el filtre compartit canvia, es tornen a carregar els cims del mapa.
-  // Això és necessari perquè comarca, cerca i altitud es resolguin al backend.
+  // Aquest mètode reacciona als canvis del filtre compartit.
+  // Recarrega el mapa perquè els cims visibles respectin els nous criteris.
   void _onFiltersChanged() {
     if (_disposed) {
       return;
@@ -552,8 +491,8 @@ class PeaksMapController extends ChangeNotifier {
     );
   }
 
-  // Allibera els recursos del controller quan la pantalla deixa d’utilitzar-lo.
-  // Això evita escoltes actives, temporitzadors pendents i possibles actualitzacions innecessàries.
+  // Aquest mètode allibera els recursos quan la pantalla es destrueix.
+  // També elimina listeners i cerques pendents.
   @override
   void dispose() {
     _disposed = true;

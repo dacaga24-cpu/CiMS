@@ -2,17 +2,8 @@ import 'package:cims/app/screens/peaks_catalog/models/peak_sort_by.dart';
 import 'package:cims/app/screens/peaks_catalog/models/peak_sort_order.dart';
 import 'package:flutter/material.dart';
 
-// Aquest bottom sheet permet escollir la combinació de camp + sentit que
-// ordena el catàleg. Visualment cada opció es marca amb un check, però
-// lògicament són exclusives entre si: només una pot estar activa alhora,
-// així que escollir-ne una neteja les altres. Aquest model evita estats
-// contradictoris com "A → Z" i "Z → A" actius al mateix temps.
-//
-// El sheet retorna immediatament en tocar una opció: no hi ha botó
-// "Aplicar". Així el feedback és directe i l'usuari pot reobrir-lo si
-// es vol equivocar i corregir; sense un botó d'aplicació evitem un pas
-// addicional que no aporta valor en aquest cas (només 4 opcions, sense
-// configuració extra que justifiqui un commit explícit).
+// Aquest panell permet escollir l’ordre del catàleg de cims.
+// Cada opció combina un camp d’ordenació i un sentit concret.
 class PeaksSortOrderSheet extends StatelessWidget {
   const PeaksSortOrderSheet({
     super.key,
@@ -21,21 +12,16 @@ class PeaksSortOrderSheet extends StatelessWidget {
     required this.onSelected,
   });
 
-  // Camp d'ordre actiu en aquest moment. Serveix per marcar visualment
-  // l'opció seleccionada amb un check.
+  // Aquestes dades indiquen l’ordre actiu en el moment d’obrir el panell.
+  // Permeten marcar visualment l’opció seleccionada.
   final PeakSortBy sortBy;
-
-  // Sentit d'ordre actiu (asc/desc). Combinat amb `sortBy` identifica
-  // de manera única una de les 4 opcions del menú.
   final PeakSortOrder sortOrder;
 
-  // Callback que executa el caller quan l'usuari escull una nova
-  // combinació. El sheet es tanca automàticament abans de cridar.
+  // Aquesta acció comunica al catàleg la nova ordenació seleccionada.
   final void Function(PeakSortBy sortBy, PeakSortOrder sortOrder) onSelected;
 
-  // Helper que obre el sheet i retorna un Future que es resol quan
-  // l'usuari el tanca (per gest o per selecció). Manté els valors actuals
-  // i delega la lògica del canvi al `onSelected` que passa el caller.
+  // Aquest mètode obre el panell d’ordenació.
+  // Rep l’estat actual i delega el canvi final a la pantalla que l’ha invocat.
   static Future<void> show(
     BuildContext context, {
     required PeakSortBy sortBy,
@@ -147,9 +133,8 @@ class PeaksSortOrderSheet extends StatelessWidget {
     );
   }
 
-  // Tanca el sheet abans de notificar el caller. Així evitem que el
-  // caller hagi de pensar en l'estat del sheet ni que un pop tardà
-  // arribi quan el catàleg ja s'ha refrescat.
+  // Aquest mètode tanca el panell i comunica l’opció seleccionada.
+  // Manté la pantalla principal com a responsable d’aplicar el canvi real.
   void _select(
     BuildContext context,
     PeakSortBy newSortBy,
@@ -160,12 +145,8 @@ class PeaksSortOrderSheet extends StatelessWidget {
   }
 }
 
-// Cada fila del menú representa una de les 4 combinacions. Quan està
-// seleccionada es mostra el check a la dreta i el fons s'omple de blau
-// suau per donar feedback visual immediat. El callback no s'amaga
-// quan està seleccionada perquè reseleccionar la mateixa opció és
-// inofensiu (el controller ho ignora) i permet a l'usuari tancar el
-// sheet tocant la opció activa.
+// Aquest widget representa una opció d’ordenació dins del panell.
+// Mostra icona, títol, descripció i indicador visual quan està seleccionada.
 class _OptionRow extends StatelessWidget {
   const _OptionRow({
     required this.icon,
@@ -175,6 +156,7 @@ class _OptionRow extends StatelessWidget {
     required this.onTap,
   });
 
+  // Aquestes dades defineixen el contingut visual i l’acció de la fila.
   final IconData icon;
   final String label;
   final String description;

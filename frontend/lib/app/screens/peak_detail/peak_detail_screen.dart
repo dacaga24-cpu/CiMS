@@ -9,8 +9,7 @@ import 'package:cims/core/entity/peak.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta pantalla mostra el detall d’un cim concret.
-// És una pantalla independent de la tab bar perquè només s’hi arriba
-// des del catàleg o des del mapa.
+// Funciona fora de la navegació principal perquè s’obre des del catàleg, el mapa o altres pantalles.
 @RoutePage()
 class PeakDetailScreen extends StatefulWidget {
   const PeakDetailScreen({
@@ -18,10 +17,8 @@ class PeakDetailScreen extends StatefulWidget {
     @PathParam('peakId') required this.peakId,
   });
 
-  // Aquesta propietat identifica quin cim s’ha de carregar
-  // quan la pantalla s’obre. L'anotació `@PathParam` fa que auto_route
-  // serialitzi aquest valor a la URL com a `/peaks/<id>`, així permet
-  // deep linking i compartir l'enllaç del detall del cim.
+  // Aquest identificador indica quin cim s’ha de carregar.
+  // També permet obrir el detall directament des d’una URL del tipus /peaks/id.
   final int peakId;
 
   @override
@@ -31,21 +28,18 @@ class PeakDetailScreen extends StatefulWidget {
 // Aquest estat connecta la pantalla amb el controller del detall.
 // També resol les navegacions derivades de les accions de l’usuari.
 class _PeakDetailScreenState extends State<PeakDetailScreen> {
-  // Aquest bloc guarda el controller real de la pantalla
-  // i un possible missatge d’error si la seva creació falla d’entrada.
+  // Aquestes dades mantenen el controller actiu i un possible error inicial.
   PeakDetailController? _controller;
   String? _initializationError;
 
-  // Aquest mètode prepara la pantalla en obrir-se.
-  // Inicialitza el controller perquè el detall del cim es pugui carregar automàticament.
   @override
   void initState() {
     super.initState();
     _initializeController();
   }
 
-  // Obre la pantalla de mapa amb el cim actual seleccionat.
-  // Així el mapa es carrega centrat en el marcador del cim.
+  // Aquest mètode obre el mapa amb el cim actual seleccionat.
+  // Substitueix la navegació principal perquè el mapa quedi com a secció activa.
   Future<void> _openPeakMap(int peakId) async {
     await context.router.root.replaceAll([
       MainNavigationRoute(
@@ -57,13 +51,8 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
   }
 
   // Aquest mètode crea el controller de manera segura.
-  // Si falla la inicialització, la pantalla no peta i deixa visible
-  // un missatge d’error per poder detectar millor el problema real.
+  // Si l’identificador no és vàlid o la creació falla, mostra un error controlat.
   void _initializeController() {
-    // Validem el path-param abans de tocar el controller. Si l'usuari obre
-    // /peaks/0 o un id manipulat (per ex. compartint un enllaç caducat),
-    // val més mostrar un error explícit que no pas fer una petició inútil
-    // al backend que retorna 404.
     if (widget.peakId <= 0) {
       _initializationError =
           'L\'enllaç al cim no és vàlid. Torna al llistat i obre el cim des d\'allà.';
@@ -88,9 +77,8 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
     }
   }
 
-  // Aquest mètode resol les accions globals des de la vista.
-  // La navegació real cap al mapa, cap al registre d’ascensió o cap a l’historial
-  // es fa des de la pantalla per mantenir el controller separat del context visual.
+  // Aquest mètode resol les navegacions demanades pel controller.
+  // La pantalla executa les rutes per mantenir el controller separat del context visual.
   void _handleControllerChanges() {
     final controller = _controller;
 
@@ -145,8 +133,7 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
   }
 
   // Aquest mètode obre el formulari de registre d’ascensió.
-  // Quan l’usuari torna al detall, es refresca la data de l’últim ascens
-  // perquè la capçalera mostri la informació acabada de guardar al backend.
+  // En tornar al detall, refresca l’última ascensió mostrada a la pantalla.
   Future<void> _openAscentRegister(
     PeakDetailController controller,
     Peak peak,
@@ -163,7 +150,7 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
   }
 
   // Aquest mètode obre l’historial d’ascensions del cim actual.
-  // Reutilitza les dades ja carregades al detall per construir la capçalera.
+  // Reutilitza les dades ja carregades per construir la capçalera de l’historial.
   Future<void> _openAscentHistory(Peak peak) async {
     await context.router.root.push(
       AscentHistoryRoute(
@@ -176,8 +163,8 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
     );
   }
 
-  // Aquest mètode mostra un missatge breu a la part inferior
-  // per informar l’usuari de funcionalitats encara pendents o accions puntuals.
+  // Aquest mètode mostra un missatge breu a la part inferior de la pantalla.
+  // S’utilitza quan una acció no es pot completar amb les dades disponibles.
   void _showInfoMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
@@ -185,7 +172,7 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
   }
 
   // Aquest mètode allibera el controller quan la pantalla es tanca.
-  // També elimina l’escolta activa per evitar notificacions innecessàries.
+  // També elimina el listener per evitar notificacions després del tancament.
   @override
   void dispose() {
     final controller = _controller;
@@ -199,13 +186,11 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
   }
 
   // Aquest mètode construeix l’estructura principal de la pantalla.
-  // També contempla el cas en què el controller no s’hagi pogut preparar correctament.
+  // També cobreix el cas en què el controller no s’ha pogut inicialitzar.
   @override
   Widget build(BuildContext context) {
     final controller = _controller;
 
-    // Aquest primer cas cobreix els errors de preparació inicial de la pantalla
-    // i evita que la vista intenti funcionar sense controller disponible.
     if (_initializationError != null || controller == null) {
       return Scaffold(
         backgroundColor: const Color(0xFFF6F7FB),
@@ -217,8 +202,6 @@ class _PeakDetailScreenState extends State<PeakDetailScreen> {
       );
     }
 
-    // Aquest bloc escolta els canvis del controller i reconstrueix la pantalla
-    // quan canvia la càrrega, les dades o algun estat visual del detall.
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {

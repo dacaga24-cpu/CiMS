@@ -1,12 +1,8 @@
 import 'package:cims/core/util/format.dart';
 import 'package:flutter/material.dart';
 
-// Aquesta capçalera mostra la informació principal del cim seleccionat
-// dins de l'historial d'ascensions. Reutilitza el mateix tractament
-// visual que la capçalera del detall del cim (mateix tipografia,
-// caixa blanca que s'adapta al text i imatge de muntanya com a fons)
-// per mantenir una experiència consistent quan l'usuari salta entre
-// les dues pantalles.
+// Aquesta capçalera mostra la informació principal del cim dins de l’historial d’ascensions.
+// Manté una presentació coherent amb el detall del cim perquè el canvi de pantalla sigui natural.
 class AscentHistoryHeader extends StatelessWidget {
   const AscentHistoryHeader({
     super.key,
@@ -17,8 +13,8 @@ class AscentHistoryHeader extends StatelessWidget {
     this.imageUrl,
   });
 
-  // Aquestes dades defineixen el contingut principal de la capçalera:
-  // nom del cim, territori, altitud, nombre total d’ascensions i imatge associada.
+  // Aquestes dades defineixen el contingut principal de la capçalera.
+  // Inclouen el nom del cim, la ubicació, l’altitud, les ascensions totals i la imatge.
   final String peakName;
   final int altitude;
   final List<String> regions;
@@ -108,10 +104,8 @@ class AscentHistoryHeader extends StatelessWidget {
             ),
           ),
         ),
-        // Aquest comptador es manté com a element distintiu de l'historial:
-        // resumeix de cop d'ull quantes ascensions té el cim. Es posiciona
-        // a sobre del límit inferior de la imatge perquè destaqui sense
-        // ocupar espai dins la capçalera principal.
+        // Aquest comptador resumeix el total d’ascensions del cim.
+        // Es destaca visualment perquè l’usuari identifiqui ràpidament el volum d’activitat.
         Positioned(
           bottom: -17,
           child: Container(

@@ -2,15 +2,16 @@ import 'package:cims/core/client/api_client.dart';
 import 'package:cims/core/entity/ascent.dart';
 import 'package:cims/core/entity/ascent_upload_photo.dart';
 
-// Aquest cas d’ús representa l’acció de registrar una nova ascensió.
-// Centralitza aquesta operació perquè la pantalla no hagi de parlar directament amb l’API.
+// Aquest cas d’ús registra una nova ascensió.
+// Centralitza aquesta operació perquè la pantalla no hagi de comunicar-se directament amb l’API.
 class RegisterAscentUseCase {
   const RegisterAscentUseCase(this._apiClient);
 
+  // Aquest client permet crear l’ascensió a través del backend.
+  // Això manté la pantalla separada dels detalls de la petició.
   final ApiClient _apiClient;
 
-  // Aquest mètode envia les dades de l’ascensió al backend.
-  // El backend identifica l’usuari amb el token guardat a la sessió.
+  // Envia les dades necessàries per registrar una ascensió.
   // Si hi ha fotos pujades, també envia les seves rutes perquè quedin associades al registre.
   Future<Ascent> call({
     required int peakId,

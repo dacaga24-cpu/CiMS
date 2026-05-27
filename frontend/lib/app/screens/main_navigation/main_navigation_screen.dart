@@ -10,8 +10,7 @@ import 'package:cims/core/session/app_session.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta pantalla actua com a contenidor principal de la navegació interna.
-// Manté visibles els elements compartits, com la capçalera i el menú inferior,
-// mentre AutoRoute carrega la secció activa seleccionada per l’usuari.
+// Manté visibles els elements compartits i mostra la secció activa segons la pestanya seleccionada.
 @RoutePage()
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -37,14 +36,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     super.dispose();
   }
 
-  // Aquest mètode construeix l’estructura base comuna de les pantalles
-  // accessibles des del menú inferior. També connecta el tab bar amb
-  // les rutes internes perquè el canvi de secció quedi centralitzat aquí.
+  // Aquest mètode construeix l’estructura base de la navegació principal.
+  // Adapta el menú inferior o lateral segons l’amplada disponible.
   @override
   Widget build(BuildContext context) {
     return AutoTabsRouter(
-      // Aquest ordre coincideix amb MainBottomNavigationTab:
-      // Inici, Mapa, Llistat i Dades.
+      // Aquest ordre coincideix amb les pestanyes principals de l’aplicació.
       routes: [
         const DashboardRoute(),
         PeaksMapRoute(),
@@ -56,12 +53,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         final selectedTab =
             MainBottomNavigationTab.values[tabsRouter.activeIndex];
 
-        // Evitem dependre de MediaQuery dins del build inicial perquè en el
-        // primer frame post-login pot retornar mesures encara no estables i
-        // això provocava que a 1440px aparegués el layout mòbil. Amb
-        // LayoutBuilder reaccionem directament als constraints reals i el
-        // layout es manté coherent tant si l'usuari acaba d'entrar com si
-        // recarrega la pantalla.
         return LayoutBuilder(
           builder: (context, constraints) {
             final screenSize =

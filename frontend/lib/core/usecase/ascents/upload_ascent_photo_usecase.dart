@@ -8,10 +8,12 @@ import 'package:cims/core/entity/ascent_upload_photo.dart';
 class UploadAscentPhotoUseCase {
   const UploadAscentPhotoUseCase(this._apiClient);
 
+  // Aquest client permet preparar la pujada i enviar la imatge al bucket.
+  // Això manté la pantalla separada dels detalls d’emmagatzematge.
   final ApiClient _apiClient;
 
-  // Aquest mètode puja la imatge a l’emmagatzematge i retorna la seva ruta.
-  // També permet marcar-la com a principal o com a evidència de verificació.
+  // Puja la imatge a l’emmagatzematge i retorna les dades necessàries per associar-la.
+  // També permet indicar si serà foto principal o evidència d’una verificació.
   Future<AscentUploadPhoto> call({
     required Uint8List bytes,
     required String mimeType,

@@ -14,6 +14,8 @@ import 'package:cims/core/session/app_session.dart';
 import 'package:cims/core/util/string_case.dart';
 import 'package:flutter/material.dart';
 
+// Aquesta pantalla mostra el dashboard principal de l’usuari.
+// Agrupa repte mensual, fotos recents, objectius, preferits i activitat recent.
 @RoutePage()
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -36,6 +38,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+  // Aquest mètode resol les navegacions demanades pel controller.
+  // Permet mantenir separada la lògica de pantalla de les accions de ruta.
   void _handleNavigation() {
     if (!mounted) return;
 
@@ -62,6 +66,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  // Aquest mètode obre l’historial d’ascensions d’un cim recent.
+  // Reutilitza les dades resumides que ja arriben al dashboard.
   void _openAscentHistory(DashboardRecentAscent ascent) {
     context.router.root.push(
       AscentHistoryRoute(
@@ -74,6 +80,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // Aquest mètode envia l’usuari al catàleg amb un filtre d’estat aplicat.
+  // Permet veure tots els objectius, preferits o cims completats des del dashboard.
   void _openCatalogWithStatusFilter(PeakStatusFilter statusFilter) {
     PeaksFilterState.shared.clear();
     PeaksFilterState.shared.apply(statusFilter: statusFilter);
@@ -119,9 +127,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onRefresh: _controller.loadDashboard,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                // En mòbil el FAB de càmera flota sobre el bottom navigation
-                // bar, així que afegim espai extra a sota per evitar que
-                // l'última ascensió quedi tapada per la flotant.
                 padding: AppResponsive.pagePadding(
                   context,
                   compactHorizontal: 20,
@@ -150,6 +155,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
+// Aquest widget construeix el contingut principal del dashboard.
+// Adapta la disposició segons l’amplada disponible.
 class _DashboardContent extends StatelessWidget {
   const _DashboardContent({
     required this.summary,
@@ -159,6 +166,7 @@ class _DashboardContent extends StatelessWidget {
     required this.onAscentTap,
   });
 
+  // Aquestes dades i accions alimenten les seccions interactives del dashboard.
   final DashboardSummary summary;
   final ValueChanged<int> onPeakTap;
   final VoidCallback onViewGalleryTap;
@@ -219,6 +227,7 @@ class _DashboardContent extends StatelessWidget {
     );
   }
 
+  // Aquest bloc agrupa totes les seccions quan el dashboard es mostra en una sola columna.
   List<Widget> get _allSections {
     return [
       const _DashboardHeader(),
@@ -276,6 +285,8 @@ class _DashboardContent extends StatelessWidget {
   }
 }
 
+// Aquest widget ordena una llista de seccions en columna.
+// Afegeix separació uniforme entre blocs i evita renderitzar espais buits.
 class _DashboardColumn extends StatelessWidget {
   const _DashboardColumn({
     required this.children,
@@ -306,6 +317,8 @@ class _DashboardColumn extends StatelessWidget {
   }
 }
 
+// Aquesta capçalera mostra la salutació inicial del dashboard.
+// Utilitza el perfil compartit de sessió per personalitzar el missatge.
 class _DashboardHeader extends StatelessWidget {
   const _DashboardHeader();
 
@@ -316,9 +329,9 @@ class _DashboardHeader extends StatelessWidget {
       builder: (context, _) {
         final user = AppSession.userProfileStore.user;
         final firstName = user?.firstName.trim() ?? '';
-        // Normalitzem visualment a "Title Case" perquè la salutació es
-        // mostri sempre amb la mateixa grafia (`Marc`) independentment de
-        // com l'hagi guardat l'usuari (`MARC`, `marc`, etc.).
+
+        // Aquest valor normalitza el nom visible de l’usuari.
+        // Si encara no hi ha perfil carregat, es mostra un text genèric.
         final greetingName =
             firstName.isEmpty ? 'explorador' : capitalizeFirst(firstName);
 
@@ -349,6 +362,7 @@ class _DashboardHeader extends StatelessWidget {
   }
 }
 
+// Aquest widget mostra l’estat de càrrega inicial del dashboard.
 class _DashboardLoadingState extends StatelessWidget {
   const _DashboardLoadingState();
 
@@ -362,12 +376,15 @@ class _DashboardLoadingState extends StatelessWidget {
   }
 }
 
+// Aquest widget mostra un error quan el dashboard no es pot carregar.
+// Inclou una acció per tornar a intentar la consulta.
 class _DashboardErrorState extends StatelessWidget {
   const _DashboardErrorState({
     required this.message,
     required this.onRetry,
   });
 
+  // Aquestes dades defineixen el missatge visible i l’acció de recuperació.
   final String message;
   final VoidCallback onRetry;
 

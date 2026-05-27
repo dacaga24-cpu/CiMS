@@ -1,18 +1,18 @@
 import 'package:cims/core/client/api_client.dart';
 
 // Aquest cas d’ús encapsula l’operació d’iniciar sessió.
-// La seva funció és separar la lògica de negoci de la capa de presentació
-// i delegar la comunicació amb el backend al client d’API.
+// Separa la pantalla de la comunicació directa amb el backend.
 class LoginUseCase {
   const LoginUseCase({
     required ApiClient apiClient,
   }) : _apiClient = apiClient;
 
-  // Aquest bloc guarda la dependència necessària per executar el login real.
+  // Aquest client permet enviar les credencials al backend.
+  // Això manté la lògica d’autenticació fora de la capa visual.
   final ApiClient _apiClient;
 
-  // Aquest mètode executa l’autenticació amb les credencials rebudes
-  // i retorna la resposta del backend si el procés és correcte.
+  // Executa l’inici de sessió amb el correu i la contrasenya rebuts.
+  // Retorna la resposta necessària per guardar la sessió si les credencials són correctes.
   Future<LoginResponse> execute({
     required String email,
     required String password,

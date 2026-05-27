@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'register_controller.dart';
 import 'widgets/register_form_card.dart';
 
+// Aquesta pantalla mostra el formulari de registre d’un nou usuari.
+// Manté la part visual separada del controller i resol la navegació cap al login.
 @RoutePage()
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -13,6 +15,8 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
+// Aquest estat connecta la pantalla amb el controller de registre.
+// Escolta els canvis del controller per reaccionar a la navegació pendent.
 class _RegisterScreenState extends State<RegisterScreen> {
   late final RegisterController controller;
 
@@ -22,6 +26,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     controller = RegisterController()..addListener(_handleControllerChanges);
   }
 
+  // Aquest mètode resol la navegació demanada pel controller.
+  // Quan el registre finalitza o l’usuari vol tornar, envia la pantalla al login.
   void _handleControllerChanges() {
     if (!mounted) return;
 
@@ -37,6 +43,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  // Aquest mètode allibera el controller quan la pantalla es tanca.
+  // També elimina el listener per evitar notificacions sobre una pantalla destruïda.
   @override
   void dispose() {
     controller.removeListener(_handleControllerChanges);
@@ -44,6 +52,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  // Aquest mètode construeix la pantalla de registre.
+  // Adapta la posició del formulari segons la mida de pantalla i el teclat visible.
   @override
   Widget build(BuildContext context) {
     final keyboardInset = MediaQuery.of(context).viewInsets.bottom;

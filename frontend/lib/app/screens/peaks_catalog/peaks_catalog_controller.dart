@@ -17,28 +17,22 @@ import 'package:cims/core/usecase/peak_status/get_user_peak_statuses_usecase.dar
 import 'package:cims/core/usecase/peaks/get_peaks_page_usecase.dart';
 import 'package:flutter/material.dart';
 
-// Aquest valor defineix quants cims es demanen per cada pàgina del catàleg.
-// Coincideix amb la mida prevista pel backend i permet carregar el llistat progressivament.
+// Aquest valor defineix quants cims es carreguen per pàgina.
+// Permet paginar el catàleg sense demanar tots els registres de cop.
 const int _catalogPageSize = 50;
 
-// Aquest enum defineix les possibles navegacions de la pantalla del catàleg.
-// La vista les consumeix i decideix com resoldre la navegació real.
+// Aquest enum defineix les navegacions que pot demanar el catàleg.
+// La pantalla les consumeix i resol la ruta corresponent.
 enum PeaksCatalogDestination {
   none,
   peakDetail,
 }
 
-// Aquest controlador gestiona l’estat local de la pantalla del catàleg.
-// Carrega els cims reals des del backend, gestiona la cerca, els filtres,
-// els estats personals dels cims i prepara la navegació cap al detall
-// sense barrejar-la amb la UI.
-//
-// Els estats personals no es guarden aquí: viuen al PeakStatusStore compartit,
-// de manera que qualsevol canvi fet des del detall d'un cim es reflecteix
-// automàticament al catàleg sense necessitat de recarregar res.
+// Aquest controller gestiona la pantalla del catàleg de cims.
+// Carrega dades, aplica cerca, filtres, ordenació, paginació i navegació al detall.
 class PeaksCatalogController extends ChangeNotifier {
-  // Aquest constructor prepara els casos d’ús necessaris per carregar
-  // el catàleg, les comarques i els estats personals de l’usuari.
+  // Aquest constructor prepara les dependències i escolta els estats compartits.
+  // Així el catàleg es manté sincronitzat amb el mapa i el detall dels cims.
   PeaksCatalogController({
     GetPeaksPageUseCase? getPeaksPageUseCase,
     GetRegionsUseCase? getRegionsUseCase,
@@ -58,19 +52,11 @@ class PeaksCatalogController extends ChangeNotifier {
     _getUserPeakStatusesUseCase =
         getUserPeakStatusesUseCase ?? GetUserPeakStatusesUseCase(apiClient);
 
-    // El controller s'enganxa al store per refrescar el filtre d'estat i la
-    // pantalla quan algun altre punt de l'app modifiqui l'estat d'un cim.
     _peakStatusStore.addListener(_onStoreChanged);
-
-    // També s'enganxa al filtre compartit perquè quan l'usuari apliqui un
-    // canvi des del mapa, el catàleg refresqui sense necessitat de tornar a
-    // entrar a la pantalla. Sense això, cada controller mantenia una còpia
-    // pròpia del filtre i les dues pantalles es desincronitzaven.
     _filtersState.addListener(_onFiltersChanged);
   }
 
-  // Aquest bloc guarda els casos d’ús que el controller necessita
-  // per obtenir dades del backend sense fer peticions directes des de la pantalla.
+  // Aquestes dependències permeten obtenir cims, comarques i estats personals.
   late final GetPeaksPageUseCase _getPeaksPageUseCase;
   late final GetRegionsUseCase _getRegionsUseCase;
   late final GetUserPeakStatusesUseCase _getUserPeakStatusesUseCase;
@@ -78,42 +64,30 @@ class PeaksCatalogController extends ChangeNotifier {
 
   final searchController = TextEditingController();
 
-  // Aquest bloc representa l’estat visible del catàleg.
-  // La pantalla l’utilitza per mostrar càrrega, errors, cims i comarques.
+  // Aquestes dades representen l’estat visible del catàleg.
+  // La pantalla les utilitza per mostrar càrrega, errors, llistat i paginació.
   bool isLoading = false;
   bool isLoadingMore = false;
   bool hasMore = true;
   int currentPage = 0;
   String? errorMessage;
   String? loadMoreErrorMessage;
-
-  // peaks conté la llista final que veu l’usuari. El backend ja aplica
-  // tots els filtres (cerca, comarca, altitud, estat); per això la llista
-  // visible coincideix exactament amb la que ha retornat l'última pàgina.
   List<Peak> peaks = const [];
   List<Region> availableRegions = const [];
 
-  // Aquest objecte concentra els filtres compartits amb l’altra vista de cims.
-  // S'utilitza la instància global PeaksFilterState.shared perquè el filtre
-  // sigui coherent entre catàleg i mapa: quan un canvia, l'altre es refresca
-  // automàticament gràcies al listener registrat al constructor.
+  // Aquest estat compartit manté els filtres comuns entre catàleg i mapa.
+  // Permet que un canvi en una vista es reflecteixi automàticament a l’altra.
   final PeaksFilterState _filtersState = PeaksFilterState.shared;
 
-  // Aquest bloc guarda informació interna del controller.
-  // Serveix per controlar cerques, evitar respostes antigues i preparar navegacions.
+  // Aquestes dades controlen el cicle intern del controller.
+  // Serveixen per gestionar cerca, respostes obsoletes i navegació pendent.
   bool _disposed = false;
   final _searchDebouncer = PeaksSearchDebouncer();
   int _loadRequestId = 0;
   int? _selectedPeakId;
 
-  // Ordre actual del catàleg (camp + sentit). És estat local del
-  // controller (no es comparteix al singleton de filtres) perquè l'ordre
-  // no afecta el mapa i així evitem refetches innecessaris quan l'usuari
-  // el canviï: només el catàleg ho ha de saber. Defaults `altitude` +
-  // `descending` per mantenir el comportament històric (Pica d'Estats
-  // primer). La combinació dels dos camps representa l'única manera
-  // vàlida d'expressar l'ordre i la UI els canvia sempre alhora a
-  // través d'`onSortChanged`.
+  // Aquestes dades defineixen l’ordre actual del catàleg.
+  // L’ordre és local del catàleg perquè no afecta la visualització del mapa.
   PeakSortBy _sortBy = PeakSortBy.altitude;
   PeakSortOrder _sortOrder = PeakSortOrder.descending;
   PeakSortBy get sortBy => _sortBy;
@@ -123,58 +97,41 @@ class PeaksCatalogController extends ChangeNotifier {
   PeaksCatalogDestination get destination => _destination;
   int? get selectedPeakId => _selectedPeakId;
 
-  // Aquest getter resumeix el text de cerca actiu en aquell moment.
-  // És útil per reutilitzar-lo en reintents i en missatges de la pantalla.
+  // Aquest getter retorna el text de cerca actual sense espais sobrants.
   String get currentSearch => searchController.text.trim();
 
-  // Helper privat per evitar duplicar el ternari `isEmpty ? null : text`
-  // a tots els callsites de `_loadPeaks`. El backend espera `null` quan
-  // no hi ha text de cerca (no string buit).
+  // Aquest getter adapta la cerca al format que espera el backend.
   String? get _searchOrNull => currentSearch.isEmpty ? null : currentSearch;
 
-  // Aquest getter exposa la regió seleccionada per mantenir compatible la UI existent.
+  // Aquests getters exposen els filtres actius a la pantalla.
   int? get selectedRegionId => _filtersState.selectedRegionId;
-
-  // Aquest getter exposa l’altitud mínima seleccionada.
   int? get minAltitude => _filtersState.minAltitude;
-
-  // Aquest getter exposa l’altitud màxima seleccionada.
   int? get maxAltitude => _filtersState.maxAltitude;
-
-  // Aquest getter exposa el filtre d’estat seleccionat.
   PeakStatusFilter get selectedStatusFilter =>
       _filtersState.selectedStatusFilter;
 
   // Aquest getter indica si hi ha algun filtre aplicat.
   bool get hasActiveFilters => _filtersState.hasActiveFilters;
 
-  // Aquest getter retorna el nom de la comarca seleccionada, si n’hi ha.
+  // Aquest getter retorna el nom de la comarca seleccionada, si existeix.
   String? get selectedRegionName =>
       _filtersState.selectedRegionName(availableRegions);
 
   // Aquest getter retorna el nom visible del filtre d’estat seleccionat.
-  // Si no hi ha filtre d’estat, no aporta cap text al resum.
   String? get selectedStatusFilterName => selectedStatusFilter.displayName;
 
-  // Aquest getter construeix un resum curt dels filtres actius
-  // perquè la pantalla el pugui mostrar sota la barra de cerca.
+  // Aquest getter construeix el resum visible dels filtres actius.
   String get activeFiltersSummary =>
       _filtersState.activeFiltersSummary(availableRegions);
 
-  // Aquest mètode retorna l’estat personal d’un cim consultant directament el
-  // store compartit. Així la pantalla del catàleg sempre veu l'estat més recent
-  // sense haver de mantenir cap còpia local.
+  // Aquest mètode retorna l’estat personal d’un cim des del store compartit.
+  // Això evita mantenir còpies locals desincronitzades.
   PeakStatus? statusForPeak(int peakId) {
     return _peakStatusStore.getStatus(peakId);
   }
 
   // Aquest mètode carrega les dades inicials del catàleg.
-  // Les comarques, els estats personals i la primera pàgina de cims són
-  // independents entre elles, així que s’executen en paral·lel per reduir
-  // el temps d’espera total a la latència de la crida més lenta. Cada Future
-  // captura els seus errors internament; el .catchError d’aquí és una xarxa
-  // de seguretat extra perquè un error inesperat en una crida no aborti
-  // Future.wait i descarti els resultats de les altres dues.
+  // Les comarques, els estats i la primera pàgina es demanen en paral·lel.
   Future<void> initialize() async {
     await Future.wait([
       _loadRegions().catchError((error, stack) {
@@ -192,8 +149,7 @@ class PeaksCatalogController extends ChangeNotifier {
     ]);
   }
 
-  // Aquest mètode carrega la llista de comarques disponibles
-  // per poder alimentar el filtre del catàleg.
+  // Aquest mètode carrega les comarques disponibles per al filtre.
   Future<void> _loadRegions() async {
     try {
       final loadedRegions = await _getRegionsUseCase.execute();
@@ -209,8 +165,6 @@ class PeaksCatalogController extends ChangeNotifier {
         return;
       }
 
-      // Es loga el tipus i la traça perquè un canvi de contracte del backend
-      // (camps renombrats, format invàlid) no quedi enterrat com a llista buida.
       debugPrint(
         '[PeaksCatalogController] _loadRegions failed '
         '(${error.runtimeType}): $error\n$stack',
@@ -220,9 +174,8 @@ class PeaksCatalogController extends ChangeNotifier {
     }
   }
 
-  // Aquest mètode carrega tots els estats personals de l’usuari
-  // i els bolca al store compartit, perquè el catàleg, el detall i qualsevol
-  // altra pantalla treballin amb la mateixa font de veritat.
+  // Aquest mètode carrega els estats personals de l’usuari.
+  // Els desa al store compartit perquè totes les pantalles utilitzin la mateixa font.
   Future<void> _loadUserPeakStatuses() async {
     try {
       final statuses = await _getUserPeakStatusesUseCase.execute();
@@ -246,7 +199,7 @@ class PeaksCatalogController extends ChangeNotifier {
   }
 
   // Aquest mètode reacciona als canvis del camp de cerca.
-  // Utilitza un debounce compartit per evitar una petició al backend a cada tecla.
+  // Aplica una espera breu per evitar una petició per cada tecla.
   void onSearchChanged(String value) {
     errorMessage = null;
     loadMoreErrorMessage = null;
@@ -260,17 +213,14 @@ class PeaksCatalogController extends ChangeNotifier {
     });
   }
 
-  // Aquest mètode aplica els filtres escollits des del panell visual
-  // i torna a carregar el catàleg mantenint la cerca actual.
+  // Aquest mètode aplica els filtres seleccionats.
+  // La recàrrega es resol a través del listener del filtre compartit.
   Future<void> applyFilters({
     int? regionId,
     int? minAltitude,
     int? maxAltitude,
     PeakStatusFilter statusFilter = PeakStatusFilter.none,
   }) async {
-    // Apply emet notifyListeners al filtre compartit, i _onFiltersChanged
-    // s'encarrega de la recàrrega. Per això aquí no cal cridar _loadPeaks
-    // manualment, evitant així una doble petició al backend.
     _filtersState.apply(
       regionId: regionId,
       minAltitude: minAltitude,
@@ -279,22 +229,14 @@ class PeaksCatalogController extends ChangeNotifier {
     );
   }
 
-  // Aquest mètode elimina els filtres actius i torna a carregar el catàleg.
-  // La crida a clear() notifica els listeners si hi havia filtres actius,
-  // i la recàrrega es resol per la mateixa via que applyFilters.
+  // Aquest mètode elimina els filtres actius.
+  // Si hi havia canvis, el filtre compartit notifica la recàrrega del catàleg.
   Future<void> clearFilters() async {
     _filtersState.clear();
   }
 
-  // Aplica un nou ordre (camp + sentit) al catàleg i refresca la primera
-  // pàgina. Quan canvia l'ordre cal reiniciar la paginació perquè els
-  // cims ja carregats correspondrien a l'ordre anterior. Reaprofita
-  // `_loadPeaks` que ja s'encarrega de resetejar `currentPage`,
-  // `hasMore` i `_loadRequestId`.
-  //
-  // Si la combinació rebuda és idèntica a l'actual, no es fa res perquè
-  // el resultat seria el mateix llistat: evitem una petició redundant
-  // al backend i una redibuixada de la UI.
+  // Aquest mètode actualitza l’ordre del catàleg.
+  // Quan canvia el criteri, reinicia la paginació i carrega la primera pàgina.
   Future<void> onSortChanged({
     required PeakSortBy sortBy,
     required PeakSortOrder sortOrder,
@@ -310,8 +252,7 @@ class PeaksCatalogController extends ChangeNotifier {
     );
   }
 
-  // Aquest mètode permet tornar a carregar el catàleg amb el text actual.
-  // Serveix tant per refrescar la pantalla com per reintentar si hi ha hagut un error.
+  // Aquest mètode permet reintentar o refrescar el catàleg amb l’estat actual.
   Future<void> onRetryTap() {
     return _loadPeaks(
       search: _searchOrNull,
@@ -319,7 +260,7 @@ class PeaksCatalogController extends ChangeNotifier {
   }
 
   // Aquest mètode carrega la pàgina següent del catàleg.
-  // La pantalla el cridarà quan l’usuari arribi al final del llistat.
+  // Conserva els filtres, la cerca i l’ordre aplicats.
   Future<void> loadMorePeaks() async {
     if (isLoading || isLoadingMore || !hasMore) {
       return;
@@ -352,9 +293,6 @@ class PeaksCatalogController extends ChangeNotifier {
         return;
       }
 
-      // El backend ja aplica tots els filtres; només cal evitar duplicats
-      // entre pàgines (per si dues peticions coincidents tornen el mateix
-      // cim).
       final existingIds = peaks.map((peak) => peak.id).toSet();
       final newItems =
           loadedPage.items.where((peak) => existingIds.add(peak.id)).toList();
@@ -390,21 +328,20 @@ class PeaksCatalogController extends ChangeNotifier {
   }
 
   // Aquest mètode prepara la navegació cap al detall del cim seleccionat.
-  // La pantalla consumirà aquest destí i obrirà la vista corresponent.
   void onPeakTap(Peak peak) {
     _selectedPeakId = peak.id;
     _destination = PeaksCatalogDestination.peakDetail;
     notifyListeners();
   }
 
-  // Aquest mètode reinicia el destí de navegació després que la vista ja l’hagi utilitzat.
+  // Aquest mètode neteja la navegació pendent després que la vista l’hagi resolt.
   void consumeNavigation() {
     _destination = PeaksCatalogDestination.none;
     _selectedPeakId = null;
   }
 
-  // Aquest mètode centralitza la càrrega de la primera pàgina del catàleg.
-  // També reinicia la paginació quan canvien la cerca o els filtres.
+  // Aquest mètode carrega la primera pàgina del catàleg.
+  // Reinicia la paginació quan canvien cerca, filtres o ordenació.
   Future<void> _loadPeaks({
     String? search,
   }) async {
@@ -469,21 +406,14 @@ class PeaksCatalogController extends ChangeNotifier {
     }
   }
 
-  // Quan el store notifica un canvi (per exemple, l'usuari marca un cim
-  // com a favorit des del detall), només cal refetch si hi ha un filtre
-  // d'estat actiu, perquè la composició de la llista pot haver canviat
-  // (el cim ja entra o ja no entra al filtre). Si no hi ha filtre d'estat,
-  // n'hi ha prou amb notificar perquè les cards individuals actualitzin
-  // la seva insígnia visual.
+  // Aquest mètode reacciona als canvis del store d’estats personals.
+  // Si hi ha un filtre d’estat actiu, recarrega el llistat perquè la composició pot haver canviat.
   void _onStoreChanged() {
     if (_disposed) {
       return;
     }
 
     if (selectedStatusFilter != PeakStatusFilter.none) {
-      // Fire-and-forget intencional: `_loadPeaks` ja gestiona els seus
-      // errors internament i actualitza `errorMessage` per la UI. Marquem
-      // amb `unawaited` perquè el linter no s'alarmi i quedi explícit.
       unawaited(_loadPeaks(search: _searchOrNull));
       return;
     }
@@ -491,19 +421,18 @@ class PeaksCatalogController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Quan el filtre compartit canvia, es recarrega la primera pàgina del catàleg.
-  // Això garanteix que el llistat respecti els nous criteris des del principi.
+  // Aquest mètode reacciona als canvis del filtre compartit.
+  // Recarrega la primera pàgina perquè el llistat respecti els nous criteris.
   void _onFiltersChanged() {
     if (_disposed) {
       return;
     }
 
-    // Mateix raonament que a `_onStoreChanged`: fire-and-forget controlat.
     unawaited(_loadPeaks(search: _searchOrNull));
   }
 
-  // Aquest mètode tanca correctament els recursos del controller quan la pantalla es destrueix.
-  // També marca el controller com a inactiu per evitar actualitzacions posteriors sobre un estat ja eliminat.
+  // Aquest mètode allibera recursos quan la pantalla es destrueix.
+  // També elimina listeners per evitar notificacions sobre un controller tancat.
   @override
   void dispose() {
     _disposed = true;

@@ -1,6 +1,5 @@
 // Aquesta entitat representa una foto associada a una ascensió.
-// Pot ser una imatge de record, una foto principal o una evidència
-// utilitzada per validar una ascensió verificada.
+// Pot ser una imatge de record, una foto principal o una evidència de verificació.
 class AscentPhoto {
   const AscentPhoto({
     required this.id,
@@ -12,6 +11,8 @@ class AscentPhoto {
     this.createdAt,
   });
 
+  // Aquestes dades identifiquen la foto i la seva relació amb l’ascensió.
+  // També indiquen si és la imatge principal o una evidència utilitzada en la verificació.
   final int id;
   final int? ascentId;
   final String storagePath;
@@ -20,6 +21,8 @@ class AscentPhoto {
   final String? downloadUrl;
   final DateTime? createdAt;
 
+  // Aquest constructor transforma la resposta del backend en una foto d’ascensió.
+  // Accepta diferents noms de camp per mantenir compatibilitat amb el format rebut.
   factory AscentPhoto.fromJson(Map<String, dynamic> json) {
     return AscentPhoto(
       id: _parseInt(json['id'], 'id'),
@@ -40,6 +43,8 @@ class AscentPhoto {
     );
   }
 
+  // Aquestes funcions adapten valors del JSON a tipus segurs.
+  // Permeten detectar camps obligatoris incorrectes i tolerar valors opcionals absents.
   static int _parseInt(dynamic value, String fieldName) {
     if (value is int) return value;
     if (value is num) return value.toInt();

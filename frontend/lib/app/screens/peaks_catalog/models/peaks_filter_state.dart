@@ -3,46 +3,30 @@ import 'package:cims/core/entity/region.dart';
 import 'package:flutter/foundation.dart';
 
 // Aquest model concentra els filtres compartits entre el catàleg i el mapa.
-// Existeix una única instància (PeaksFilterState.shared) perquè quan l'usuari
-// aplica un filtre des d'una pantalla, l'altra el reflecteixi automàticament
-// en lloc de mantenir estats independents que es desincronitzen al canviar
-// de pestanya.
-//
-// Estén ChangeNotifier per poder avisar als controllers que es subscriguin
-// quan l'estat dels filtres canvi i així recarregar els cims sense que la UI
-// hagi de coordinar manualment les dues pantalles.
+// Manté una única instància perquè totes dues pantalles treballin amb el mateix estat.
 class PeaksFilterState extends ChangeNotifier {
-  // Aquest constructor privat impedeix crear instàncies addicionals.
-  // L'única manera d'accedir al filtre és via PeaksFilterState.shared, cosa
-  // que garanteix que tot el frontend treballi amb el mateix estat.
   PeaksFilterState._();
 
-  // Instància compartida que viu tot el cicle de vida de l'aplicació.
-  // El controller del catàleg i el del mapa s'hi subscriuen al constructor i
-  // es desconnecten al dispose perquè no quedin listeners actius.
+  // Aquesta instància compartida viu durant tot el cicle de vida de l’aplicació.
+  // Els controllers interessats s’hi subscriuen per reaccionar als canvis de filtre.
   static final PeaksFilterState shared = PeaksFilterState._();
 
-  // Aquest bloc guarda els filtres que l’usuari pot aplicar sobre els cims.
-  // Es manté en un model separat perquè diferents pantalles puguin reutilitzar el mateix estat.
+  // Aquestes dades representen els filtres que l’usuari pot aplicar sobre els cims.
   int? selectedRegionId;
   int? minAltitude;
   int? maxAltitude;
   PeakStatusFilter selectedStatusFilter = PeakStatusFilter.none;
 
-  // Indica si hi ha algun filtre aplicat.
-  // La UI ho utilitza per mostrar o ocultar el resum de filtres.
+  // Aquest getter indica si hi ha algun filtre actiu.
+  // Permet mostrar o ocultar el resum de filtres a la interfície.
   bool get hasActiveFilters =>
       selectedRegionId != null ||
       minAltitude != null ||
       maxAltitude != null ||
       selectedStatusFilter != PeakStatusFilter.none;
 
-  // Aplica els filtres escollits des del panell visual.
-  // Només notifica si algun valor ha canviat respecte a l'estat anterior, per
-  // evitar disparar recàrregues redundants quan l'usuari obre el panell i
-  // tanca sense modificar res. Aquesta defensa és especialment rellevant
-  // perquè dos controllers (catàleg i mapa) escolten la mateixa instància:
-  // sense aquesta comparació, "Aplica" sense canvis dispararia dos GETs.
+  // Aquest mètode aplica els filtres escollits per l’usuari.
+  // Només notifica canvis si algun valor és diferent per evitar recàrregues innecessàries.
   void apply({
     int? regionId,
     int? minAltitude,
@@ -64,9 +48,8 @@ class PeaksFilterState extends ChangeNotifier {
     }
   }
 
-  // Reinicia tots els filtres i deixa la cerca sense restriccions addicionals.
-  // També notifica els listeners. Si ja estaven tots a zero, evita la
-  // notificació innecessària per no disparar recàrregues redundants.
+  // Aquest mètode elimina tots els filtres aplicats.
+  // Si ja no hi havia cap filtre actiu, evita notificar canvis innecessaris.
   void clear() {
     final wasActive = hasActiveFilters;
     selectedRegionId = null;
@@ -78,8 +61,8 @@ class PeaksFilterState extends ChangeNotifier {
     }
   }
 
-  // Retorna el nom de la regió seleccionada a partir del seu identificador.
-  // Això permet mostrar un resum entenedor sense duplicar cerques als controllers.
+  // Aquest mètode retorna el nom de la regió seleccionada.
+  // Permet mostrar un resum entenedor a partir de l’identificador guardat.
   String? selectedRegionName(List<Region> availableRegions) {
     final regionId = selectedRegionId;
 
@@ -96,8 +79,8 @@ class PeaksFilterState extends ChangeNotifier {
     return null;
   }
 
-  // Construeix un resum breu dels filtres actius.
-  // Aquest text ajuda l’usuari a entendre ràpidament per què veu uns cims i no uns altres.
+  // Aquest mètode construeix un resum breu dels filtres actius.
+  // Ajuda l’usuari a entendre per què es mostren uns cims concrets.
   String activeFiltersSummary(List<Region> availableRegions) {
     final parts = <String>[];
 

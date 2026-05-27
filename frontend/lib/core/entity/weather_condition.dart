@@ -1,14 +1,8 @@
-// Aquest fitxer modela la condició meteorològica retornada pel backend
-// per a un cim o una comarca. Centralitza la traducció del tipus cru de
-// Google a la categoria normalitzada que utilitzen tant la card de detall
-// com el filtre per clima, perquè qualsevol pantalla que vulgui pintar el
-// clima ho faci sempre amb la mateixa categorització.
+// Aquest fitxer modela la condició meteorològica retornada pel backend.
+// Centralitza les categories perquè totes les pantalles mostrin el clima amb el mateix criteri.
 
-// Aquest enum recull les sis condicions normalitzades exposades pel
-// backend (sol, variable, nuvolós, pluja, neu, boira), més un valor
-// desconegut per a tipus de Google que encara no estan mapats. La UI
-// tracta UNKNOWN com a "no disponible" perquè no estigui obligada a
-// triar una icona o color arbitrari quan apareix.
+// Aquest enum recull les condicions meteorològiques normalitzades.
+// Inclou un valor desconegut per evitar errors quan arriba un tipus no previst.
 enum WeatherConditionType {
   sunny,
   partlyCloudy,
@@ -19,9 +13,8 @@ enum WeatherConditionType {
   unknown,
 }
 
-// Aquesta extensió permet llegir un identificador estable del tipus
-// (el codi que envia el backend) i, a l'inrevés, parsejar una cadena
-// rebuda per la xarxa o per query string en el valor d'enum corresponent.
+// Aquesta extensió associa cada condició amb el codi intern i l’etiqueta visible.
+// Això evita duplicar textos i codis en diferents widgets.
 extension WeatherConditionTypeCodec on WeatherConditionType {
   String get code {
     switch (this) {
@@ -42,10 +35,8 @@ extension WeatherConditionTypeCodec on WeatherConditionType {
     }
   }
 
-  // Aquest getter retorna l'etiqueta visible en català per a aquesta
-  // condició. Es manté aquí per evitar duplicar el text en cada widget
-  // que vulgui mostrar la categoria (chip de filtre, card de detall,
-  // resum de filtres actius).
+  // Aquest getter retorna l’etiqueta en català de cada condició.
+  // S’utilitza per mostrar el clima en filtres, targetes i resums visuals.
   String get displayLabel {
     switch (this) {
       case WeatherConditionType.sunny:
@@ -66,9 +57,8 @@ extension WeatherConditionTypeCodec on WeatherConditionType {
   }
 }
 
-// Aquest mètode tradueix una cadena de codi al valor enum corresponent.
-// Si el codi no està definit, es retorna unknown perquè la UI mai trenqui
-// per un nou tipus que Google pugui afegir sense avís.
+// Aquest mètode transforma un codi rebut en una condició normalitzada.
+// Si el valor no és reconegut, retorna unknown perquè la interfície continuï funcionant.
 WeatherConditionType parseWeatherConditionType(dynamic value) {
   if (value is String) {
     final upper = value.trim().toUpperCase();
@@ -81,11 +71,8 @@ WeatherConditionType parseWeatherConditionType(dynamic value) {
   return WeatherConditionType.unknown;
 }
 
-// Aquesta entitat representa la condició meteorològica detallada que
-// retorna Google per a un dia o una hora concreta. Conserva el tipus
-// original (útil per a logs i diagnòstic) i el tipus normalitzat (útil
-// per al filtre i per pintar icones). La descripció és el text traduït
-// per Google que la card pot mostrar tal qual.
+// Aquesta entitat representa una condició meteorològica concreta.
+// Conserva la categoria normalitzada i informació complementària retornada pel backend.
 class WeatherCondition {
   const WeatherCondition({
     required this.normalized,
@@ -94,31 +81,24 @@ class WeatherCondition {
     this.iconBaseUri,
   });
 
-  // Aquesta propietat indica a quin grup normalitzat pertany la condició.
-  // És el camp que utilitzen els filtres i els colors de la UI.
+  // Aquesta propietat indica el grup normalitzat de la condició.
+  // És el valor que utilitzen els filtres, colors i icones de la interfície.
   final WeatherConditionType normalized;
 
-  // Aquesta propietat conserva el codi cru retornat per Google. Avui no
-  // el consumeix cap pantalla — la card del detall pinta a partir de
-  // normalized — però es preserva per facilitar diagnòstics quan
-  // aparegui un tipus inesperat que caigui a UNKNOWN i calgui afegir-lo
-  // al mapa del backend.
+  // Aquesta propietat conserva el tipus original retornat pel proveïdor.
+  // Pot ajudar a diagnosticar condicions noves o no classificades.
   final String? rawType;
 
-  // Aquesta propietat porta la descripció textual traduïda per Google.
-  // Es manté opcional perquè algunes hores poden no portar-la.
+  // Aquesta propietat conté la descripció textual de la condició.
+  // Es manté opcional perquè pot no arribar en totes les previsions.
   final String? description;
 
-  // Aquesta propietat és la URL base de la icona oficial de Google. Avui
-  // la card del detall utilitza icones Material en lloc d'aquesta URL
-  // (més ràpid, sense dependència de xarxa per a l'iconografia), però es
-  // preserva perquè futures vistes la puguin aprofitar sense canviar el
-  // contracte amb el backend.
+  // Aquesta propietat conserva la URL base de la icona del proveïdor.
+  // Queda disponible per a futures vistes que vulguin utilitzar-la.
   final String? iconBaseUri;
 
-  // Aquest constructor transforma la resposta del backend en una entitat
-  // utilitzable. Si arriba null o un valor amb format inesperat, es retorna
-  // una condició unknown perquè la UI no es trenqui mai.
+  // Aquest constructor transforma la resposta del backend en una condició meteorològica.
+  // Si el tipus no és reconegut, la condició queda marcada com a desconeguda.
   factory WeatherCondition.fromJson(Map<String, dynamic> json) {
     return WeatherCondition(
       normalized: parseWeatherConditionType(json['normalized']),
@@ -128,8 +108,8 @@ class WeatherCondition {
     );
   }
 
-  // Aquest mètode evita crear una condició buida quan el backend no envia
-  // l'objecte (per exemple, una nit sense previsió disponible).
+  // Aquest mètode crea una condició només si el backend envia un objecte vàlid.
+  // Permet tractar previsions sense condició disponible sense trencar la interfície.
   static WeatherCondition? fromNullableJson(dynamic value) {
     if (value is Map<String, dynamic>) {
       return WeatherCondition.fromJson(value);
@@ -140,6 +120,8 @@ class WeatherCondition {
     return null;
   }
 
+  // Aquesta funció transforma textos opcionals del JSON.
+  // Retorna null quan el valor no té contingut útil.
   static String? _parseNullableString(dynamic value) {
     final text = value?.toString().trim();
     if (text == null || text.isEmpty) {

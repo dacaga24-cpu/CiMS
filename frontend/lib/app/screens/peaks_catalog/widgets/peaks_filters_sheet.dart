@@ -7,6 +7,8 @@ import 'package:cims/app/widgets/layout/app_responsive.dart';
 import 'package:cims/core/entity/region.dart';
 import 'package:flutter/material.dart';
 
+// Aquest panell mostra els filtres disponibles del catàleg de cims.
+// Permet seleccionar comarca, rang d’altitud i estat personal del cim.
 class PeaksFiltersSheet extends StatefulWidget {
   const PeaksFiltersSheet({
     super.key,
@@ -19,6 +21,8 @@ class PeaksFiltersSheet extends StatefulWidget {
     required this.onClear,
   });
 
+  // Aquestes dades defineixen les opcions disponibles i els valors inicials del panell.
+  // També exposen les accions per aplicar o netejar els filtres.
   final List<Region> availableRegions;
   final int? initialRegionId;
   final int? initialMinAltitude;
@@ -59,11 +63,15 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     _maxAltitudeController.addListener(_handleAltitudeChanged);
   }
 
+  // Aquest mètode refresca el panell quan canvien els camps d’altitud.
+  // Permet mostrar o amagar la validació del rang en temps real.
   void _handleAltitudeChanged() {
     if (!mounted) return;
     setState(() {});
   }
 
+  // Aquest mètode transforma el text d’altitud en un valor numèric opcional.
+  // Si el camp està buit o no és vàlid, no aplica cap límit.
   int? _parseAltitude(String value) {
     final trimmedValue = value.trim();
     if (trimmedValue.isEmpty) {
@@ -73,6 +81,8 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     return int.tryParse(trimmedValue);
   }
 
+  // Aquest getter indica si el rang d’altitud seleccionat és incoherent.
+  // Evita aplicar filtres amb una altura mínima superior a la màxima.
   bool get _hasInvalidAltitudeRange {
     final minAltitude = _parseAltitude(_minAltitudeController.text);
     final maxAltitude = _parseAltitude(_maxAltitudeController.text);
@@ -84,6 +94,8 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     return minAltitude > maxAltitude;
   }
 
+  // Aquest mètode neteja tots els filtres del panell.
+  // Després tanca el panell i comunica la neteja a la pantalla principal.
   Future<void> _handleClear() async {
     _minAltitudeController.clear();
     _maxAltitudeController.clear();
@@ -102,6 +114,8 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     });
   }
 
+  // Aquest mètode aplica els filtres seleccionats.
+  // Tanca el panell abans de comunicar els valors finals a la pantalla principal.
   void _handleApply() {
     if (_hasInvalidAltitudeRange) {
       return;
@@ -125,6 +139,7 @@ class _PeaksFiltersSheetState extends State<PeaksFiltersSheet> {
     });
   }
 
+  // Aquest mètode allibera els controladors dels camps d’altitud.
   @override
   void dispose() {
     _minAltitudeController.removeListener(_handleAltitudeChanged);

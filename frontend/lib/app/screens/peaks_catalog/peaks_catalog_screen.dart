@@ -13,6 +13,8 @@ import 'package:cims/app/screens/peaks_catalog/widgets/peaks_sort_order_sheet.da
 import 'package:cims/app/widgets/layout/app_responsive.dart';
 import 'package:flutter/material.dart';
 
+// Aquesta pantalla mostra el catàleg de cims.
+// Permet cercar, filtrar, ordenar, carregar més resultats i obrir el detall d’un cim.
 @RoutePage()
 class PeaksCatalogScreen extends StatefulWidget {
   const PeaksCatalogScreen({super.key});
@@ -35,6 +37,8 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
     _scrollController.addListener(_handleScroll);
   }
 
+  // Aquest mètode detecta quan l’usuari s’apropa al final del llistat.
+  // En aquest punt demana una nova pàgina de cims al controller.
   void _handleScroll() {
     if (!_scrollController.hasClients) {
       return;
@@ -48,6 +52,8 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
     }
   }
 
+  // Aquest mètode resol les navegacions demanades pel controller.
+  // Quan s’ha seleccionat un cim, obre la pantalla de detall corresponent.
   void _handleControllerChanges() {
     if (!mounted) return;
 
@@ -61,12 +67,15 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
     }
   }
 
+  // Aquest mètode obre el detall del cim seleccionat.
   Future<void> _openPeakDetail(int peakId) async {
     await context.router.root.push(
       PeakDetailRoute(peakId: peakId),
     );
   }
 
+  // Aquest mètode obre el panell de filtres del catàleg.
+  // Passa els valors actuals perquè el panell comenci amb l’estat vigent.
   Future<void> _openFiltersSheet() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -99,18 +108,14 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
     );
   }
 
+  // Aquest mètode obre el panell d’ordenació del catàleg.
+  // El canvi seleccionat es delega al controller, que recarrega el llistat.
   Future<void> _openSortOrderSheet() {
     return PeaksSortOrderSheet.show(
       context,
       sortBy: controller.sortBy,
       sortOrder: controller.sortOrder,
       onSelected: (sortBy, sortOrder) {
-        // Fire-and-forget intencional: `onSortChanged` retorna un
-        // `Future` que dispara `_loadPeaks` en segon pla. El controller
-        // ja captura els seus errors internament i els exposa via
-        // `errorMessage`, així que no cal esperar el resultat aquí.
-        // Marquem amb `unawaited` per coherència amb la resta de
-        // call-sites del controller que també descarten futurs.
         unawaited(
           controller.onSortChanged(sortBy: sortBy, sortOrder: sortOrder),
         );
@@ -118,6 +123,8 @@ class _PeaksCatalogScreenState extends State<PeaksCatalogScreen> {
     );
   }
 
+  // Aquest mètode allibera els recursos de la pantalla.
+  // També elimina listeners per evitar notificacions sobre una vista tancada.
   @override
   void dispose() {
     _scrollController.removeListener(_handleScroll);

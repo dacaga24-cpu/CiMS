@@ -11,6 +11,8 @@ class PeakStatus {
     this.hasVerifiedAscent = false,
   });
 
+  // Aquestes dades defineixen les marques personals de l’usuari sobre un cim.
+  // Permeten mostrar i sincronitzar l’estat entre catàleg, mapa i detall.
   final int? id;
   final int? userId;
   final int peakId;
@@ -57,13 +59,13 @@ class PeakStatus {
   // No és un estat independent, sinó el contrari funcional de completat.
   bool get isPending => !isCompleted;
 
-  // Aquest getter ajuda la interfície a saber si cal mostrar algun indicador visual.
+  // Aquest getter indica si el cim té alguna marca visible per a l’usuari.
   // Inclou la verificació perquè el catàleg i el mapa puguin destacar aquest estat.
   bool get hasAnyStatus =>
       isCompleted || isTarget || isFavorite || hasVerifiedAscent;
 
-  // Aquest mètode permet crear una còpia de l’estat canviant només els camps necessaris.
-  // És útil quan una pantalla actualitza un estat sense perdre la resta d’informació.
+  // Aquest mètode crea una còpia de l’estat canviant només els camps necessaris.
+  // És útil quan una pantalla actualitza una marca sense perdre la resta d’informació.
   PeakStatus copyWith({
     int? id,
     int? userId,
@@ -84,6 +86,8 @@ class PeakStatus {
     );
   }
 
+  // Aquestes funcions adapten valors del JSON a tipus segurs.
+  // Permeten llegir la resposta del backend encara que alguns valors arribin amb formats diferents.
   static int? _parseInt(dynamic value) {
     if (value is int) return value;
     if (value is num) return value.toInt();

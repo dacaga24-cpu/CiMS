@@ -6,9 +6,12 @@ import 'package:cims/core/entity/user.dart';
 class DeleteProfilePhotoUseCase {
   const DeleteProfilePhotoUseCase(this._apiClient);
 
+  // Aquest client permet eliminar la foto de perfil a través del backend.
+  // Això manté la pantalla desacoblada dels detalls de la petició.
   final ApiClient _apiClient;
 
-  // Aquest mètode elimina la foto actual i retorna l’usuari actualitzat.
+  // Elimina la foto de perfil actual de l’usuari autenticat.
+  // Retorna l’usuari actualitzat perquè la interfície pugui refrescar el perfil.
   Future<User> call() {
     return _apiClient.deleteProfilePhoto();
   }

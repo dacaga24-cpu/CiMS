@@ -1,7 +1,5 @@
-// lib/core/entity/profile_photo_upload.dart
-
-// Aquesta entitat representa la resposta del backend per poder pujar
-// una foto de perfil directament a l’emmagatzematge extern.
+// Aquesta entitat representa la resposta del backend per pujar una foto de perfil.
+// Inclou la informació necessària per enviar la imatge directament a l’emmagatzematge.
 class ProfilePhotoSignedUploadUrl {
   const ProfilePhotoSignedUploadUrl({
     required this.uploadUrl,
@@ -10,13 +8,15 @@ class ProfilePhotoSignedUploadUrl {
     required this.requiredHeaders,
   });
 
+  // Aquestes dades permeten completar la pujada de la foto de perfil.
+  // La ruta final s’utilitza després per associar la imatge al compte de l’usuari.
   final String uploadUrl;
   final String storagePath;
   final DateTime expiresAt;
   final Map<String, String> requiredHeaders;
 
   // Aquest constructor transforma la resposta del backend en una entitat usable.
-  // Inclou els headers obligatoris perquè la pujada a GCS coincideixi amb la signatura.
+  // També normalitza els headers perquè es puguin enviar correctament durant la pujada.
   factory ProfilePhotoSignedUploadUrl.fromJson(Map<String, dynamic> json) {
     final headers = <String, String>{};
     final rawHeaders = json['requiredHeaders'];

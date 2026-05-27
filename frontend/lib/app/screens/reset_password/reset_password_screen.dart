@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'reset_password_controller.dart';
 import 'widgets/reset_password_form_card.dart';
 
+// Aquesta pantalla permet definir una nova contrasenya a partir d’un enllaç de recuperació.
+// Llegeix el token de la URL i delega la validació i l’enviament al controller.
 @RoutePage()
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
@@ -14,6 +16,8 @@ class ResetPasswordScreen extends StatefulWidget {
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
 }
 
+// Aquest estat connecta la pantalla amb el controller de recuperació.
+// També resol la navegació de retorn cap al login quan el procés finalitza.
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   late final ResetPasswordController controller;
 
@@ -27,6 +31,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       ..addListener(_handleControllerChanges);
   }
 
+  // Aquest mètode resol la navegació demanada pel controller.
+  // Quan la contrasenya s’ha actualitzat o l’usuari torna enrere, envia la pantalla al login.
   void _handleControllerChanges() {
     if (!mounted) return;
 
@@ -41,6 +47,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     }
   }
 
+  // Aquest mètode allibera el controller quan la pantalla es tanca.
+  // També elimina el listener per evitar notificacions sobre una pantalla destruïda.
   @override
   void dispose() {
     controller.removeListener(_handleControllerChanges);
@@ -48,6 +56,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     super.dispose();
   }
 
+  // Aquest mètode construeix la pantalla de canvi de contrasenya.
+  // Adapta la distribució del logo i del formulari segons la mida de pantalla i el teclat.
   @override
   Widget build(BuildContext context) {
     final keyboardInset = MediaQuery.of(context).viewInsets.bottom;

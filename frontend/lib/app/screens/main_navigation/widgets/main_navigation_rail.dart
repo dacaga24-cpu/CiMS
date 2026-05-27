@@ -3,6 +3,8 @@ import 'package:cims/app/widgets/branding/cims_logo.dart';
 import 'package:cims/app/widgets/profile/profile_avatar.dart';
 import 'package:flutter/material.dart';
 
+// Aquest widget mostra la navegació lateral de l’aplicació.
+// S’utilitza en pantalles mitjanes o grans per substituir la navegació inferior.
 class MainNavigationRail extends StatelessWidget {
   const MainNavigationRail({
     super.key,
@@ -14,6 +16,8 @@ class MainNavigationRail extends StatelessWidget {
     this.profilePhotoUrl,
   });
 
+  // Aquestes dades defineixen la pestanya activa i les accions principals de navegació.
+  // També permeten mostrar el rail en format compacte o ampliat.
   final MainBottomNavigationTab selectedTab;
   final ValueChanged<MainBottomNavigationTab> onTabSelected;
   final VoidCallback onVerificationTap;
@@ -145,6 +149,8 @@ class MainNavigationRail extends StatelessWidget {
   }
 }
 
+// Aquest widget mostra la marca de CiMS dins de la navegació lateral.
+// Adapta la mida del logotip segons si el menú està compacte o ampliat.
 class _RailBrand extends StatelessWidget {
   const _RailBrand({
     required this.extended,
@@ -171,6 +177,8 @@ class _RailBrand extends StatelessWidget {
   }
 }
 
+// Aquest botó dona accés ràpid al flux de verificació d’ascensió.
+// En format compacte queda separat de les pestanyes principals per destacar l’acció.
 class _RailVerificationButton extends StatelessWidget {
   const _RailVerificationButton({
     required this.onTap,
@@ -195,6 +203,8 @@ class _RailVerificationButton extends StatelessWidget {
   }
 }
 
+// Aquest separador divideix visualment els blocs del rail.
+// Ajusta l’amplada segons el format compacte o ampliat.
 class _RailDivider extends StatelessWidget {
   const _RailDivider({
     required this.extended,
@@ -215,6 +225,8 @@ class _RailDivider extends StatelessWidget {
   }
 }
 
+// Aquest botó mostra l’accés al perfil dins de la navegació lateral.
+// En format ampliat afegeix text i indicació visual de navegació.
 class _RailProfileButton extends StatelessWidget {
   const _RailProfileButton({
     required this.extended,
@@ -222,6 +234,7 @@ class _RailProfileButton extends StatelessWidget {
     this.profilePhotoUrl,
   });
 
+  // Aquestes dades defineixen el format visual, l’acció i la foto de perfil.
   final bool extended;
   final VoidCallback onTap;
   final String? profilePhotoUrl;

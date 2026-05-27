@@ -1,14 +1,10 @@
 import 'package:cims/core/entity/weather_condition.dart';
 
-// Aquest fitxer modela la previsió diària d'un cim tal com la retorna el
-// backend de CiMS. La pantalla de detall l'utilitza per pintar la card de
-// previsió i, en el futur, per derivar l'estat horari d'un dia concret.
+// Aquest fitxer modela la previsió diària d’un cim.
+// Permet mostrar el resum meteorològic dins de la pantalla de detall.
 
-// Aquesta entitat agrupa la previsió diürna o nocturna d'un dia. Es manté
-// independent del dia perquè dia i nit poden tenir condicions diferents
-// (matí soleat i nit núvol, per exemple) i la UI vol pintar tots dos
-// estats per separat. Algunes hores poden no portar previsió i el camp
-// arriba a null des del backend.
+// Aquesta entitat agrupa la previsió d’una part del dia.
+// Permet diferenciar les condicions diürnes i nocturnes d’una mateixa jornada.
 class HalfDayForecast {
   const HalfDayForecast({
     this.condition,
@@ -22,33 +18,29 @@ class HalfDayForecast {
     this.uvIndex,
   });
 
-  // Aquesta propietat és la condició dominant del bloc.
-  // Es manté opcional per acceptar dies on Google no la retorna.
+  // Aquesta propietat indica la condició meteorològica principal del bloc.
+  // Es manté opcional perquè pot no estar disponible en totes les previsions.
   final WeatherCondition? condition;
 
-  // Aquest bloc descriu la quantitat i la probabilitat de precipitació
-  // per al bloc horari. Es guarden en percentatge i mil·límetres perquè
-  // siguin coherents amb les unitats que retorna Google.
+  // Aquestes dades descriuen la probabilitat i quantitat de precipitació.
+  // Ajuden l’usuari a valorar si les condicions són adequades per sortir a muntanya.
   final int precipProbabilityPct;
   final double precipQuantityMm;
   final int thunderstormProbabilityPct;
 
-  // Aquest bloc descriu el vent: velocitat, ràfega i direcció. Tots són
-  // opcionals perquè la previsió a llarg termini pot no incloure'ls.
+  // Aquestes dades descriuen la velocitat, la ràfega i la direcció del vent.
+  // Són opcionals perquè el proveïdor pot no retornar-les en tots els casos.
   final double? windSpeedKmh;
   final double? windGustKmh;
   final int? windDirectionDegrees;
 
-  // Aquest bloc descriu paràmetres secundaris útils per a la planificació
-  // de muntanya: cobertura de núvols i índex UV. Es deixen nullables per
-  // tolerar absències sense forçar valors per defecte enganyosos.
+  // Aquestes dades complementàries aporten context sobre núvols i radiació solar.
+  // Són útils per planificar millor l’activitat.
   final int? cloudCoverPct;
   final int? uvIndex;
 
-  // Aquest constructor transforma una entrada de daytimeForecast o
-  // nighttimeForecast del backend en una entitat tipada. Els camps que
-  // no arriben es tracten com a "zero" o "no disponible" segons sigui més
-  // útil per a la UI.
+  // Aquest constructor transforma la resposta del backend en una previsió de mig dia.
+  // Els camps absents es tracten amb valors segurs o com a no disponibles.
   factory HalfDayForecast.fromJson(Map<String, dynamic> json) {
     return HalfDayForecast(
       condition: WeatherCondition.fromNullableJson(json['condition']),
@@ -63,9 +55,8 @@ class HalfDayForecast {
     );
   }
 
-  // Aquest mètode tolera que el backend ometi el bloc sencer per a dies
-  // on no hi ha dades. Sense aquest helper, la card hauria de validar el
-  // camp abans de cridar fromJson cada vegada.
+  // Aquest mètode crea una previsió només si el bloc existeix.
+  // Evita que la interfície hagi de comprovar manualment si hi ha dades.
   static HalfDayForecast? fromNullableJson(dynamic value) {
     if (value is Map<String, dynamic>) {
       return HalfDayForecast.fromJson(value);
@@ -76,6 +67,8 @@ class HalfDayForecast {
     return null;
   }
 
+  // Aquestes funcions adapten valors del JSON a tipus segurs.
+  // Permeten tolerar camps opcionals absents i aplicar valors per defecte quan cal.
   static int _parseInt(dynamic value, {int defaultValue = 0}) {
     if (value is int) return value;
     if (value is num) return value.toInt();
@@ -107,11 +100,8 @@ class HalfDayForecast {
   }
 }
 
-// Aquesta entitat representa la previsió d'un dia concret per a un cim
-// (o una comarca, quan es consulta el resum regional). Agrupa
-// temperatures mínima i màxima, els blocs diürn i nocturn i les hores
-// d'eixida i posta de sol. La data arriba normalitzada com a YYYY-MM-DD
-// per facilitar comparacions amb el dia que selecciona l'usuari.
+// Aquesta entitat representa la previsió d’un dia concret per a un cim.
+// Agrupa temperatures, previsió de dia i nit, i hores de sortida i posta de sol.
 class DailyForecast {
   const DailyForecast({
     required this.date,
@@ -125,37 +115,33 @@ class DailyForecast {
     this.sunsetTime,
   });
 
-  // Aquesta propietat és la data del dia en format ISO YYYY-MM-DD,
-  // tal com l'emet el backend a partir de displayDate de Google.
+  // Aquesta propietat identifica el dia de la previsió.
+  // Arriba en format YYYY-MM-DD per facilitar comparacions i seleccions.
   final String date;
 
-  // Aquestes propietats són les temperatures extremes del dia en Celsius.
-  // Es deixen opcionals per tolerar respostes parcials sense forçar el
-  // valor 0 que confondria l'usuari.
+  // Aquestes propietats indiquen les temperatures extremes del dia.
+  // Es mantenen opcionals per no mostrar dades enganyoses si el backend no les envia.
   final double? minTempC;
   final double? maxTempC;
   final double? feelsLikeMinC;
   final double? feelsLikeMaxC;
 
-  // Aquests blocs porten la previsió diürna i nocturna del dia.
+  // Aquests blocs contenen la previsió diürna i nocturna del dia.
   final HalfDayForecast? daytime;
   final HalfDayForecast? nighttime;
 
-  // Aquestes propietats són les hores d'eixida i posta de sol en format
-  // ISO 8601 amb timezone, tal com les emet Google.
+  // Aquestes propietats indiquen l’hora de sortida i posta de sol.
+  // Aporten context útil per planificar una activitat de muntanya.
   final String? sunriseTime;
   final String? sunsetTime;
 
-  // Aquest getter retorna la condició dominant del dia (la diürna si
-  // existeix, o la nocturna com a fallback). És el que pinta la card del
-  // detall per resumir el dia sencer en una sola icona.
+  // Aquest getter retorna la condició principal del dia.
+  // Prioritza la previsió diürna i utilitza la nocturna com a alternativa.
   WeatherCondition? get dominantCondition =>
       daytime?.condition ?? nighttime?.condition;
 
-  // Aquest constructor transforma un dia de la resposta del backend en
-  // una entitat tipada. Es manté el constructor sense paràmetres
-  // obligatoris excepte la data, perquè qualsevol altra dada pot faltar
-  // en previsions a llarg termini.
+  // Aquest constructor transforma una previsió diària del backend en una entitat tipada.
+  // Només la data és obligatòria perquè la resta de dades pot no estar disponible.
   factory DailyForecast.fromJson(Map<String, dynamic> json) {
     return DailyForecast(
       date: (json['date']?.toString() ?? '').trim(),
@@ -170,6 +156,8 @@ class DailyForecast {
     );
   }
 
+  // Aquestes funcions adapten valors opcionals del JSON.
+  // Permeten construir el model encara que alguns camps no arribin informats.
   static double? _parseNullableDouble(dynamic value) {
     if (value == null) return null;
     if (value is double) return value;
@@ -187,10 +175,8 @@ class DailyForecast {
   }
 }
 
-// Aquesta entitat agrupa la previsió completa retornada per
-// l'endpoint /api/peaks/:peakId/weather/daily. Conserva el fus horari
-// retornat per Google perquè la UI pugui mostrar correctament hores
-// (eixida/posta de sol) i agrupacions per dia local.
+// Aquesta entitat agrupa la previsió completa d’un cim.
+// Conserva el cim, el fus horari i la llista de dies disponibles.
 class PeakWeather {
   const PeakWeather({
     required this.peakId,
@@ -199,23 +185,21 @@ class PeakWeather {
   });
 
   // Aquesta propietat identifica el cim al qual pertany la previsió.
-  // El backend l'inclou per facilitar diagnòstics i per si en algun moment
-  // un consumidor vol detectar respostes obsoletes comparant el peakId
-  // entrant amb el cim actual — avui per avui no es comprova, però el
-  // camp queda disponible.
   final int peakId;
 
-  // Aquesta propietat porta la previsió dia a dia ordenada cronològicament.
+  // Aquesta propietat conté la previsió dia a dia ordenada cronològicament.
   final List<DailyForecast> days;
 
-  // Aquesta propietat és el fus horari IANA retornat per Google.
-  // La UI el deixa al controller per si vol formatar dates en local.
+  // Aquesta propietat indica el fus horari de la previsió.
+  // Pot ser útil per mostrar hores locals de manera coherent.
   final String? timeZone;
 
   // Aquest getter indica si la previsió arriba buida.
-  // Permet pintar un estat "sense dades" sense barrejar-lo amb error.
+  // Permet mostrar un estat sense dades sense confondre’l amb un error.
   bool get isEmpty => days.isEmpty;
 
+  // Aquest constructor transforma la resposta del backend en una previsió completa.
+  // Si la llista de dies no és vàlida, retorna una col·lecció buida.
   factory PeakWeather.fromJson(Map<String, dynamic> json) {
     return PeakWeather(
       peakId: _parseInt(json['peakId']),
@@ -224,6 +208,8 @@ class PeakWeather {
     );
   }
 
+  // Aquesta funció adapta la llista de dies rebuda del backend.
+  // Només conserva els elements que tenen el format necessari per crear previsions diàries.
   static List<DailyForecast> _parseDays(dynamic value) {
     if (value is! List) {
       return const [];
@@ -234,6 +220,8 @@ class PeakWeather {
         .toList();
   }
 
+  // Aquestes funcions converteixen valors simples del JSON a tipus segurs.
+  // Permeten construir el model encara que algun camp opcional no arribi informat.
   static int _parseInt(dynamic value, {int defaultValue = 0}) {
     if (value is int) return value;
     if (value is num) return value.toInt();

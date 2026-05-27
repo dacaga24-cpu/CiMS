@@ -1,10 +1,8 @@
 import 'package:cims/app/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
-// Aquest botó es fa servir per a accions destructives (eliminar el compte,
-// l'ascensió o una foto). Comparteix la forma de píndola dels botons
-// primaris perquè s'integri bé als formularis, però amb el color de perill
-// del tema per avisar visualment l'usuari abans de prémer-lo.
+// Aquest botó s’utilitza per a accions destructives o irreversibles.
+// Manté l’estil de botó arrodonit, però utilitza el color de perill del tema.
 class DestructivePillButton extends StatelessWidget {
   const DestructivePillButton({
     super.key,
@@ -13,13 +11,12 @@ class DestructivePillButton extends StatelessWidget {
     this.isLoading = false,
   });
 
-  // Aquesta etiqueta hauria de descriure clarament què passarà (per
-  // exemple "Desactivar compte" o "Eliminar ascensió"); evita textos
-  // ambigus tipus "Continuar".
+  // Aquesta etiqueta descriu l’acció que executarà el botó.
+  // Ha de ser clara perquè l’usuari entengui la conseqüència abans de prémer.
   final String label;
 
-  // L'acció es deshabilita automàticament quan l'operació està en marxa
-  // per evitar dobles clics que generin peticions duplicades.
+  // Aquesta acció s’executa quan l’usuari prem el botó.
+  // Es desactiva mentre carrega per evitar peticions duplicades.
   final VoidCallback? onPressed;
   final bool isLoading;
 

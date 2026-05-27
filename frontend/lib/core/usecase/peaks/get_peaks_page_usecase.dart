@@ -8,10 +8,12 @@ class GetPeaksPageUseCase {
     required ApiClient apiClient,
   }) : _apiClient = apiClient;
 
+  // Aquest client permet obtenir les pàgines del catàleg a través del backend.
+  // Això manté la pantalla separada dels detalls de la petició.
   final ApiClient _apiClient;
 
-  // Aquest mètode demana al backend una pàgina del catàleg.
-  // Els filtres i la cerca es mantenen perquè cada nova pàgina respecti el context actual.
+  // Demana al backend una pàgina del catàleg de cims.
+  // Els filtres i l’ordenació es mantenen perquè cada nova pàgina respecti el context actual.
   Future<PeaksPage> execute({
     String? search,
     int? regionId,

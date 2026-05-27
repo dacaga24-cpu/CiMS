@@ -14,37 +14,31 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 
 // Aquest límit coincideix amb la validació del backend.
-// Evita enviar notes massa llargues i permet mostrar un error abans de fer la petició.
+// Permet mostrar un error abans d’enviar notes massa llargues.
 const int _maxNotesLength = 2000;
 
 // Aquesta configuració redueix el pes de les fotos abans de pujar-les.
-// Es manté una mida suficient per veure la imatge amb qualitat dins de l’aplicació.
-// FlutterImageCompress interpreta minWidth/minHeight com a dimensions mínimes
-// del costat resultant, no màximes. Aquests valors limiten les fotos a una
-// caixa de 1920 px mantenint l’evidència visible amb un pes molt inferior.
+// Manté una qualitat suficient per mostrar-les correctament dins de l’aplicació.
 const int _minPhotoWidth = 1920;
 const int _minPhotoHeight = 1920;
 const int _photoJpegQuality = 82;
 const int _maxAscentPhotos = 8;
 const String _photoMimeType = 'image/jpeg';
 
-// Aquest enum indica les accions de navegació que la vista ha de resoldre
-// des de fora del controller.
+// Aquest enum indica les accions de navegació que la vista ha de resoldre.
 enum AscentRegisterNavigationDestination {
   none,
   back,
 }
 
-// Aquest enum permet comunicar avisos puntuals a la pantalla
-// sense barrejar-los amb la navegació.
+// Aquest enum permet comunicar avisos puntuals a la pantalla.
 enum AscentRegisterFeedback {
   none,
   saved,
 }
 
-// Aquest controller gestiona l’estat local del formulari de registre d’ascensió.
-// Controla la data opcional, les notes, les fotos, les validacions, el desat amb
-// backend i la sincronització de l’estat del cim quan el registre es completa.
+// Aquest controller gestiona el formulari de registre d’ascensió.
+// Controla la data, les notes, les fotos, les validacions i la sincronització posterior.
 class AscentRegisterController extends ChangeNotifier {
   AscentRegisterController({
     required this.peakId,
@@ -70,26 +64,23 @@ class AscentRegisterController extends ChangeNotifier {
         _imagePicker = imagePicker ?? ImagePicker();
 
   // Aquest identificador indica a quin cim quedarà associada l’ascensió.
-  // Arriba des de la pantalla de detall del cim.
   final int peakId;
 
-  // Aquest bloc agrupa les dependències que permeten registrar l’ascensió,
-  // mantenir sincronitzat l’estat compartit dels cims i avisar les estadístiques.
+  // Aquestes dependències permeten registrar l’ascensió i sincronitzar l’estat compartit.
+  // També avisen les estadístiques quan cal tornar-les a carregar.
   final RegisterAscentUseCase _registerAscentUseCase;
   final PeakStatusStore _peakStatusStore;
   final UserStatsRefreshStore _userStatsRefreshStore;
 
-  // Aquestes dependències gestionen la selecció local de la imatge
-  // i la seva pujada temporal abans de registrar l’ascensió.
+  // Aquestes dependències gestionen la selecció i la pujada temporal de fotos.
   final UploadAscentPhotoUseCase _uploadAscentPhotoUseCase;
   final ImagePicker _imagePicker;
 
-  // Aquest camp guarda el text lliure que l’usuari escriu
-  // per deixar observacions sobre l’ascensió.
+  // Aquest controlador guarda les notes escrites per l’usuari.
   final TextEditingController notesController = TextEditingController();
 
-  // Aquest bloc manté l’estat intern del formulari:
-  // data opcional, càrrega, errors, navegació i avisos puntuals.
+  // Aquestes dades mantenen l’estat intern del formulari.
+  // Inclouen data, càrrega, errors, navegació i avisos puntuals.
   DateTime? _selectedAscentDate;
   bool _disposed = false;
 
@@ -97,8 +88,8 @@ class AscentRegisterController extends ChangeNotifier {
   bool showValidation = false;
   String? errorMessage;
 
-  // Aquest bloc manté l’estat de les fotos seleccionades.
-  // Les previsualitzacions permeten ensenyar miniatures i les rutes pujades s’envien al backend.
+  // Aquestes dades mantenen l’estat de les fotos seleccionades.
+  // Les previsualitzacions es mostren a la pantalla i les rutes pujades s’envien al backend.
   final List<Uint8List> selectedPhotoPreviewBytes = [];
   final List<AscentUploadPhoto> _uploadedPhotos = [];
   bool isUploadingPhoto = false;
@@ -120,11 +111,9 @@ class AscentRegisterController extends ChangeNotifier {
   DateTime? get selectedAscentDate => _selectedAscentDate;
 
   // Aquest valor indica si el formulari té una data seleccionada.
-  // Permet a la pantalla mostrar l’opció de netejar-la només quan cal.
   bool get hasSelectedAscentDate => _selectedAscentDate != null;
 
-  // Aquest valor preparat mostra la data seleccionada o un text d’ajuda
-  // quan l’usuari encara no ha triat cap data.
+  // Aquest valor mostra la data seleccionada o un text d’ajuda.
   String get formattedAscentDate {
     final selectedDate = _selectedAscentDate;
 
@@ -135,8 +124,7 @@ class AscentRegisterController extends ChangeNotifier {
     return _formatDate(selectedDate);
   }
 
-  // Aquest valor indica si el registre s’està intentant guardar sense data.
-  // La pantalla l’utilitza per demanar confirmació abans d’enviar el formulari.
+  // Aquest valor indica si cal confirmar un registre sense data.
   bool get needsMissingDateConfirmation => _selectedAscentDate == null;
 
   AscentRegisterNavigationDestination get destination => _destination;
@@ -144,19 +132,17 @@ class AscentRegisterController extends ChangeNotifier {
   AscentRegisterFeedback get feedback => _feedback;
 
   // Aquest getter indica si les notes superen el límit acceptat.
-  // La pantalla el pot utilitzar per mostrar l’error visual corresponent.
   bool get hasInvalidNotes =>
       showValidation && notesController.text.length > _maxNotesLength;
 
-  // Aquest getter retorna les notes netes, o null si l’usuari no ha escrit res.
-  // Així el backend rep només informació útil.
+  // Aquest getter retorna les notes netes o null si no hi ha contingut útil.
   String? get _normalizedNotes {
     final notes = notesController.text.trim();
     return notes.isEmpty ? null : notes;
   }
 
-  // Aquest getter prepara la llista de fotos que s’enviarà al backend.
-  // Es marca com a principal la primera foto visible del formulari.
+  // Aquest getter prepara les fotos que s’enviaran al backend.
+  // La primera foto visible queda marcada com a principal.
   List<AscentUploadPhoto> get _photosForSubmit {
     return _uploadedPhotos.asMap().entries.map((entry) {
       final index = entry.key;
@@ -170,7 +156,6 @@ class AscentRegisterController extends ChangeNotifier {
   }
 
   // Aquest mètode actualitza la data seleccionada del registre.
-  // La pantalla li passa la data escollida des del selector de calendari.
   void onAscentDateChanged(DateTime value) {
     if (isLoading || isUploadingPhoto) {
       return;
@@ -182,8 +167,7 @@ class AscentRegisterController extends ChangeNotifier {
   }
 
   // Aquest mètode deixa el registre sense data.
-  // Serveix per als casos en què l’usuari sap que ha completat el cim,
-  // però no recorda el dia exacte de l’ascensió.
+  // Serveix quan l’usuari no recorda el dia exacte de l’ascensió.
   void onClearAscentDateTap() {
     if (isLoading || isUploadingPhoto) {
       return;
@@ -194,15 +178,14 @@ class AscentRegisterController extends ChangeNotifier {
     _safeNotifyListeners();
   }
 
-  // Aquest mètode neteja els errors quan l’usuari modifica les notes.
-  // Ajuda a evitar que es mantinguin avisos antics després de corregir el formulari.
+  // Aquest mètode neteja errors quan l’usuari modifica les notes.
   void onNotesChanged(String value) {
     errorMessage = null;
     _safeNotifyListeners();
   }
 
-  // Aquest mètode obre el selector d’imatges, prepara les fotos en format JPEG
-  // i les puja a l’emmagatzematge abans de guardar l’ascensió.
+  // Aquest mètode obre el selector d’imatges i puja les fotos seleccionades.
+  // Les imatges es preparen en JPEG abans de quedar disponibles per al registre.
   Future<void> onPhotoTap() async {
     if (isLoading || isUploadingPhoto) {
       return;
@@ -280,8 +263,8 @@ class AscentRegisterController extends ChangeNotifier {
     }
   }
 
-  // Aquest mètode elimina una foto concreta del formulari abans d’enviar l’ascensió.
-  // Només neteja l’estat local perquè la imatge encara no està associada a cap registre definitiu.
+  // Aquest mètode elimina una foto del formulari abans de registrar l’ascensió.
+  // Només modifica l’estat local perquè encara no hi ha cap registre definitiu.
   void onRemovePhotoTap(int index) {
     if (isLoading || isUploadingPhoto) {
       return;
@@ -298,8 +281,7 @@ class AscentRegisterController extends ChangeNotifier {
   }
 
   // Aquest mètode confirma el formulari i envia l’ascensió al backend.
-  // Si el registre funciona, el cim queda completat i les estadístiques
-  // es marquen per tornar-se a carregar.
+  // Si el registre és correcte, actualitza l’estat del cim i avisa les estadístiques.
   Future<void> onConfirmTap() async {
     if (isLoading || isUploadingPhoto) {
       return;
@@ -374,7 +356,7 @@ class AscentRegisterController extends ChangeNotifier {
   }
 
   // Aquest mètode valida les dades abans d’enviar-les al backend.
-  // La data és opcional, però si existeix no pot ser futura.
+  // La data és opcional, però no pot ser futura si s’ha informat.
   bool _isValidForm() {
     final selectedDate = _selectedAscentDate;
     final today = DateUtils.dateOnly(DateTime.now());
@@ -394,8 +376,7 @@ class AscentRegisterController extends ChangeNotifier {
   }
 
   // Aquest mètode sincronitza l’estat local del cim després d’un registre correcte.
-  // El backend marca el cim com a completat, i el frontend reflecteix aquest canvi
-  // sense obligar l’usuari a recarregar el catàleg o el detall.
+  // Permet reflectir el cim com a completat sense recarregar tota l’aplicació.
   void _markPeakAsCompletedInStore() {
     final currentStatus =
         _peakStatusStore.getStatus(peakId) ?? PeakStatus.emptyForPeak(peakId);
@@ -407,8 +388,7 @@ class AscentRegisterController extends ChangeNotifier {
     );
   }
 
-  // Aquí s’alliberen els recursos del formulari abans de tancar-lo,
-  // evitant que quedin controladors actius quan la pantalla desapareix.
+  // Aquest mètode allibera els recursos del formulari quan la pantalla es tanca.
   @override
   void dispose() {
     _disposed = true;
@@ -416,8 +396,8 @@ class AscentRegisterController extends ChangeNotifier {
     super.dispose();
   }
 
-  // Aquest mètode centralitza la notificació de canvis
-  // i evita intentar actualitzar la vista quan el controller ja s’ha tancat.
+  // Aquest mètode centralitza la notificació de canvis.
+  // Evita actualitzar la vista quan el controller ja s’ha tancat.
   void _safeNotifyListeners() {
     if (!_disposed) {
       notifyListeners();
@@ -433,8 +413,7 @@ class AscentRegisterController extends ChangeNotifier {
     return '$day/$month/$year';
   }
 
-  // Aquest suport assegura que dia i mes sempre es mostrin
-  // amb dos dígits per mantenir un format visual uniforme.
+  // Aquest suport assegura que dia i mes es mostrin sempre amb dos dígits.
   String _twoDigits(int value) {
     return value.toString().padLeft(2, '0');
   }

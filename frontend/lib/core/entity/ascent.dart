@@ -2,8 +2,7 @@ import 'package:cims/core/entity/ascent_photo.dart';
 import 'package:cims/core/entity/ascent_verification.dart';
 
 // Aquesta entitat representa una ascensió registrada per l’usuari.
-// Guarda la relació amb el cim, la data, les notes, les fotos
-// i l’estat de verificació quan l’ascensió s’ha validat des de l’app.
+// Guarda la relació amb el cim, la data, les notes, les fotos i l’estat de verificació.
 class Ascent {
   const Ascent({
     required this.id,
@@ -19,6 +18,8 @@ class Ascent {
     required this.updatedAt,
   });
 
+  // Aquestes dades defineixen la informació principal de l’ascensió.
+  // Permeten mostrar-la, editar-la i relacionar-la amb el cim i l’usuari corresponents.
   final int id;
   final int userId;
   final int peakId;
@@ -63,6 +64,8 @@ class Ascent {
   // Serveix per mostrar visualment que el registre ha estat validat.
   bool get isVerified => verification?.isVerified ?? false;
 
+  // Aquestes funcions adapten blocs opcionals de la resposta del backend.
+  // Permeten incorporar verificació i fotos només quan realment existeixen.
   static AscentVerification? _parseOptionalVerification(dynamic value) {
     if (value is Map) {
       return AscentVerification.fromJson(
@@ -92,6 +95,8 @@ class Ascent {
         .toList();
   }
 
+  // Aquestes funcions converteixen valors del JSON a tipus segurs.
+  // Permeten validar camps obligatoris i tractar correctament camps opcionals.
   static int _parseInt(dynamic value, String fieldName) {
     if (value is int) return value;
     if (value is num) return value.toInt();

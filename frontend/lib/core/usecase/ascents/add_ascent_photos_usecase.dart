@@ -7,8 +7,12 @@ import 'package:cims/core/entity/ascent_upload_photo.dart';
 class AddAscentPhotosUseCase {
   const AddAscentPhotosUseCase(this._apiClient);
 
+  // Aquest client permet comunicar el cas d’ús amb el backend.
+  // Manté separada la lògica de la pantalla de la petició real a l’API.
   final ApiClient _apiClient;
 
+  // Executa l’associació de fotos amb una ascensió concreta.
+  // Retorna les fotos creades perquè la interfície pugui actualitzar-se amb les dades definitives.
   Future<List<AscentPhoto>> call({
     required int ascentId,
     required List<AscentUploadPhoto> photos,

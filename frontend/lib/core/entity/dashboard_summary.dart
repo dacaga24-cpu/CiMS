@@ -1,6 +1,5 @@
-// Aquest model agrupa totes les dades que necessita el dashboard.
-// Permet representar tant les estadístiques ja existents com els nous blocs
-// pendents del backend sense bloquejar el desenvolupament de la pantalla.
+// Aquest model agrupa les dades necessàries per construir el dashboard.
+// Permet mostrar progrés, reptes, cims destacats i activitat recent.
 class DashboardSummary {
   const DashboardSummary({
     required this.completedPeaks,
@@ -21,8 +20,8 @@ class DashboardSummary {
     this.monthlyAscents = const [],
   });
 
-  // Aquest bloc conté els indicadors i llistes que alimenten el dashboard.
-  // Permet mostrar el progrés general, els reptes, els cims destacats i l’activitat recent.
+  // Aquestes dades alimenten les diferents targetes del dashboard.
+  // Inclouen indicadors generals, llistes resumides i activitat recent.
   final int completedPeaks;
   final int activeTargets;
   final int favorites;
@@ -40,8 +39,8 @@ class DashboardSummary {
   final DashboardPeakItem? mostAscendedPeak;
   final List<MonthlyAscentsItem> monthlyAscents;
 
-  // Aquest constructor transforma la resposta JSON del backend en un objecte usable pel frontend.
-  // Els valors per defecte eviten errors si algun camp encara no està disponible al backend.
+  // Aquest constructor transforma la resposta del backend en dades del dashboard.
+  // Els valors per defecte eviten errors quan algun bloc encara no arriba informat.
   factory DashboardSummary.fromJson(Map<String, dynamic> json) {
     final completedPeaks = _asInt(json['completedPeaks']);
     final challengeJson = _asMap(json['challengeProgress']);
@@ -89,7 +88,7 @@ class DashboardSummary {
   }
 
   // Aquest mètode crea una nova versió del resum mantenint les dades existents.
-  // És útil quan el dashboard i el repte mensual arriben des d'endpoints diferents.
+  // És útil quan una part del dashboard s’actualitza des d’un altre endpoint.
   DashboardSummary copyWith({
     int? completedPeaks,
     int? activeTargets,
@@ -131,7 +130,7 @@ class DashboardSummary {
 }
 
 // Aquest model representa el progrés del repte principal dels 100 cims.
-// El dashboard l’utilitza per mostrar percentatge, completats i objectiu total.
+// El dashboard l’utilitza per mostrar completats, objectiu, pendent i percentatge.
 class ChallengeProgress {
   const ChallengeProgress({
     required this.completed,
@@ -141,14 +140,14 @@ class ChallengeProgress {
   });
 
   // Aquestes dades descriuen l’estat numèric del repte principal.
-  // Permeten calcular i mostrar de manera clara què s’ha completat i què queda pendent.
+  // Permeten mostrar què s’ha completat i què queda pendent.
   final int completed;
   final int target;
   final int remaining;
   final int percentage;
 
-  // Aquest constructor crea el progrés del repte a partir del total de cims completats.
-  // S’utilitza com a suport si el backend encara no envia l’objecte challengeProgress.
+  // Aquest constructor crea el progrés a partir del total de cims completats.
+  // S’utilitza quan el backend no envia l’objecte complet del repte.
   factory ChallengeProgress.fromCompleted(int completed) {
     const target = 100;
     final remaining = (target - completed).clamp(0, target).toInt();
@@ -164,7 +163,7 @@ class ChallengeProgress {
   }
 
   // Aquest constructor crea el progrés del repte a partir del JSON rebut.
-  // Si el backend no envia algun valor calculat, el model el genera amb dades bàsiques.
+  // Si falta algun valor calculat, el model el completa amb les dades disponibles.
   factory ChallengeProgress.fromJson(Map<String, dynamic> json) {
     final completed = _asInt(json['completed'] ?? json['current']);
     final target = _asInt(json['target'], defaultValue: 100);
@@ -187,7 +186,7 @@ class ChallengeProgress {
 }
 
 // Aquest model representa un cim mostrat dins del dashboard.
-// Serveix per als pendents, favorits, cim més alt o cim més repetit.
+// Serveix per a pendents, favorits i cims destacats.
 class DashboardPeakItem {
   const DashboardPeakItem({
     required this.id,
@@ -198,8 +197,8 @@ class DashboardPeakItem {
     this.ascentCount,
   });
 
-  // Aquestes dades contenen la informació mínima d’un cim dins del resum.
-  // Permeten identificar-lo i mostrar detalls útils sense carregar tota la fitxa completa.
+  // Aquestes dades resumeixen un cim sense carregar tota la seva fitxa.
+  // Permeten identificar-lo i mostrar informació útil dins del dashboard.
   final int id;
   final String name;
   final int? altitude;
@@ -207,8 +206,8 @@ class DashboardPeakItem {
   final String? imageUrl;
   final int? ascentCount;
 
-  // Aquest constructor transforma un cim del JSON en un element visual del dashboard.
-  // Accepta camps opcionals i noms alternatius per adaptar-se a la resposta real del backend.
+  // Aquest constructor transforma el JSON d’un cim en un element del dashboard.
+  // Accepta camps opcionals i noms alternatius de la resposta del backend.
   factory DashboardPeakItem.fromJson(Map<String, dynamic> json) {
     return DashboardPeakItem(
       id: _asInt(json['id'] ?? json['peakId'] ?? json['peak_id']),
@@ -235,7 +234,7 @@ class DashboardPeakItem {
 }
 
 // Aquest model representa el repte mensual del dashboard.
-// Permet mostrar un objectiu temporal independent del repte general dels 100 cims.
+// Permet mostrar un objectiu temporal independent del repte general.
 class MonthlyChallenge {
   const MonthlyChallenge({
     required this.current,
@@ -250,7 +249,7 @@ class MonthlyChallenge {
   });
 
   // Aquestes dades defineixen l’estat i la presentació del repte mensual.
-  // Permeten mostrar un objectiu proper amb unitat, text descriptiu i percentatge de progrés.
+  // Permeten mostrar progrés, unitat, nivells i text descriptiu.
   final int current;
   final int target;
   final int percentage;
@@ -262,7 +261,7 @@ class MonthlyChallenge {
   final bool isFullyCompleted;
 
   // Aquest constructor crea el repte mensual a partir de la resposta del backend.
-  // Accepta tant el format simple del dashboard com el format complet de /monthly-challenges/current.
+  // Accepta tant el format resumit del dashboard com el format complet del recurs mensual.
   factory MonthlyChallenge.fromJson(Map<String, dynamic> json) {
     final targets = _asIntList(json['targets']);
     final current = _asInt(json['current'] ?? json['currentProgress']);
@@ -303,7 +302,7 @@ class MonthlyChallenge {
 }
 
 // Aquest model representa una ascensió recent.
-// El dashboard el pot utilitzar per mostrar activitat recent de l’usuari.
+// El dashboard l’utilitza per mostrar l’activitat més nova de l’usuari.
 class DashboardRecentAscent {
   const DashboardRecentAscent({
     required this.id,
@@ -316,8 +315,8 @@ class DashboardRecentAscent {
     this.imageUrl,
   });
 
-  // Aquestes dades descriuen una ascensió concreta dins del resum d’activitat.
-  // Permeten mostrar quin cim s’ha registrat, quan s’ha fet i informació complementària.
+  // Aquestes dades resumeixen una ascensió dins de l’activitat recent.
+  // Permeten mostrar el cim, la data i informació complementària.
   final int id;
   final int peakId;
   final String peakName;
@@ -327,8 +326,8 @@ class DashboardRecentAscent {
   final String? notes;
   final String? imageUrl;
 
-  // Aquest constructor adapta el JSON d’una ascensió recent al format que espera el frontend.
-  // També contempla noms de camp alternatius per mantenir compatibilitat amb el backend.
+  // Aquest constructor adapta el JSON d’una ascensió recent al format del dashboard.
+  // També contempla noms de camp alternatius per mantenir compatibilitat.
   factory DashboardRecentAscent.fromJson(Map<String, dynamic> json) {
     return DashboardRecentAscent(
       id: _asInt(json['id']),
@@ -352,7 +351,7 @@ class DashboardRecentAscent {
 }
 
 // Aquest model representa una foto recent mostrada al dashboard.
-// Cada element correspon a una imatge representativa d'una ascensió de l'usuari.
+// Dona context visual a l’activitat recent de l’usuari.
 class DashboardRecentPhoto {
   const DashboardRecentPhoto({
     required this.id,
@@ -366,8 +365,8 @@ class DashboardRecentPhoto {
     this.createdAt,
   });
 
-  // Aquestes dades permeten mostrar la foto i relacionar-la amb el cim i l'ascensió.
-  // El downloadUrl és opcional perquè pot no generar-se si hi ha un problema temporal.
+  // Aquestes dades permeten mostrar la foto i relacionar-la amb el cim i l’ascensió.
+  // La URL de descàrrega és opcional perquè pot no estar disponible temporalment.
   final int id;
   final int ascentId;
   final int peakId;
@@ -378,8 +377,8 @@ class DashboardRecentPhoto {
   final bool isPrimary;
   final String? createdAt;
 
-  // Aquest constructor transforma la resposta del backend en una foto usable pel dashboard.
-  // Accepta noms de camp en camelCase i snake_case per mantenir compatibilitat.
+  // Aquest constructor transforma la resposta del backend en una foto del dashboard.
+  // Accepta diferents noms de camp per mantenir compatibilitat amb el format rebut.
   factory DashboardRecentPhoto.fromJson(Map<String, dynamic> json) {
     return DashboardRecentPhoto(
       id: _asInt(json['id']),
@@ -398,7 +397,7 @@ class DashboardRecentPhoto {
 }
 
 // Aquest model representa el nombre d’ascensions agrupades per mes.
-// És útil per a estadístiques i pot alimentar gràfiques futures.
+// Permet mostrar resum temporal d’activitat dins d’estadístiques o dashboard.
 class MonthlyAscentsItem {
   const MonthlyAscentsItem({
     required this.month,
@@ -406,12 +405,12 @@ class MonthlyAscentsItem {
   });
 
   // Aquestes dades representen un resum mensual d’activitat.
-  // Permeten construir estadístiques temporals sense dependre de cada ascensió individual.
+  // Permeten construir estadístiques sense dependre de cada ascensió individual.
   final String month;
   final int total;
 
-  // Aquest constructor converteix cada registre mensual del JSON en un element d’estadística.
-  // Accepta tant total com count per adaptar-se a possibles variants del backend.
+  // Aquest constructor converteix cada registre mensual en un element d’estadística.
+  // Accepta tant total com count per adaptar-se a la resposta del backend.
   factory MonthlyAscentsItem.fromJson(Map<String, dynamic> json) {
     return MonthlyAscentsItem(
       month: _asString(json['month']),
@@ -421,10 +420,8 @@ class MonthlyAscentsItem {
 }
 
 // Aquestes funcions centralitzen conversions simples del JSON.
-// Fan que els models siguin més tolerants mentre el contracte del backend encara evoluciona.
+// Fan que els models siguin més tolerants davant valors absents o formats diferents.
 
-// Aquesta funció transforma valors numèrics o textos en enters.
-// Si el valor no és vàlid, retorna un valor per defecte per evitar errors de càrrega.
 int _asInt(dynamic value, {int defaultValue = 0}) {
   if (value is int) return value;
   if (value is double) return value.round();
@@ -432,31 +429,23 @@ int _asInt(dynamic value, {int defaultValue = 0}) {
   return defaultValue;
 }
 
-// Aquesta funció transforma qualsevol valor simple en text.
-// Permet assegurar que els camps obligatoris de tipus String sempre tinguin un valor usable.
 String _asString(dynamic value, {String defaultValue = ''}) {
   if (value == null) return defaultValue;
   return value.toString();
 }
 
-// Aquesta funció transforma un valor en text opcional.
-// Retorna null quan no hi ha contingut real, evitant mostrar textos buits a la interfície.
 String? _asNullableString(dynamic value) {
   if (value == null) return null;
   final text = value.toString().trim();
   return text.isEmpty ? null : text;
 }
 
-// Aquesta funció assegura que un valor rebut sigui un mapa JSON vàlid.
-// Facilita crear submodels encara que el backend no enviï l’objecte esperat.
 Map<String, dynamic> _asMap(dynamic value) {
   if (value is Map<String, dynamic>) return value;
   if (value is Map) return Map<String, dynamic>.from(value);
   return <String, dynamic>{};
 }
 
-// Aquesta funció assegura que una llista del JSON contingui només mapes compatibles.
-// Permet transformar col·leccions de dades sense trencar la pantalla si algun element no és vàlid.
 List<Map<String, dynamic>> _asList(dynamic value) {
   if (value is List) {
     return value
@@ -482,15 +471,13 @@ String? _asRegionsText(dynamic value) {
 }
 
 // Aquesta funció transforma una llista de valors numèrics en enters.
-// S'utilitza per adaptar els nivells del repte mensual enviats pel backend.
+// S’utilitza per adaptar els nivells del repte mensual enviats pel backend.
 List<int> _asIntList(dynamic value) {
   if (value is! List) return <int>[];
 
   return value.map(_asInt).where((item) => item > 0).toList();
 }
 
-// Aquesta funció transforma valors simples en booleans.
-// Permet llegir respostes del backend encara que el valor arribi amb formats diferents.
 bool _asBool(dynamic value) {
   if (value is bool) return value;
   if (value is num) return value != 0;
@@ -515,7 +502,7 @@ String _monthlyChallengeUnit(String type, dynamic fallback) {
 }
 
 // Aquesta funció genera un títol entenedor quan el backend només envia el tipus del repte.
-// Això permet mostrar el repte mensual sense exposar noms interns a l'usuari.
+// Això permet mostrar el repte mensual sense exposar noms interns a l’usuari.
 String _monthlyChallengeTitle(String type) {
   switch (type) {
     case 'distinct_regions':
@@ -528,7 +515,7 @@ String _monthlyChallengeTitle(String type) {
 }
 
 // Aquesta funció prepara el text resum del repte mensual.
-// Inclou el nivell desbloquejat i el progrés total sobre l'objectiu final.
+// Inclou el nivell desbloquejat i el progrés total sobre l’objectiu final.
 String _monthlyChallengeDescription({
   required int current,
   required int target,

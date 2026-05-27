@@ -7,7 +7,7 @@ import 'package:cims/core/util/format.dart';
 import 'package:flutter/material.dart';
 
 // Aquesta targeta mostra el cim seleccionat dins del mapa.
-// Manté visible la informació principal, l’estat del cim i les accions ràpides.
+// Resumeix la informació principal i ofereix accions ràpides sobre el cim.
 class PeaksMapSelectedPeakCard extends StatelessWidget {
   const PeaksMapSelectedPeakCard({
     super.key,
@@ -18,6 +18,7 @@ class PeaksMapSelectedPeakCard extends StatelessWidget {
     this.onFavoriteTap,
   });
 
+  // Aquestes dades defineixen el cim visible, el seu estat i les accions disponibles.
   final Peak peak;
   final VoidCallback onDetailTap;
   final PeakStatus? status;
@@ -32,10 +33,6 @@ class PeaksMapSelectedPeakCard extends StatelessWidget {
 
     final currentStatus = status ?? PeakStatus.emptyForPeak(peak.id);
 
-    // GestureDetector opaque per absorbir els taps que no van als botons
-    // interiors. Sense això, els clics sobre les zones "buides" de la
-    // targeta (al voltant del nom o entre botons) es propaguen al
-    // GoogleMap de sota, que té un `onTap` que tanca la selecció.
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {},
@@ -150,8 +147,8 @@ class PeaksMapSelectedPeakCard extends StatelessWidget {
   }
 }
 
-// Aquest segell indica si el cim està completat.
-// Es mostra sempre perquè ajuda a entendre ràpidament l’estat del cim seleccionat.
+// Aquest segell indica si el cim ja està completat.
+// Es mostra sempre per donar context immediat sobre l’estat del cim seleccionat.
 class _CompletedMiniSeal extends StatelessWidget {
   const _CompletedMiniSeal({
     required this.isCompleted,
@@ -198,8 +195,8 @@ class _CompletedMiniSeal extends StatelessWidget {
   }
 }
 
-// Aquest botó representa una acció manual ràpida dins del mapa.
-// Només s’utilitza per marcar el cim com a objectiu o preferit.
+// Aquest botó representa una acció ràpida sobre l’estat personal del cim.
+// S’utilitza per marcar o desmarcar objectiu i preferit des del mapa.
 class _MapStatusButton extends StatelessWidget {
   const _MapStatusButton({
     required this.label,
@@ -209,6 +206,7 @@ class _MapStatusButton extends StatelessWidget {
     required this.onTap,
   });
 
+  // Aquestes dades defineixen el text, la icona, l’estat visual i l’acció del botó.
   final String label;
   final IconData icon;
   final bool isActive;

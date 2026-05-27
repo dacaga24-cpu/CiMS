@@ -1,8 +1,7 @@
 import 'package:cims/core/entity/region.dart';
 
 // Aquesta entitat representa la informació d’un cim dins de l’aplicació.
-// Es fa servir tant al catàleg com al detall, de manera que pot contenir
-// dades bàsiques i també camps opcionals si el backend els retorna.
+// S’utilitza al catàleg, al mapa i al detall amb dades bàsiques i camps opcionals.
 class Peak {
   const Peak({
     required this.id,
@@ -15,6 +14,8 @@ class Peak {
     this.imageUrl,
   });
 
+  // Aquestes dades defineixen la informació principal del cim.
+  // Permeten identificar-lo, mostrar-lo i ubicar-lo dins del catàleg o del mapa.
   final int id;
   final String name;
   final int altitude;
@@ -25,8 +26,7 @@ class Peak {
   final String? imageUrl;
 
   // Aquest constructor transforma la resposta del backend en un objecte Peak.
-  // Pot llegir tant la versió resumida del catàleg com una versió més completa
-  // per al detall, sense obligar a crear una entitat diferent.
+  // Accepta tant la versió resumida del catàleg com una versió més completa per al detall.
   factory Peak.fromJson(Map<String, dynamic> json) {
     final idRaw = json['id'];
     final altitudeRaw = json['altitude'];
@@ -86,24 +86,21 @@ class Peak {
     );
   }
 
-  // Aquest getter prepara el text de regions en un únic format llegible.
+  // Aquest getter prepara el text de regions en un format llegible.
+  // Permet mostrar totes les comarques associades al cim en una sola cadena.
   String get formattedRegions =>
       regions.map((region) => region.name).join(', ');
 
-  // Aquest getter ajuda la vista a decidir si cal mostrar la descripció.
+  // Aquest getter indica si el cim té una descripció útil per mostrar.
   bool get hasDescription =>
       description != null && description!.trim().isNotEmpty;
 
-  // Aquest getter indica si el cim disposa d'una imatge pública del catàleg.
-  // Permet que la interfície decideixi si ha de mostrar la imatge del bucket
-  // o mantenir la imatge local de reserva.
+  // Aquest getter indica si el cim disposa d’una imatge pública del catàleg.
+  // Permet decidir si cal mostrar la imatge remota o una imatge local de reserva.
   bool get hasImageUrl => imageUrl != null && imageUrl!.trim().isNotEmpty;
 
-  // Aquest getter indica si el cim disposa de coordenades útils
-  // per poder obrir la seva posició al mapa. La validació de rang
-  // evita que un valor corrupte a la BD (per exemple un overflow del
-  // DECIMAL) faci que el càlcul de límits del mapa s'expandeixi a tot
-  // el planeta i deixi la càmera enfocada al pol nord.
+  // Aquest getter indica si el cim disposa de coordenades vàlides.
+  // Permet mostrar-lo al mapa només quan la seva posició és usable.
   bool get hasMapPosition {
     final lat = latitude;
     final lng = longitude;
@@ -113,6 +110,8 @@ class Peak {
     return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
   }
 
+  // Aquestes funcions adapten valors opcionals del JSON a tipus segurs.
+  // Permeten construir el model encara que alguns camps no arribin informats.
   static String? _parseNullableString(dynamic value) {
     final text = value?.toString().trim();
     if (text == null || text.isEmpty) {
