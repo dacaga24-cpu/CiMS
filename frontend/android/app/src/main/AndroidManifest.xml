@@ -14,7 +14,7 @@
         android:required="false" />
 
     <application
-        android:label="cims"
+        android:label="CiMS"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

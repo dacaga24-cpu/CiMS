@@ -5,7 +5,7 @@
 name: cims
 description: Frontend multiplataforma de CiMS per consultar cims, registrar ascensions i gestionar el progrés de l'usuari.
 publish_to: 'none'
-version: 0.1.0+1
+version: 1.0.0+1
 
 environment:
   sdk: '>=2.19.0 <4.0.0'
@@ -38,9 +38,26 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   auto_route_generator: ^10.5.0
   build_runner: ^2.13.1
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/cims_logo.svg
+    - assets/images/cims_logo_1024.png
     - assets/images/montana_0001.png
+
+# Configuració per al paquet `flutter_launcher_icons`.
+# Genera els icons del launcher Android a partir del logo en PNG. La imatge base
+# (`image_path`) s'usa per al fallback legacy (Android 7 i anteriors), mentre que
+# l'adaptive icon (Android 8+) separa fons i primer pla per evitar que el
+# màscara circular del sistema talli el logo.
+# Per regenerar: `dart run flutter_launcher_icons`.
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: false
+  image_path: "assets/images/cims_logo_1024.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/cims_logo_1024_padded.png"
+  adaptive_icon_monochrome: "assets/images/cims_logo_1024_padded.png"
